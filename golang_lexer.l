@@ -108,5 +108,6 @@ DEC_LIT         0|[1-9](_?{DEC_DIGS})?
 "{"                     { cout << "OBrace: "  << yytext << '\n'; }
 "}"                     { cout << "CBrace: "  << yytext << '\n'; }
 
+{WHITE_SPACES};
 
 %%
