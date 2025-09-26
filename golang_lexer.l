@@ -38,6 +38,26 @@ using std::cout;
 
 %%
 
+"append"                {cout << "Predeclared Functions: " << yytext << '\n';}
+"cap"                   {cout << "Predeclared Functions: " << yytext << '\n';}
+"clear"                 {cout << "Predeclared Functions: " << yytext << '\n';}
+"close"                 {cout << "Predeclared Functions: " << yytext << '\n';}
+"complex"               {cout << "Predeclared Functions: " << yytext << '\n';}
+"copy"                  {cout << "Predeclared Functions: " << yytext << '\n';}
+"delete"                {cout << "Predeclared Functions: " << yytext << '\n';}
+"imag"                  {cout << "Predeclared Functions: " << yytext << '\n';}
+"len"                   {cout << "Predeclared Functions: " << yytext << '\n';}
+"make"                  {cout << "Predeclared Functions: " << yytext << '\n';}
+"max"                   {cout << "Predeclared Functions: " << yytext << '\n';}
+"min"                   {cout << "Predeclared Functions: " << yytext << '\n';}
+"new"                   {cout << "Predeclared Functions: " << yytext << '\n';}
+"panic"                 {cout << "Predeclared Functions: " << yytext << '\n';}
+"println"               {cout << "Predeclared Functions: " << yytext << '\n';}
+"print"                 {cout << "Predeclared Functions: " << yytext << '\n';}
+"real"                  {cout << "Predeclared Functions: " << yytext << '\n';}
+"recover"               {cout << "Predeclared Functions: " << yytext << '\n';}
+
+
 "break"                 {cout << "Keyword: " << yytext << '\n';}
 "case"                  {cout << "Keyword: " << yytext << '\n';}
 "chan"                  {cout << "Keyword: " << yytext << '\n';}
