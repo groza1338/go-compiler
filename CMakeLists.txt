@@ -1,5 +1,5 @@
 cmake_minimum_required(VERSION 3.16)
-project(lua_compiler)
+project(golang_compiler)
 
 set(CMAKE_CXX_STANDARD 11)
 
@@ -20,7 +20,7 @@ add_custom_command(
 )
 
 # Add files to executable target
-add_executable(lua_compiler
+add_executable(golang_compiler
         main.cpp
         ${GENERATED_LEXER_FILE}
 )
@@ -29,4 +29,4 @@ set_source_files_properties(${GENERATED_LEXER_FILE} PROPERTIES LANGUAGE CXX)
 
 
 # Add link to flex library
-target_link_libraries(lua_compiler PRIVATE fl)
+target_link_libraries(golang_compiler PRIVATE fl)
