@@ -16,6 +16,16 @@ DEC_EXP             [eE][+-]?{DEC_DIGS}
 DEC_FLOAT_LIT       {DEC_DIGS}\.{DEC_DIGS}?{DEC_EXP}?|{DEC_DIGS}{DEC_EXP}|\.{DEC_DIGS}{DEC_EXP}?
 
 HEX_DIG             [0-9A-Fa-f]
+
+ESC_CHAR            \\[abfnrtv\\'"]
+BIG_U_VAL           \\U{HEX_DIG}{HEX_DIG}{HEX_DIG}{HEX_DIG}{HEX_DIG}{HEX_DIG}{HEX_DIG}{HEX_DIG}
+LITTLE_U_VAL        \\u{HEX_DIG}{HEX_DIG}{HEX_DIG}{HEX_DIG}
+HEX_BYTE_VAL        \\x{HEX_DIG}{HEX_DIG}
+OCT_BYTE_VAL        \\{OCT_DIG}{OCT_DIG}{OCT_DIG}
+BYTE_VAL            {OCT_BYTE_VAL}|{HEX_BYTE_VAL}
+UNICODE_VAL         {LITTLE_U_VAL}|{BIG_U_VAL}|{ESC_CHAR}
+RUNE_LIT            '({UNICODE_VAL}|{BYTE_VAL})'
+
 %%
 
 "break"                 {cout << "Keyword: " << yytext << '\n';}
