@@ -75,6 +75,7 @@ DEC_LIT         0|[1-9](_?{DEC_DIGS})?
 "%="                    { cout << "Operator: " << yytext << '\n'; }
 "!="                    { cout << "Operator: " << yytext << '\n'; }
 ">="                    { cout << "Operator: " << yytext << '\n'; }
+"<="                    { cout << "Operator: " << yytext << '\n'; }
 ":="                    { cout << "Operator: " << yytext << '\n'; }
 
 "+"                     { cout << "Operator: " << yytext << '\n'; }
