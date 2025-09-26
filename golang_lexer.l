@@ -15,6 +15,7 @@ OCT_DIG           [0-7]
 DEC_EXP             [eE][+-]?{DEC_DIGS}
 DEC_FLOAT_LIT       {DEC_DIGS}\.{DEC_DIGS}?{DEC_EXP}?|{DEC_DIGS}{DEC_EXP}|\.{DEC_DIGS}{DEC_EXP}?
 
+HEX_DIG             [0-9A-Fa-f]
 %%
 
 "break"                 {cout << "Keyword: " << yytext << '\n';}
