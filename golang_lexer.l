@@ -18,7 +18,8 @@ DEC_DIGS        {DEC_DIG}(_?{DEC_DIG})*
 DEC_LIT         0|[1-9](_?{DEC_DIGS})?
 
 %{
-
+#include <iostream>
+using std::cout;
 %}
 
 %%
