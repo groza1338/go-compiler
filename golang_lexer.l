@@ -31,6 +31,65 @@
 "struct"                {cout << "Keyword: " << yytext << '\n';}
 "switch"                {cout << "Keyword: " << yytext << '\n';}
 "type"                  {cout << "Keyword: " << yytext << '\n';}
-"var"                   {cout << "Keyword: " << yytext << '\n';} 
+"var"                   {cout << "Keyword: " << yytext << '\n';}
+
+"true"                  { cout << "Boolean: " << yytext << '\n'; }
+"false"                 { cout << "Boolean: " << yytext << '\n'; }
+
+"<<="                   { cout << "Operator: " << yytext << '\n'; }
+">>="                   { cout << "Operator: " << yytext << '\n'; }
+"&^="                   { cout << "Operator: " << yytext << '\n'; }
+
+"..."                   { cout << "Varargs: " << yytext << '\n'; }
+
+
+"<<"                    { cout << "Operator: " << yytext << " (shl)\n"; }
+">>"                    { cout << "Operator: " << yytext << " (shr)\n"; }
+"&^"                    { cout << "Operator: " << yytext << '\n'; }
+"&="                    { cout << "Operator: " << yytext << '\n'; }
+"|="                    { cout << "Operator: " << yytext << '\n'; }
+"^="                    { cout << "Operator: " << yytext << '\n'; }
+"&&"                    { cout << "Operator: " << yytext << '\n'; }
+"||"                    { cout << "Operator: " << yytext << '\n'; }
+"<-"                    { cout << "Operator: " << yytext << '\n'; }
+"++"                    { cout << "Operator: " << yytext << '\n'; }
+"--"                    { cout << "Operator: " << yytext << '\n'; }
+"=="                    { cout << "Operator: " << yytext << '\n'; }
+
+"+="                    { cout << "Operator: " << yytext << '\n'; }
+"-="                    { cout << "Operator: " << yytext << '\n'; }
+"*="                    { cout << "Operator: " << yytext << '\n'; }
+"/="                    { cout << "Operator: " << yytext << '\n'; }
+"%="                    { cout << "Operator: " << yytext << '\n'; }
+"!="                    { cout << "Operator: " << yytext << '\n'; }
+">="                    { cout << "Operator: " << yytext << '\n'; }
+":="                    { cout << "Operator: " << yytext << '\n'; }
+
+"+"                     { cout << "Operator: " << yytext << '\n'; }
+"-"                     { cout << "Operator: " << yytext << '\n'; }
+"*"                     { cout << "Operator: " << yytext << '\n'; }
+"/"                     { cout << "Operator: " << yytext << '\n'; }
+"%"                     { cout << "Operator: " << yytext << '\n'; }
+"&"                     { cout << "Operator: " << yytext << '\n'; }
+"|"                     { cout << "Operator: " << yytext << '\n'; }
+"^"                     { cout << "Operator: " << yytext << '\n'; }
+"<"                     { cout << "Operator: " << yytext << '\n'; }
+">"                     { cout << "Operator: " << yytext << '\n'; }
+"="                     { cout << "Operator: " << yytext << '\n'; }
+"!"                     { cout << "Operator: " << yytext << '\n'; }
+"~"                     { cout << "Operator: " << yytext << '\n'; }
+"."                     { cout << "Operator: " << yytext << '\n'; }
+","                     { cout << "Operator: " << yytext << '\n'; }
+";"                     { cout << "Operator: " << yytext << '\n'; }
+":"                     { cout << "Operator: " << yytext << '\n'; }
+
+
+"("                     { cout << "LParen: "  << yytext << '\n'; }
+")"                     { cout << "RParen: "  << yytext << '\n'; }
+"["                     { cout << "LBracket: "<< yytext << '\n'; }
+"]"                     { cout << "RBracket: "<< yytext << '\n'; }
+"{"                     { cout << "LBrace: "  << yytext << '\n'; }
+"}"                     { cout << "RBrace: "  << yytext << '\n'; }
+
 
 %%
