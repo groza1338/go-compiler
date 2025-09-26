@@ -7,10 +7,11 @@ IDENTIFIER      [A-Za-z_][A-Za-z_0-9]*
 WHITE_SPACES    [ \t\r\n]
 
 DEC_DIG         [0-9]
-
 DEC_DIGS        {DEC_DIG}(_?{DEC_DIG})*
-
 DEC_LIT         0|[1-9](_?{DEC_DIGS})?                 
+
+DEC_EXP         [eE][+-]?{DEC_DIGS}
+DEC_FLOAT_LIT   {DEC_DIGS}\.{DEC_DIGS}?{DEC_EXP}?|{DEC_DIGS}{DEC_EXP}|\.{DEC_DIGS}{DEC_EXP}?
 
 %%
 
