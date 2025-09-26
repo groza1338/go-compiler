@@ -84,8 +84,34 @@ using std::cout;
 "type"                  {cout << "Keyword: " << yytext << '\n';}
 "var"                   {cout << "Keyword: " << yytext << '\n';}
 
-"true"                  { cout << "Boolean: " << yytext << '\n'; }
-"false"                 { cout << "Boolean: " << yytext << '\n'; }
+"true"                  { cout << "Predeclared Constants: " << yytext << '\n'; }
+"false"                 { cout << "Predeclared Constants: " << yytext << '\n'; }
+"iota"                  { cout << "Predeclared Constants: " << yytext << '\n'; }
+
+"iota"                  { cout << "Predeclared Zero value: " << yytext << '\n'; }
+
+"any"                   { cout << "Predeclared Types: " << yytext << '\n'; }
+"bool"                  { cout << "Predeclared Types: " << yytext << '\n'; }
+"byte"                  { cout << "Predeclared Types: " << yytext << '\n'; }
+"comparable"            { cout << "Predeclared Types: " << yytext << '\n'; }
+"complex64"             { cout << "Predeclared Types: " << yytext << '\n'; }
+"complex128"            { cout << "Predeclared Types: " << yytext << '\n'; }
+"error"                 { cout << "Predeclared Types: " << yytext << '\n'; }
+"float32"               { cout << "Predeclared Types: " << yytext << '\n'; }
+"float64"               { cout << "Predeclared Types: " << yytext << '\n'; }
+"int"                   { cout << "Predeclared Types: " << yytext << '\n'; }
+"int8"                  { cout << "Predeclared Types: " << yytext << '\n'; }
+"int16"                 { cout << "Predeclared Types: " << yytext << '\n'; }
+"int32"                 { cout << "Predeclared Types: " << yytext << '\n'; }
+"int64"                 { cout << "Predeclared Types: " << yytext << '\n'; }
+"rune"                  { cout << "Predeclared Types: " << yytext << '\n'; }
+"string"                { cout << "Predeclared Types: " << yytext << '\n'; }
+"uint"                  { cout << "Predeclared Types: " << yytext << '\n'; }
+"uint8"                 { cout << "Predeclared Types: " << yytext << '\n'; }
+"uint16"                { cout << "Predeclared Types: " << yytext << '\n'; }
+"uint32"                { cout << "Predeclared Types: " << yytext << '\n'; }
+"uint64"                { cout << "Predeclared Types: " << yytext << '\n'; }
+"uintptr"               { cout << "Predeclared Types: " << yytext << '\n'; }
 
 "<<="                   { cout << "Operator: " << yytext << '\n'; }
 ">>="                   { cout << "Operator: " << yytext << '\n'; }
