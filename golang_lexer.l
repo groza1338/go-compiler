@@ -2,6 +2,11 @@
 %option yylineno
 %option noyywrap
 
+/* Однострочный комментарий */
+%x SCOMM
+/* Многострочный комментарий */
+%x MCOMM
+
 /* Macros */
 IDENTIFIER      [A-Za-z_][A-Za-z_0-9]*
 WHITE_SPACES    [ \t\r\n]
