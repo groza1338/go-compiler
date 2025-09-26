@@ -84,12 +84,12 @@
 ":"                     { cout << "Operator: " << yytext << '\n'; }
 
 
-"("                     { cout << "LParen: "  << yytext << '\n'; }
-")"                     { cout << "RParen: "  << yytext << '\n'; }
-"["                     { cout << "LBracket: "<< yytext << '\n'; }
-"]"                     { cout << "RBracket: "<< yytext << '\n'; }
-"{"                     { cout << "LBrace: "  << yytext << '\n'; }
-"}"                     { cout << "RBrace: "  << yytext << '\n'; }
+"("                     { cout << "OParen: "  << yytext << '\n'; }
+")"                     { cout << "CParen: "  << yytext << '\n'; }
+"["                     { cout << "OBracket: "<< yytext << '\n'; }
+"]"                     { cout << "CBracket: "<< yytext << '\n'; }
+"{"                     { cout << "OBrace: "  << yytext << '\n'; }
+"}"                     { cout << "CBrace: "  << yytext << '\n'; }
 
 
 %%
