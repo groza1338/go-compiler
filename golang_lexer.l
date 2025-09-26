@@ -2,6 +2,11 @@
 %option yylineno
 %option noyywrap
 
+/* Однострочный комментарий */
+%x SCOMM
+/* Многострочный комментарий */
+%x MCOMM
+
 /* Macros */
 IDENTIFIER          [A-Za-z_][A-Za-z_0-9]*
 WHITE_SPACES        [ \t\r\n]
@@ -25,6 +30,11 @@ OCT_BYTE_VAL        \\{OCT_DIG}{OCT_DIG}{OCT_DIG}
 BYTE_VAL            {OCT_BYTE_VAL}|{HEX_BYTE_VAL}
 UNICODE_VAL         {LITTLE_U_VAL}|{BIG_U_VAL}|{ESC_CHAR}
 RUNE_LIT            '({UNICODE_VAL}|{BYTE_VAL})'
+
+%{
+#include <iostream>
+using std::cout;
+%}
 
 %%
 
@@ -84,6 +94,7 @@ RUNE_LIT            '({UNICODE_VAL}|{BYTE_VAL})'
 "%="                    { cout << "Operator: " << yytext << '\n'; }
 "!="                    { cout << "Operator: " << yytext << '\n'; }
 ">="                    { cout << "Operator: " << yytext << '\n'; }
+"<="                    { cout << "Operator: " << yytext << '\n'; }
 ":="                    { cout << "Operator: " << yytext << '\n'; }
 
 "+"                     { cout << "Operator: " << yytext << '\n'; }
@@ -112,5 +123,6 @@ RUNE_LIT            '({UNICODE_VAL}|{BYTE_VAL})'
 "{"                     { cout << "OBrace: "  << yytext << '\n'; }
 "}"                     { cout << "CBrace: "  << yytext << '\n'; }
 
+{WHITE_SPACES};
 
 %%
