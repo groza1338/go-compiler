@@ -8,7 +8,7 @@ WHITE_SPACES    [ \t\r\n]
 
 DEC_DIG         [0-9]
 
-DEC_DIGS        {DIGIT}(_?{DIGIT})*
+DEC_DIGS        {DEC_DIG}(_?{DEC_DIG})*
 
 DEC_LIT         0|[1-9](_?{DEC_DIGS})?                 
 
