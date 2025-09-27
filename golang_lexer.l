@@ -31,6 +31,8 @@ BYTE_VAL            {OCT_BYTE_VAL}|{HEX_BYTE_VAL}
 UNICODE_VAL         {LITTLE_U_VAL}|{BIG_U_VAL}|{ESC_CHAR}
 RUNE_LIT            \'({UNICODE_VAL}|{BYTE_VAL})\'
 
+INTERPRETED_STR_LIT \"({UNICODE_VAL}|{BYTE_VAL})*\"
+
 %{
 #include <iostream>
 using std::cout;
