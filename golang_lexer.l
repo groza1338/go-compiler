@@ -29,7 +29,7 @@ HEX_BYTE_VAL        \\x{HEX_DIG}{HEX_DIG}
 OCT_BYTE_VAL        \\{OCT_DIG}{OCT_DIG}{OCT_DIG}
 BYTE_VAL            {OCT_BYTE_VAL}|{HEX_BYTE_VAL}
 UNICODE_VAL         {LITTLE_U_VAL}|{BIG_U_VAL}|{ESC_CHAR}
-RUNE_LIT            '({UNICODE_VAL}|{BYTE_VAL})'
+RUNE_LIT            \'({UNICODE_VAL}|{BYTE_VAL})\'
 
 %{
 #include <iostream>
