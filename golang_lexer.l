@@ -174,7 +174,7 @@ using std::cout;
 "//"                    { BEGIN(SCOMM); }
 <SCOMM>.*               { cout << "Singele-line comment: " << yytext << '\n'; BEGIN(INITIAL); }
 
-"\/\*"                  { BEGIN(MCOMM); }
+"/\*"                   { BEGIN(MCOMM); }
 <MCOMM>[^*]+       
 <MCOMM>\*+[^*/]    
 <MCOMM>\*+/             { BEGIN(INITIAL); }
