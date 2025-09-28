@@ -171,6 +171,15 @@ using std::cout;
 "{"                     { cout << "OBrace: "  << yytext << '\n'; }
 "}"                     { cout << "CBrace: "  << yytext << '\n'; }
 
+"//"                    { BEGIN(SCOMM); }
+<SCOMM>.*               { cout << "Singele-line comment: " << yytext << '\n'; BEGIN(INITIAL); }
+
+"\/\*"                  { BEGIN(MCOMM); }
+<MCOMM>[^*]+       
+<MCOMM>\*+[^*/]    
+<MCOMM>\*+/             { BEGIN(INITIAL); }
+<MCOMM><<EOF>>          { cout << "ERROR: unterminated multiline comment\n"; BEGIN(INITIAL); }
+
 {WHITE_SPACES};
 
 %%
