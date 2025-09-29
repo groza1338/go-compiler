@@ -117,6 +117,8 @@ using std::cout;
 "uint64"                { cout << "Predeclared Types: " << yytext << '\n'; }
 "uintptr"               { cout << "Predeclared Types: " << yytext << '\n'; }
 
+{IDENTIFIER}            { cout << "Identifier: " << yytext << '\n'; }
+
 "<<="                   { cout << "Operator: " << yytext << '\n'; }
 ">>="                   { cout << "Operator: " << yytext << '\n'; }
 "&^="                   { cout << "Operator: " << yytext << '\n'; }
