@@ -23,6 +23,8 @@ DEC_EXP             [eE][+-]?{DEC_DIGS}
 DEC_FLOAT_LIT       {DEC_DIGS}\.{DEC_DIGS}?{DEC_EXP}?|{DEC_DIGS}{DEC_EXP}|\.{DEC_DIGS}{DEC_EXP}?
 
 HEX_DIG             [0-9A-Fa-f]
+HEX_DIGS            {HEX_DIG}(_?{HEX_DIG})*
+HEX_LIT             0[xX]_?{HEX_DIGS}
 
 ESC_CHAR            \\[abfnrtv\\'"]
 BIG_U_VAL           \\U{HEX_DIG}{HEX_DIG}{HEX_DIG}{HEX_DIG}{HEX_DIG}{HEX_DIG}{HEX_DIG}{HEX_DIG}
