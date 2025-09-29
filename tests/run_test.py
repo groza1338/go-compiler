@@ -3,12 +3,12 @@ import glob
 import subprocess
 from pathlib import Path
 
-DEBUG = False
+DEBUG = True
 
 BASE_RUN_DIRECTORY = "."
 BASE_IMAGE_NAME = "golang_flex_project"
 TEST_RESULT_DIRECTORY = "result"
-EXECUTABLE_TARGET = "./golang_lexer"
+EXECUTABLE_TARGET = "./golang_compiler"
 
 ENDLESS_LOOP_COMMAND = ["tail", "-f", "/dev/null"]
 
