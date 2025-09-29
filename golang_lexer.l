@@ -16,6 +16,8 @@ DEC_DIGS            {DEC_DIG}(_?{DEC_DIG})*
 DEC_LIT             0|[1-9](_?{DEC_DIGS})?
 
 OCT_DIG             [0-7]
+OCT_DIGS            {OCT_DIG}(_?{OCT_DIG})*
+OCT_LIT             0[oO]_?{OCT_DIGS}
 
 DEC_EXP             [eE][+-]?{DEC_DIGS}
 DEC_FLOAT_LIT       {DEC_DIGS}\.{DEC_DIGS}?{DEC_EXP}?|{DEC_DIGS}{DEC_EXP}|\.{DEC_DIGS}{DEC_EXP}?
