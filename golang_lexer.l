@@ -94,8 +94,6 @@ using std::cout;
 "false"                 { cout << "Predeclared Constants: " << yytext << '\n'; }
 "iota"                  { cout << "Predeclared Constants: " << yytext << '\n'; }
 
-"iota"                  { cout << "Predeclared Zero value: " << yytext << '\n'; }
-
 "any"                   { cout << "Predeclared Types: " << yytext << '\n'; }
 "bool"                  { cout << "Predeclared Types: " << yytext << '\n'; }
 "byte"                  { cout << "Predeclared Types: " << yytext << '\n'; }
