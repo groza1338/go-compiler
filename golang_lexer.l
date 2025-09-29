@@ -178,12 +178,16 @@ using std::cout;
 {HEX_LIT}               { cout << "Hexadecimal integer: " << std::stoi(yytext, nullptr, 16) << "\n"; }
 
 "//"                    { BEGIN(SCOMM); }
-<SCOMM>.*               { cout << "Singele-line comment: " << yytext << '\n'; BEGIN(INITIAL); }
+<SCOMM>[^\n]*           { cout << "Single-line comment: " << yytext << '\n'; }
+<SCOMM>\n               { BEGIN(INITIAL); }
+<SCOMM><<EOF>>          { BEGIN(INITIAL); }
 
-"/\*"                   { BEGIN(MCOMM); }
-<MCOMM>[^*]+       
-<MCOMM>\*+[^*/]    
-<MCOMM>\*+/             { BEGIN(INITIAL); }
+"/*"                    { BEGIN(MCOMM); }
+<MCOMM>[^*\n]+          ;
+<MCOMM>\*+[^*/\n]+      ;
+<MCOMM>\*+              ;
+<MCOMM>\n               { BEGIN(INITIAL); }
+<MCOMM>\*+"/"           { BEGIN(INITIAL); }
 <MCOMM><<EOF>>          { cout << "ERROR: unterminated multiline comment\n"; BEGIN(INITIAL); }
 
 {WHITE_SPACES};
