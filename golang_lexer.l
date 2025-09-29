@@ -15,12 +15,16 @@ DEC_DIG             [0-9]
 DEC_DIGS            {DEC_DIG}(_?{DEC_DIG})*
 DEC_LIT             0|[1-9](_?{DEC_DIGS})?
 
-OCT_DIG           [0-7]
+OCT_DIG             [0-7]
+OCT_DIGS            {OCT_DIG}(_?{OCT_DIG})*
+OCT_LIT             0[oO]_?{OCT_DIGS}
 
 DEC_EXP             [eE][+-]?{DEC_DIGS}
 DEC_FLOAT_LIT       {DEC_DIGS}\.{DEC_DIGS}?{DEC_EXP}?|{DEC_DIGS}{DEC_EXP}|\.{DEC_DIGS}{DEC_EXP}?
 
 HEX_DIG             [0-9A-Fa-f]
+HEX_DIGS            {HEX_DIG}(_?{HEX_DIG})*
+HEX_LIT             0[xX]_?{HEX_DIGS}
 
 ESC_CHAR            \\[abfnrtv\\'"]
 BIG_U_VAL           \\U{HEX_DIG}{HEX_DIG}{HEX_DIG}{HEX_DIG}{HEX_DIG}{HEX_DIG}{HEX_DIG}{HEX_DIG}
@@ -29,7 +33,9 @@ HEX_BYTE_VAL        \\x{HEX_DIG}{HEX_DIG}
 OCT_BYTE_VAL        \\{OCT_DIG}{OCT_DIG}{OCT_DIG}
 BYTE_VAL            {OCT_BYTE_VAL}|{HEX_BYTE_VAL}
 UNICODE_VAL         {LITTLE_U_VAL}|{BIG_U_VAL}|{ESC_CHAR}
-RUNE_LIT            '({UNICODE_VAL}|{BYTE_VAL})'
+RUNE_LIT            \'({UNICODE_VAL}|{BYTE_VAL})\'
+
+INTERPRETED_STR_LIT \"({UNICODE_VAL}|{BYTE_VAL})*\"
 
 %{
 #include <iostream>
@@ -168,6 +174,19 @@ using std::cout;
 "]"                     { cout << "CBracket: "<< yytext << '\n'; }
 "{"                     { cout << "OBrace: "  << yytext << '\n'; }
 "}"                     { cout << "CBrace: "  << yytext << '\n'; }
+
+{DEG_LIT}               { cout << "Decimal integer: " << std::stoi(yytext) << "\n"; }
+{OCT_LIT}               { cout << "Octal integer: " << std::stoi(yytext, nullptr, 8) << "\n"; }
+{HEX_LIT}               { cout << "Hexadecimal integer: " << std::stoi(yytext, nullptr, 16) << "\n"; }
+
+"//"                    { BEGIN(SCOMM); }
+<SCOMM>.*               { cout << "Singele-line comment: " << yytext << '\n'; BEGIN(INITIAL); }
+
+"/\*"                   { BEGIN(MCOMM); }
+<MCOMM>[^*]+       
+<MCOMM>\*+[^*/]    
+<MCOMM>\*+/             { BEGIN(INITIAL); }
+<MCOMM><<EOF>>          { cout << "ERROR: unterminated multiline comment\n"; BEGIN(INITIAL); }
 
 {WHITE_SPACES};
 
