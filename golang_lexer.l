@@ -173,7 +173,7 @@ using std::cout;
 "{"                     { cout << "OBrace: "  << yytext << '\n'; }
 "}"                     { cout << "CBrace: "  << yytext << '\n'; }
 
-{DEG_LIT}               { cout << "Decimal integer: " << std::stoi(yytext) << '\n'; }
+{DEC_LIT}               { cout << "Decimal integer: " << std::stoi(yytext) << '\n'; }
 {OCT_LIT}               { cout << "Octal integer: " << std::stoi(yytext, nullptr, 8) << '\n'; }
 {HEX_LIT}               { cout << "Hexadecimal integer: " << std::stoi(yytext, nullptr, 16) << '\n'; }
 
