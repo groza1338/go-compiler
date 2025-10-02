@@ -185,11 +185,9 @@ using std::cout;
 <SCOMM><<EOF>>          { BEGIN(INITIAL); }
 
 "/*"                    { BEGIN(MCOMM); }
-<MCOMM>[^*\n]+          ;
-<MCOMM>\*+[^*/\n]+      ;
-<MCOMM>\*+              ;
-<MCOMM>\n               { BEGIN(INITIAL); }
-<MCOMM>\*+"/"           { BEGIN(INITIAL); }
+<MCOMM>[^*]*            ;
+<MCOMM>"*"+[^*/]*       ;
+<MCOMM>"*"+"/"          { BEGIN(INITIAL); }
 <MCOMM><<EOF>>          { cout << "ERROR: unterminated multiline comment\n"; BEGIN(INITIAL); }
 
 {WHITE_SPACES};
