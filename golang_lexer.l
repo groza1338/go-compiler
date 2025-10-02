@@ -48,8 +48,31 @@ RUNE_LIT            \'({UNICODE_VAL}|{BYTE_VAL})\'
 INTERPRETED_STR_LIT \"({UNICODE_VAL}|{BYTE_VAL})*\"
 
 %{
+#include <cstdio>
+#include <cstring>
+#include <cstdlib>
 #include <iostream>
 using std::cout;
+
+static char comment_buf[8192];
+static size_t comment_pos = 0;
+static int comment_start_line = 0;
+
+static inline void comm_append(const char* s, size_t n) {
+    if (comment_pos + n >= sizeof(comment_buf)) n = sizeof(comment_buf) - 1 - comment_pos;
+    if (n > 0) {
+        std::memcpy(comment_buf + comment_pos, s, n);
+        comment_pos += n;
+        comment_buf[comment_pos] = '\0';
+    }
+}
+
+static inline void comm_reset(){
+    comment_pos = 0;
+    comment_buf[0] = '\0';
+    comment_start_line = 0;
+}
+
 %}
 
 %%
