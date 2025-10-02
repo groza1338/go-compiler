@@ -4,8 +4,18 @@
 
 /* Однострочный комментарий */
 %x SCOMM
+
 /* Многострочный комментарий */
 %x MCOMM
+
+/* Rune */
+%x RUNE_STR
+
+/* Raw string */
+%x RAW_STR
+
+/* Interpreted string */
+%x INTER_STR
 
 /* Macros */
 IDENTIFIER          [A-Za-z_][A-Za-z_0-9]*
