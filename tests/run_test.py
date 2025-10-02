@@ -1,5 +1,6 @@
 import os
 import glob
+import shutil
 import subprocess
 from pathlib import Path
 
@@ -97,10 +98,20 @@ def run_command_inside_container(command: list[str], container_name: str, stdout
         raise Exception(f"Exec command {" ".join(command)} failed:\n {result.stderr}")
 
 
+def clear_test_results_dir(directory: str):
+    results_dir = os.path.join(directory, TEST_RESULT_DIRECTORY)
+
+    if os.path.exists(results_dir) and os.path.isdir(results_dir):
+        shutil.rmtree(results_dir)
+        print(f"Directory {TEST_RESULT_DIRECTORY} and its contents have been removed.")
+    else:
+        print(f"Directory {TEST_RESULT_DIRECTORY} does not exist in {directory}.")
+
 if __name__ == "__main__":
     files = process_golang_files(BASE_RUN_DIRECTORY)
     image_name = build_docker_image()
     container_name = run_docker_container(image_name=image_name)
+    clear_test_results_dir(BASE_RUN_DIRECTORY)
     try:
         for file in files:
             new_path = Path(TEST_RESULT_DIRECTORY) / Path(file).with_name(Path(file).name).with_suffix('.txt')
