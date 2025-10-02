@@ -217,11 +217,11 @@ static inline void comm_reset(){
 <SCOMM>\n               { BEGIN(INITIAL); }
 <SCOMM><<EOF>>          { BEGIN(INITIAL); }
 
-"/*"                    { BEGIN(MCOMM); }
-<MCOMM>[^*]*            ;
-<MCOMM>"*"+[^*/]*       ;
-<MCOMM>"*"+"/"          { BEGIN(INITIAL); }
-<MCOMM><<EOF>>          { cout << "ERROR: unterminated multiline comment\n"; BEGIN(INITIAL); }
+"/*"                    { comment_start_line = yylineo; BEGIN(MCOMM); }
+<MCOMM>[^*]*            { comm_append(yytext, yyleng); }
+<MCOMM>"*"+[^*/]*       { comm_append(yytext, yyleng); }
+<MCOMM>"*"+"/"          { cout << "Multi-line comment: " << comment_buf << '\n'; BEGIN(INITIAL); }
+<MCOMM><<EOF>>          { cout << "ERROR: unterminated multiline comment (opened at line " << comment_start_line << ")\n"; comm_reset(); BEGIN(INITIAL); }
 
 {WHITE_SPACES};
 
