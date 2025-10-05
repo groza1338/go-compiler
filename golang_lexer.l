@@ -217,6 +217,7 @@ static inline void comm_reset(){
 <SCOMM><<EOF>>          { BEGIN(INITIAL); }
 
 "/*"                    { comment_start_line = yylineno; BEGIN(MCOMM); }
+<MCOMM>\n               { ; }
 <MCOMM>\r\n             { ; }
 <MCOMM>[^*]*            { comm_append(yytext, yyleng); }
 <MCOMM>"*"+[^*/]*       { comm_append(yytext, yyleng); }
