@@ -217,6 +217,7 @@ static inline void comm_reset(){
 <SCOMM><<EOF>>          { BEGIN(INITIAL); }
 
 "/*"                    { comment_start_line = yylineno; BEGIN(MCOMM); }
+<MCOMM>\r\n             { comm_append("\n", 1); }
 <MCOMM>[^*]*            { comm_append(yytext, yyleng); }
 <MCOMM>"*"+[^*/]*       { comm_append(yytext, yyleng); }
 <MCOMM>"*"+"/"          { cout << "Multi-line comment: " << comment_buf << '\n'; comm_reset(); BEGIN(INITIAL); }
