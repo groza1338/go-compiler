@@ -213,7 +213,7 @@ static inline void comm_reset(){
 {HEX_LIT}               { cout << "Hexadecimal integer: " << std::stoi(yytext, nullptr, 16) << '\n'; }
 
 "//"                    { BEGIN(SCOMM); }
-<SCOMM>[^\n]*           { cout << "Single-line comment: " << '"' << yytext << '"' << '\n'; BEGIN(INITIAL); }
+<SCOMM>[^\r\n]*         { cout << "Single-line comment: " << '"' << yytext << '"' << '\n'; BEGIN(INITIAL); }
 <SCOMM><<EOF>>          { BEGIN(INITIAL); }
 
 "/*"                    { comment_start_line = yylineno; BEGIN(MCOMM); }
