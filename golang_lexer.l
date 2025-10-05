@@ -223,6 +223,6 @@ static inline void comm_reset(){
 <MCOMM>"*"+"/"          { cout << "Multi-line comment: " << comment_buf << '\n'; comm_reset(); BEGIN(INITIAL); }
 <MCOMM><<EOF>>          { cout << "ERROR: unterminated multiline comment (opened at line " << comment_start_line << ")\n"; comm_reset(); BEGIN(INITIAL); }
 
-{WHITE_SPACES};
+{WHITE_SPACES}          { cout << "WS: " << yytext << '\n';}
 
 %%
