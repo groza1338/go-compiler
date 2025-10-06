@@ -58,6 +58,9 @@ static char comment_buf[8192];
 static size_t comment_pos = 0;
 static int comment_start_line = 0;
 
+static char str_buf[8192];
+static size_t str_pos = 0;
+
 static inline void comm_append(const char* s, size_t n) {
     if (comment_pos + n >= sizeof(comment_buf)) n = sizeof(comment_buf) - 1 - comment_pos;
     if (n > 0) {
@@ -67,10 +70,24 @@ static inline void comm_append(const char* s, size_t n) {
     }
 }
 
-static inline void comm_reset(){
+static inline void comm_reset() {
     comment_pos = 0;
     comment_buf[0] = '\0';
     comment_start_line = 0;
+}
+
+static inline void str_append(const char* s, size_t n) {
+    if (str_pos + n >= sizeof(str_buf)) n = sizeof(str_buf) - 1 - str_pos;
+    if (n > 0) {
+        std::memcpy(str_buf + str_pos, s, n);  // Копируем в буфер
+        str_pos += n;
+        str_buf[str_pos] = '\0';               // Завершаем строку
+    }
+}
+
+static inline void str_reset() {
+    st_pos = 0;
+    str_buf[0] = '\0';
 }
 
 %}
