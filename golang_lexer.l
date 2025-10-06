@@ -79,9 +79,9 @@ static inline void comm_reset() {
 static inline void str_append(const char* s, size_t n) {
     if (str_pos + n >= sizeof(str_buf)) n = sizeof(str_buf) - 1 - str_pos;
     if (n > 0) {
-        std::memcpy(str_buf + str_pos, s, n);  // Копируем в буфер
+        std::memcpy(str_buf + str_pos, s, n);
         str_pos += n;
-        str_buf[str_pos] = '\0';               // Завершаем строку
+        str_buf[str_pos] = '\0';
     }
 }
 
