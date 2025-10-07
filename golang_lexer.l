@@ -17,6 +17,9 @@
 /* Interpreted string */
 %x INTER_STR
 
+/* Raw string */
+%x RAW_STR
+
 /* Macros */
 IDENTIFIER          [A-Za-z_][A-Za-z_0-9]*
 WHITE_SPACES        [ \t\r\n]
@@ -294,6 +297,11 @@ static inline void str_reset() {
 <INTER_STR>\\n          { str_append("\n", 1); }
 <INTER_STR>\"           { cout << "Interpreted string: " << str_buf << '\n'; str_reset(); BEGIN(INITIAL); }
 <INTER_STR>\n           { cout << "ERROR: newline in interpreted string literal\n"; str_reset(); BEGIN(INITIAL); }
+
+"`"                     { BEGIN(RAW_STR); }
+<RAW_STR>[^`\r\n]       { str_append(yytext, yyleng); }
+<RAW_STR>\n             { str_append("\n", 1); }
+<RAW_STR>"`"            { cout << "Raw string: " << str_buf << '\n'; str_reset(); BEGIN(INITIAL); }
 
 {WHITE_SPACES}          { ; }
 
