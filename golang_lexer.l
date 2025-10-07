@@ -43,9 +43,9 @@ HEX_BYTE_VAL        \\x{HEX_DIG}{HEX_DIG}
 OCT_BYTE_VAL        \\{OCT_DIG}{OCT_DIG}{OCT_DIG}
 BYTE_VAL            {OCT_BYTE_VAL}|{HEX_BYTE_VAL}
 UNICODE_VAL         {LITTLE_U_VAL}|{BIG_U_VAL}|{ESC_CHAR}
-RUNE_LIT            \'({UNICODE_VAL}|{BYTE_VAL})\'
+RUNE_LIT_BODY       ({UNICODE_VAL}|{BYTE_VAL})
 
-INTERPRETED_STR_LIT \"({UNICODE_VAL}|{BYTE_VAL})*\"
+INTER_STR_LIT_BODY  ({UNICODE_VAL}|{BYTE_VAL})*
 
 %{
 #include <cstdio>
@@ -240,6 +240,60 @@ static inline void str_reset() {
 <MCOMM>"*"+[^*/\r\n]*   { comm_append(yytext, yyleng); }
 <MCOMM>"*"+"/"          { cout << "Multi-line comment: " << comment_buf << '\n'; comm_reset(); BEGIN(INITIAL); }
 <MCOMM><<EOF>>          { cout << "ERROR: unterminated multiline comment (opened at line " << comment_start_line << ")\n"; comm_reset(); BEGIN(INITIAL); }
+
+\"                      { BEGIN(INTER_STR); }
+<INTER_STR>{ESC_CHAR} {
+    switch (yytext[1]) {
+        case 'a': str_append("\a", 1); break;
+        case 'b': str_append("\b", 1); break;
+        case 'f': str_append("\f", 1); break;
+        case 'n': str_append("\n", 1); break;
+        case 'r': str_append("\r", 1); break;
+        case 't': str_append("\t", 1); break;
+        case 'v': str_append("\v", 1); break;
+        case '\\': str_append("\\", 1); break;
+        case '"': str_append("\"", 1); break;
+        case '\'': str_append("\'", 1); break;
+    }
+}
+<INTER_STR>{BYTE_VAL} {
+    // Преобразуем байт-значения
+    int val = std::stoi(yytext + 2, nullptr, (yytext[1] == 'x') ? 16 : 8);
+    str_append((const char*)&val, 1);
+}
+<INTER_STR>{LITTLE_U_VAL} {
+    int code = std::stoi(yytext + 2, nullptr, 16);
+    if (code <= 0x7F) {
+        str_append((const char*)&code, 1);
+    } else if (code <= 0x7FF) {
+        char utf8[2] = { 0xC0 | ((code >> 6) & 0x1F), 0x80 | (code & 0x3F) };
+        str_append(utf8, 2);
+    } else {
+        char utf8[3] = { 0xE0 | ((code >> 12) & 0x0F), 0x80 | ((code >> 6) & 0x3F), 0x80 | (code & 0x3F) };
+        str_append(utf8, 3);
+    }
+}
+<INTER_STR>{BIG_U_VAL} {
+    int code = std::stoi(yytext + 2, nullptr, 16);
+    if (code <= 0x7F) {
+        str_append((const char*)&code, 1);
+    } else if (code <= 0x7FF) {
+        char utf8[2] = { 0xC0 | ((code >> 6) & 0x1F), 0x80 | (code & 0x3F) };
+        str_append(utf8, 2);
+    } else if (code <= 0xFFFF) {
+        char utf8[3] = { 0xE0 | ((code >> 12) & 0x0F), 0x80 | ((code >> 6) & 0x3F), 0x80 | (code & 0x3F) };
+        str_append(utf8, 3);
+    } else if (code <= 0x10FFFF) {
+        char utf8[4] = { 0xF0 | ((code >> 18) & 0x07), 0x80 | ((code >> 12) & 0x3F), 0x80 | ((code >> 6) & 0x3F), 0x80 | (code & 0x3F) };
+        str_append(utf8, 4);
+    } else {
+        cout << "ERROR: invalid Unicode code point (out of range)" << '\n';
+    }
+}
+<INTER_STR>[^\\\"\n]+   { str_append(yytext, yyleng); }
+<INTER_STR>\\n          { str_append("\n", 1); }
+<INTER_STR>\"           { cout << "Interpreted string: " << str_buf << '\n'; str_reset(); BEGIN(INITIAL); }
+<INTER_STR>\n           { cout << "ERROR: newline in interpreted string literal\n"; str_reset(); BEGIN(INITIAL); }
 
 {WHITE_SPACES}          { ; }
 
