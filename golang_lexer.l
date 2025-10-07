@@ -352,7 +352,7 @@ static inline void str_reset() {
     BEGIN(RUNE_QUOTE_WAIT);
 }
 <RUNE_STR>\n            { cout << "ERROR: newline in rune string literal\n"; str_reset(); BEGIN(INITIAL); }
-<RUNE_STR>.+             { cout << "ERROR: unknown rune literal: " << yytext << '\n'; BEGIN(SKIP_QUOTE); }
+<RUNE_STR>[^']+             { cout << "ERROR: unknown rune literal: " << yytext << '\n'; BEGIN(SKIP_QUOTE); }
 <RUNE_STR,RUNE_QUOTE_WAIT,SKIP_QUOTE><<EOF>>       { cout << "ERROR: unterminated string (') before EOF\n"; BEGIN(INITIAL); }
 
 "`"                     { BEGIN(RAW_STR); }
