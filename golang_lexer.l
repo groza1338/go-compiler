@@ -245,7 +245,15 @@ static inline void str_reset() {
 \'                      { BEGIN(RUNE_STR); }
 
 <INTER_STR>[^\\\"\n]+   { str_append(yytext, yyleng); }
-<RUNE_STR>[^\\\'\n]+    { str_append(yytext, yyleng); }
+<RUNE_STR>[^\\\'\n]+    {
+    if (yyleng > 1) {
+        cout << "ERROR: more than one character in rune literal: " << yytext << "\n";
+        str_reset();
+        BEGIN(INITIAL);
+        return;
+    }
+    str_append(yytext, yyleng);
+}
 
 <INTER_STR,RUNE_STR>{ESC_CHAR} {
     switch (yytext[1]) {
