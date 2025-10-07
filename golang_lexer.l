@@ -337,26 +337,22 @@ static inline void str_reset() {
     int code = std::stoi(yytext + 2, nullptr, 16);
     if (code <= 0x7F) {
         str_append((const char*)&code, 1);
-        BEGIN(RUNE_QUOTE_WAIT);
     } else if (code <= 0x7FF) {
         char utf8[2] = { 0xC0 | ((code >> 6) & 0x1F), 0x80 | (code & 0x3F) };
         str_append(utf8, 2);
-        BEGIN(RUNE_QUOTE_WAIT);
     } else if (code <= 0xFFFF) {
         char utf8[3] = { 0xE0 | ((code >> 12) & 0x0F), 0x80 | ((code >> 6) & 0x3F), 0x80 | (code & 0x3F) };
         str_append(utf8, 3);
-        BEGIN(RUNE_QUOTE_WAIT);
     } else if (code <= 0x10FFFF) {
         char utf8[4] = { 0xF0 | ((code >> 18) & 0x07), 0x80 | ((code >> 12) & 0x3F), 0x80 | ((code >> 6) & 0x3F), 0x80 | (code & 0x3F) };
         str_append(utf8, 4);
-        BEGIN(RUNE_QUOTE_WAIT);
     } else {
         cout << "ERROR: invalid Unicode code point (out of range)" << '\n';
     }
+    BEGIN(RUNE_QUOTE_WAIT);
 }
-<RUNE_STR>\'            { cout << "Rune string: " << str_buf << '\n'; str_reset(); BEGIN(INITIAL); }
 <RUNE_STR>\n            { cout << "ERROR: newline in rune string literal\n"; str_reset(); BEGIN(INITIAL); }
-<RUNE_STR>.             { cout << "ERROR: unknown rune literal: " << yytext << '\n'; BEGIN(SKIP_QUOTE); }
+<RUNE_STR>.+             { cout << "ERROR: unknown rune literal: " << yytext << '\n'; BEGIN(SKIP_QUOTE); }
 <RUNE_STR,RUNE_QUOTE_WAIT,SKIP_QUOTE><<EOF>>       { cout << "ERROR: unterminated string (') before EOF\n"; BEGIN(INITIAL); }
 
 "`"                     { BEGIN(RAW_STR); }
