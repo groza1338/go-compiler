@@ -242,7 +242,12 @@ static inline void str_reset() {
 <MCOMM><<EOF>>          { cout << "ERROR: unterminated multiline comment (opened at line " << comment_start_line << ")\n"; comm_reset(); BEGIN(INITIAL); }
 
 \"                      { BEGIN(INTER_STR); }
-<INTER_STR>{ESC_CHAR} {
+\`                      { BEGIN(RUNE_STR); }
+
+<INTER_STR>[^\\\"\n]+   { str_append(yytext, yyleng); }
+<RUNE_STR>[^\\\`\n]+    { str_append(yytext, yyleng); }
+
+<INTER_STR, RUNE_STR>{ESC_CHAR} {
     switch (yytext[1]) {
         case 'a': str_append("\a", 1); break;
         case 'b': str_append("\b", 1); break;
@@ -256,12 +261,12 @@ static inline void str_reset() {
         case '\'': str_append("\'", 1); break;
     }
 }
-<INTER_STR>{BYTE_VAL} {
+<INTER_STR, RUNE_STR>{BYTE_VAL} {
     // Преобразуем байт-значения
     int val = std::stoi(yytext + 2, nullptr, (yytext[1] == 'x') ? 16 : 8);
     str_append((const char*)&val, 1);
 }
-<INTER_STR>{LITTLE_U_VAL} {
+<INTER_STR, RUNE_STR>{LITTLE_U_VAL} {
     int code = std::stoi(yytext + 2, nullptr, 16);
     if (code <= 0x7F) {
         str_append((const char*)&code, 1);
@@ -273,7 +278,7 @@ static inline void str_reset() {
         str_append(utf8, 3);
     }
 }
-<INTER_STR>{BIG_U_VAL} {
+<INTER_STR, RUNE_STR>{BIG_U_VAL} {
     int code = std::stoi(yytext + 2, nullptr, 16);
     if (code <= 0x7F) {
         str_append((const char*)&code, 1);
@@ -290,10 +295,13 @@ static inline void str_reset() {
         cout << "ERROR: invalid Unicode code point (out of range)" << '\n';
     }
 }
-<INTER_STR>[^\\\"\n]+   { str_append(yytext, yyleng); }
-<INTER_STR>\\n          { str_append("\n", 1); }
+<INTER_STR, RUNE_STR>\\n          { str_append("\n", 1); }
+
 <INTER_STR>\"           { cout << "Interpreted string: " << str_buf << '\n'; str_reset(); BEGIN(INITIAL); }
+<RUNE_STR>\`            { cout << "Rune string: " << str_buf << '\n'; str_reset(); BEGIN(INITIAL); }
+
 <INTER_STR>\n           { cout << "ERROR: newline in interpreted string literal\n"; str_reset(); BEGIN(INITIAL); }
+<RUNE_STR>\n            { cout << "ERROR: newline in rune string literal\n"; str_reset(); BEGIN(INITIAL); }
 
 "`"                     { BEGIN(RAW_STR); }
 <RAW_STR>[^`\r\n]       { str_append(yytext, yyleng); }
