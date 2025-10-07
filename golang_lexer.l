@@ -17,9 +17,6 @@
 /* Interpreted string */
 %x INTER_STR
 
-/* Raw string */
-%x RAW_STR
-
 /* Macros */
 IDENTIFIER          [A-Za-z_][A-Za-z_0-9]*
 WHITE_SPACES        [ \t\r\n]
