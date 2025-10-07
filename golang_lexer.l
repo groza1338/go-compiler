@@ -11,6 +11,7 @@
 /* Rune */
 %x RUNE_STR
 %x RUNE_QUOTE_WAIT
+%x SKIP_QUOTE
 
 /* Raw string */
 %x RAW_STR
@@ -295,8 +296,9 @@ static inline void str_reset() {
 <INTER_STR>\n           { cout << "ERROR: newline in interpreted string literal\n"; str_reset(); BEGIN(INITIAL); }
 
 \'                      { BEGIN(RUNE_STR); }
+<SKIP_QUOTE>\'          { BEGIN(INITIAL); }
 <RUNE_QUOTE_WAIT>\'     { cout << "Rune literal: " << str_buf << '\n'; str_reset(); BEGIN(INITIAL); }
-<RUNE_QUOTE_WAIT>[^']   { cout << "ERROR: more than one character in rune literal\n"; str_reset(); BEGIN(INITIAL); }
+<RUNE_QUOTE_WAIT>[^']+  { cout << "ERROR: more than one character in rune literal: " << yytext << "\n"; str_reset(); BEGIN(SKIP_QUOTE); }
 <RUNE_STR>[^\\\'\n]     { str_append(yytext, yyleng); BEGIN(RUNE_QUOTE_WAIT); }
 <RUNE_STR>{ESC_CHAR}    {
     switch (yytext[1]) {
@@ -354,7 +356,8 @@ static inline void str_reset() {
 }
 <RUNE_STR>\'            { cout << "Rune string: " << str_buf << '\n'; str_reset(); BEGIN(INITIAL); }
 <RUNE_STR>\n            { cout << "ERROR: newline in rune string literal\n"; str_reset(); BEGIN(INITIAL); }
-<RUNE_STR><<EOF>>       { cout << "ERROR: unterminated string (') before EOF\n"; BEGIN(INITIAL); }
+<RUNE_STR>.             { cout << "ERROR: unknown rune literal: " << yytext << '\n'; BEGIN(SKIP_QUOTE); }
+<RUNE_STR,RUNE_QUOTE_WAIT,SKIP_QUOTE><<EOF>>       { cout << "ERROR: unterminated string (') before EOF\n"; BEGIN(INITIAL); }
 
 "`"                     { BEGIN(RAW_STR); }
 <RAW_STR>[^`\r\n]       { str_append(yytext, yyleng); }
