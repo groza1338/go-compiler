@@ -86,7 +86,7 @@ static inline void str_append(const char* s, size_t n) {
 }
 
 static inline void str_reset() {
-    st_pos = 0;
+    str_pos = 0;
     str_buf[0] = '\0';
 }
 
