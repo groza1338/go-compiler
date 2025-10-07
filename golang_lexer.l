@@ -242,10 +242,10 @@ static inline void str_reset() {
 <MCOMM><<EOF>>          { cout << "ERROR: unterminated multiline comment (opened at line " << comment_start_line << ")\n"; comm_reset(); BEGIN(INITIAL); }
 
 \"                      { BEGIN(INTER_STR); }
-\`                      { BEGIN(RUNE_STR); }
+\'                      { BEGIN(RUNE_STR); }
 
 <INTER_STR>[^\\\"\n]+   { str_append(yytext, yyleng); }
-<RUNE_STR>[^\\\`\n]+    { str_append(yytext, yyleng); }
+<RUNE_STR>[^\\\'\n]+    { str_append(yytext, yyleng); }
 
 <INTER_STR,RUNE_STR>{ESC_CHAR} {
     switch (yytext[1]) {
@@ -298,7 +298,7 @@ static inline void str_reset() {
 <INTER_STR,RUNE_STR>\\n          { str_append("\n", 1); }
 
 <INTER_STR>\"           { cout << "Interpreted string: " << str_buf << '\n'; str_reset(); BEGIN(INITIAL); }
-<RUNE_STR>\`            { cout << "Rune string: " << str_buf << '\n'; str_reset(); BEGIN(INITIAL); }
+<RUNE_STR>\'            { cout << "Rune string: " << str_buf << '\n'; str_reset(); BEGIN(INITIAL); }
 
 <INTER_STR>\n           { cout << "ERROR: newline in interpreted string literal\n"; str_reset(); BEGIN(INITIAL); }
 <RUNE_STR>\n            { cout << "ERROR: newline in rune string literal\n"; str_reset(); BEGIN(INITIAL); }
