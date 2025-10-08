@@ -50,18 +50,70 @@ RUNE_LIT_BODY       ({UNICODE_VAL}|{BYTE_VAL})
 INTER_STR_LIT_BODY  ({UNICODE_VAL}|{BYTE_VAL})*
 
 %{
-#include <cstdio>
-#include <cstring>
-#include <cstdlib>
-#include <iostream>
+#include <stdio.h>
+#include <stdlib.h>
+#include <string.h>
+#include <ctype.h>
 using std::cout;
+
+#define MAX_STRING_LENGTH 2048
 
 static char comment_buf[8192];
 static size_t comment_pos = 0;
 static int comment_start_line = 0;
 
-static char str_buf[8192];
-static size_t str_pos = 0;
+static char str_buf[MAX_STRING_LENGTH];
+static int str_pos = 0;
+
+static inline void str_add_char(char c) {
+    if (str_pos < MAX_STRING_LENGTH - 1) {
+        str_buf[str_pos++] = c;
+    }
+}
+
+static inline void str_add_chars(const char *str, size_t len) {
+    if (str_pos + len < MAX_STRING_LENGTH) {
+        memcpy(&str_buf[str_pos], str, len);
+        str_pos += len;
+    } else {
+        size_t available_space = MAX_STRING_LENGTH - str_pos;
+        memcpy(&str_buf[str_pos], str, available_space);
+        str_pos = MAX_STRING_LENGTH - 1;
+    }
+}
+
+static inline void reset_buffer() {
+    buffer_pos = 0;
+}
+
+static inline void from_unicode_to_unf8(char *unicode_str) {
+    int code_point = strtol(unicode_str, NULL, 16);
+    if (code_point <= 0x7F) {
+        str_add_char((char)code_point);
+    } else if (code_point <= 0x7FF) {
+        str_add_char(0xC0 | ((code_point >> 6) & 0x1F));
+        str_add_char(0x80 | (code_point & 0x3F));
+    } else if (code_point <= 0xFFFF) {
+        str_add_char(0xE0 | ((code_point >> 12) & 0x0F));
+        str_add_char(0x80 | ((code_point >> 6) & 0x3F));
+        str_add_char(0x80 | (code_point & 0x3F));
+    } else if (code_point <= 0x10FFFF) {
+        str_add_char(0xF0 | ((code_point >> 18) & 0x07));
+        str_add_char(0x80 | ((code_point >> 12) & 0x3F));
+        str_add_char(0x80 | ((code_point >> 6) & 0x3F));
+        str_add_char(0x80 | (code_point & 0x3F));
+    }
+}
+
+void hex_escape(const char *hex) {
+    int value = strtol(hex, NULL, 16);
+    str_add_char((char)value);
+}
+
+void octal_escape(const char *oct) {
+    int value = strtol(oct, NULL, 8);
+    str_add_char((char)value);
+}
 
 static inline void comm_append(const char* s, size_t n) {
     if (comment_pos + n >= sizeof(comment_buf)) n = sizeof(comment_buf) - 1 - comment_pos;
@@ -76,20 +128,6 @@ static inline void comm_reset() {
     comment_pos = 0;
     comment_buf[0] = '\0';
     comment_start_line = 0;
-}
-
-static inline void str_append(const char* s, size_t n) {
-    if (str_pos + n >= sizeof(str_buf)) n = sizeof(str_buf) - 1 - str_pos;
-    if (n > 0) {
-        std::memcpy(str_buf + str_pos, s, n);
-        str_pos += n;
-        str_buf[str_pos] = '\0';
-    }
-}
-
-static inline void str_reset() {
-    str_pos = 0;
-    str_buf[0] = '\0';
 }
 
 %}
