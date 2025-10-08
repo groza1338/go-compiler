@@ -19,7 +19,8 @@
 
 /* Macros */
 IDENTIFIER          [A-Za-z_][A-Za-z_0-9]*
-WHITE_SPACES        [ \t\r\n\f\v]+
+WHITE_SPACES_NO_NL        [ \t\f\v]+
+NL                        (\r\n|\n)
 
 DEC_DIG             [0-9]
 DEC_DIGS            {DEC_DIG}(_?{DEC_DIG})*
@@ -54,9 +55,13 @@ INTER_STR_LIT_BODY  ({UNICODE_VAL}|{BYTE_VAL})*
 #include <ctype.h>
 #include <iostream>
 #include <cstring>
+#include <string>
 using std::cout;
 
 #define MAX_STRING_LENGTH 2048
+
+#define SEMI_ON()  (can_insert_semi = 1)
+#define SEMI_OFF() (can_insert_semi = 0)
 
 static char comment_buf[8192];
 static size_t comment_pos = 0;
@@ -64,6 +69,8 @@ static int comment_start_line = 0;
 
 static char str_buf[MAX_STRING_LENGTH];
 static int str_pos = 0;
+
+static int can_insert_semi = 0;
 
 static inline void str_add_char(unsigned char c) {
     if (str_pos < MAX_STRING_LENGTH - 1) {
@@ -135,101 +142,107 @@ static inline void comm_reset() {
 
 %%
 
-"break"                 {cout << "Keyword: " << yytext << '\n';}
-"case"                  {cout << "Keyword: " << yytext << '\n';}
-"chan"                  {cout << "Keyword: " << yytext << '\n';}
-"const"                 {cout << "Keyword: " << yytext << '\n';}
-"continue"              {cout << "Keyword: " << yytext << '\n';}
-"default"               {cout << "Keyword: " << yytext << '\n';}
-"defer"                 {cout << "Keyword: " << yytext << '\n';}
-"else"                  {cout << "Keyword: " << yytext << '\n';}
-"fallthrough"           {cout << "Keyword: " << yytext << '\n';}
-"for"                   {cout << "Keyword: " << yytext << '\n';}
-"func"                  {cout << "Keyword: " << yytext << '\n';}
-"go"                    {cout << "Keyword: " << yytext << '\n';}
-"goto"                  {cout << "Keyword: " << yytext << '\n';}
-"if"                    {cout << "Keyword: " << yytext << '\n';}
-"import"                {cout << "Keyword: " << yytext << '\n';}
-"interface"             {cout << "Keyword: " << yytext << '\n';}
-"map"                   {cout << "Keyword: " << yytext << '\n';}
-"package"               {cout << "Keyword: " << yytext << '\n';}
-"range"                 {cout << "Keyword: " << yytext << '\n';}
-"return"                {cout << "Keyword: " << yytext << '\n';}
-"select"                {cout << "Keyword: " << yytext << '\n';}
-"struct"                {cout << "Keyword: " << yytext << '\n';}
-"switch"                {cout << "Keyword: " << yytext << '\n';}
-"type"                  {cout << "Keyword: " << yytext << '\n';}
-"var"                   {cout << "Keyword: " << yytext << '\n';}
+"break"                 {cout << "Keyword: " << yytext << '\n'; SEMI_ON();}
+"case"                  {cout << "Keyword: " << yytext << '\n'; SEMI_OFF();}
+"chan"                  {cout << "Keyword: " << yytext << '\n'; SEMI_OFF();}
+"const"                 {cout << "Keyword: " << yytext << '\n'; SEMI_OFF();}
+"continue"              {cout << "Keyword: " << yytext << '\n'; SEMI_ON();}
+"default"               {cout << "Keyword: " << yytext << '\n'; SEMI_OFF();}
+"defer"                 {cout << "Keyword: " << yytext << '\n'; SEMI_OFF();}
+"else"                  {cout << "Keyword: " << yytext << '\n'; SEMI_OFF();}
+"fallthrough"           {cout << "Keyword: " << yytext << '\n'; SEMI_ON();}
+"for"                   {cout << "Keyword: " << yytext << '\n'; SEMI_OFF(); }
+"func"                  {cout << "Keyword: " << yytext << '\n'; SEMI_OFF(); }
+"go"                    {cout << "Keyword: " << yytext << '\n'; SEMI_OFF(); }
+"goto"                  {cout << "Keyword: " << yytext << '\n'; SEMI_OFF(); }
+"if"                    {cout << "Keyword: " << yytext << '\n'; SEMI_OFF();}
+"import"                {cout << "Keyword: " << yytext << '\n'; SEMI_OFF();}
+"interface"             {cout << "Keyword: " << yytext << '\n'; SEMI_OFF();}
+"map"                   {cout << "Keyword: " << yytext << '\n'; SEMI_OFF();}
+"package"               {cout << "Keyword: " << yytext << '\n'; SEMI_OFF();}
+"range"                 {cout << "Keyword: " << yytext << '\n'; SEMI_OFF();}
+"return"                {cout << "Keyword: " << yytext << '\n'; SEMI_ON();}
+"select"                {cout << "Keyword: " << yytext << '\n'; SEMI_OFF();}
+"struct"                {cout << "Keyword: " << yytext << '\n'; SEMI_OFF();}
+"switch"                {cout << "Keyword: " << yytext << '\n'; SEMI_OFF();}
+"type"                  {cout << "Keyword: " << yytext << '\n'; SEMI_OFF();}
+"var"                   {cout << "Keyword: " << yytext << '\n'; SEMI_OFF();}
 
-{IDENTIFIER}            { cout << "Identifier: " << yytext << '\n'; }
+{IDENTIFIER}            { cout << "Identifier: " << yytext << '\n'; SEMI_ON();}
 
-"<<="                   { cout << "Operator: " << yytext << '\n'; }
-">>="                   { cout << "Operator: " << yytext << '\n'; }
-"&^="                   { cout << "Operator: " << yytext << '\n'; }
+"<<="                   { cout << "Operator: " << yytext << '\n'; SEMI_OFF();}
+">>="                   { cout << "Operator: " << yytext << '\n'; SEMI_OFF();}
+"&^="                   { cout << "Operator: " << yytext << '\n'; SEMI_OFF();}
 
-"..."                   { cout << "Varargs: " << yytext << '\n'; }
-
-
-"<<"                    { cout << "Operator: " << yytext << " (shl)\n"; }
-">>"                    { cout << "Operator: " << yytext << " (shr)\n"; }
-"&^"                    { cout << "Operator: " << yytext << '\n'; }
-"&="                    { cout << "Operator: " << yytext << '\n'; }
-"|="                    { cout << "Operator: " << yytext << '\n'; }
-"^="                    { cout << "Operator: " << yytext << '\n'; }
-"&&"                    { cout << "Operator: " << yytext << '\n'; }
-"||"                    { cout << "Operator: " << yytext << '\n'; }
-"<-"                    { cout << "Operator: " << yytext << '\n'; }
-"++"                    { cout << "Operator: " << yytext << '\n'; }
-"--"                    { cout << "Operator: " << yytext << '\n'; }
-"=="                    { cout << "Operator: " << yytext << '\n'; }
-
-"+="                    { cout << "Operator: " << yytext << '\n'; }
-"-="                    { cout << "Operator: " << yytext << '\n'; }
-"*="                    { cout << "Operator: " << yytext << '\n'; }
-"/="                    { cout << "Operator: " << yytext << '\n'; }
-"%="                    { cout << "Operator: " << yytext << '\n'; }
-"!="                    { cout << "Operator: " << yytext << '\n'; }
-">="                    { cout << "Operator: " << yytext << '\n'; }
-"<="                    { cout << "Operator: " << yytext << '\n'; }
-":="                    { cout << "Operator: " << yytext << '\n'; }
-
-{DEC_LIT}               { cout << "Decimal integer: " << std::stoi(yytext) << '\n'; }
-{OCT_LIT}               { cout << "Octal integer: " << std::stoi(yytext, nullptr, 8) << '\n'; }
-{HEX_LIT}               { cout << "Hexadecimal integer: " << std::stoi(yytext, nullptr, 16) << '\n'; }
-{DEC_FLOAT_LIT}         { cout << "Decimal float: " << std::stod(yytext) << '\n'; }
-
-"+"                     { cout << "Operator: " << yytext << '\n'; }
-"-"                     { cout << "Operator: " << yytext << '\n'; }
-"*"                     { cout << "Operator: " << yytext << '\n'; }
-"/"                     { cout << "Operator: " << yytext << '\n'; }
-"%"                     { cout << "Operator: " << yytext << '\n'; }
-"&"                     { cout << "Operator: " << yytext << '\n'; }
-"|"                     { cout << "Operator: " << yytext << '\n'; }
-"^"                     { cout << "Operator: " << yytext << '\n'; }
-"<"                     { cout << "Operator: " << yytext << '\n'; }
-">"                     { cout << "Operator: " << yytext << '\n'; }
-"="                     { cout << "Operator: " << yytext << '\n'; }
-"!"                     { cout << "Operator: " << yytext << '\n'; }
-"~"                     { cout << "Operator: " << yytext << '\n'; }
-"."                     { cout << "Operator: " << yytext << '\n'; }
-","                     { cout << "Operator: " << yytext << '\n'; }
-";"                     { cout << "Operator: " << yytext << '\n'; }
-":"                     { cout << "Operator: " << yytext << '\n'; }
+"..."                   { cout << "Varargs: " << yytext << '\n'; SEMI_OFF();}
 
 
-"("                     { cout << "OParen: "  << yytext << '\n'; }
-")"                     { cout << "CParen: "  << yytext << '\n'; }
-"["                     { cout << "OBracket: "<< yytext << '\n'; }
-"]"                     { cout << "CBracket: "<< yytext << '\n'; }
-"{"                     { cout << "OBrace: "  << yytext << '\n'; }
-"}"                     { cout << "CBrace: "  << yytext << '\n'; }
+"<<"                    { cout << "Operator: " << yytext << " (shl)\n"; SEMI_OFF();}
+">>"                    { cout << "Operator: " << yytext << " (shr)\n"; SEMI_OFF();}
+"&^"                    { cout << "Operator: " << yytext << '\n'; SEMI_OFF();}
+"&="                    { cout << "Operator: " << yytext << '\n'; SEMI_OFF();}
+"|="                    { cout << "Operator: " << yytext << '\n'; SEMI_OFF();}
+"^="                    { cout << "Operator: " << yytext << '\n'; SEMI_OFF();}
+"&&"                    { cout << "Operator: " << yytext << '\n'; SEMI_OFF();}
+"||"                    { cout << "Operator: " << yytext << '\n'; SEMI_OFF();}
+"<-"                    { cout << "Operator: " << yytext << '\n'; SEMI_OFF();}
+"++"                    { cout << "Operator: " << yytext << '\n'; SEMI_ON();}
+"--"                    { cout << "Operator: " << yytext << '\n'; SEMI_ON();}
+"=="                    { cout << "Operator: " << yytext << '\n'; SEMI_OFF();}
+
+"+="                    { cout << "Operator: " << yytext << '\n'; SEMI_OFF();}
+"-="                    { cout << "Operator: " << yytext << '\n'; SEMI_OFF();}
+"*="                    { cout << "Operator: " << yytext << '\n'; SEMI_OFF();}
+"/="                    { cout << "Operator: " << yytext << '\n'; SEMI_OFF();}
+"%="                    { cout << "Operator: " << yytext << '\n'; SEMI_OFF();}
+"!="                    { cout << "Operator: " << yytext << '\n'; SEMI_OFF();}
+">="                    { cout << "Operator: " << yytext << '\n'; SEMI_OFF();}
+"<="                    { cout << "Operator: " << yytext << '\n'; SEMI_OFF();}
+":="                    { cout << "Operator: " << yytext << '\n'; SEMI_OFF();}
+
+{DEC_LIT}               { cout << "Decimal integer: " << std::stoi(yytext) << '\n'; SEMI_ON();}
+{OCT_LIT}               { cout << "Octal integer: " << std::stoi(yytext, nullptr, 8) << '\n'; SEMI_ON();}
+{HEX_LIT}               { cout << "Hexadecimal integer: " << std::stoi(yytext, nullptr, 16) << '\n'; SEMI_ON();}
+{DEC_FLOAT_LIT}         { cout << "Decimal float: " << std::stod(yytext) << '\n'; SEMI_ON();}
+
+"+"                     { cout << "Operator: " << yytext << '\n'; SEMI_OFF();}
+"-"                     { cout << "Operator: " << yytext << '\n'; SEMI_OFF();}
+"*"                     { cout << "Operator: " << yytext << '\n'; SEMI_OFF();}
+"/"                     { cout << "Operator: " << yytext << '\n'; SEMI_OFF();}
+"%"                     { cout << "Operator: " << yytext << '\n'; SEMI_OFF();}
+"&"                     { cout << "Operator: " << yytext << '\n'; SEMI_OFF();}
+"|"                     { cout << "Operator: " << yytext << '\n'; SEMI_OFF();}
+"^"                     { cout << "Operator: " << yytext << '\n'; SEMI_OFF();}
+"<"                     { cout << "Operator: " << yytext << '\n'; SEMI_OFF();}
+">"                     { cout << "Operator: " << yytext << '\n'; SEMI_OFF();}
+"="                     { cout << "Operator: " << yytext << '\n'; SEMI_OFF();}
+"!"                     { cout << "Operator: " << yytext << '\n'; SEMI_OFF();}
+"~"                     { cout << "Operator: " << yytext << '\n'; SEMI_OFF();}
+"."                     { cout << "Operator: " << yytext << '\n'; SEMI_OFF();}
+","                     { cout << "Operator: " << yytext << '\n'; SEMI_OFF();}
+";"                     { cout << "Operator: " << yytext << '\n'; SEMI_OFF();}
+":"                     { cout << "Operator: " << yytext << '\n'; SEMI_OFF();}
+
+
+"("                     { cout << "OParen: "  << yytext << '\n'; SEMI_OFF();}
+")"                     { cout << "CParen: "  << yytext << '\n'; SEMI_ON();}
+"["                     { cout << "OBracket: "<< yytext << '\n'; SEMI_OFF();}
+"]"                     { cout << "CBracket: "<< yytext << '\n'; SEMI_ON();}
+"{"                     { cout << "OBrace: "  << yytext << '\n'; SEMI_OFF();}
+"}"                     { cout << "CBrace: "  << yytext << '\n'; SEMI_ON();}
 
 "//"                    { BEGIN(SCOMM); }
 <SCOMM>[^\r\n]*         { cout << "Single-line comment: " << yytext << '\n'; BEGIN(INITIAL); }
 <SCOMM><<EOF>>          { BEGIN(INITIAL); }
 
 "/*"                    { comment_start_line = yylineno; BEGIN(MCOMM); }
-<MCOMM>\r\n             { comm_append("\n", 1); }
+<MCOMM>{NL} {
+    if (can_insert_semi) {
+        cout << "Semicolon: ; (inserted)\n";
+        SEMI_OFF();
+    }
+    comm_append("\n", 1);
+}
 <MCOMM>[^*\r\n]*        { comm_append(yytext, yyleng); }
 <MCOMM>"*"+[^*/\r\n]*   { comm_append(yytext, yyleng); }
 <MCOMM>"*"+"/"          { cout << "Multi-line comment: " << comment_buf << '\n'; comm_reset(); BEGIN(INITIAL); }
@@ -252,16 +265,20 @@ static inline void comm_reset() {
 <INTER_STR>{LITTLE_U_VAL}   { from_unicode_to_utf8(yytext + 2); }
 <INTER_STR>{BIG_U_VAL}      { from_unicode_to_utf8(yytext + 2); }
 <INTER_STR>\n               { cout << "ERROR: newline in interpreted string literal\n"; str_reset(); BEGIN(INITIAL); }
-<INTER_STR>\"               { cout << "Interpreted string: " << str_buf << '\n'; str_reset(); BEGIN(INITIAL); }
+<INTER_STR>\"               { cout << "Interpreted string: " << str_buf << '\n'; str_reset(); SEMI_ON(); BEGIN(INITIAL); }
 <INTER_STR><<EOF>>          { cout << "ERROR: unterminated string (\") before EOF\n"; BEGIN(INITIAL); }
 
 
 `                 			{ BEGIN(RAW_STR); }
 <RAW_STR>[^`\r]+           	{ str_add_chars(yytext, yyleng); }
 <RAW_STR>\r                	{ ; }
-<RAW_STR>`                 	{ cout << "Raw string: " << str_buf << '\n'; str_reset(); BEGIN(INITIAL); }
+<RAW_STR>`                 	{ cout << "Raw string: " << str_buf << '\n'; str_reset(); SEMI_ON(); BEGIN(INITIAL); }
 <RAW_STR><<EOF>>          	{ cout << "ERROR: unterminated string (`) before EOF\n"; BEGIN(INITIAL); }
 
-{WHITE_SPACES}          { ; }
+{NL}                        { if (can_insert_semi) { cout << "Semicolon: ; (inserted)\n"; can_insert_semi = 0; } }
+{WHITE_SPACES_NO_NL}        { ; }
+
+<<EOF>> { if (can_insert_semi) { cout << "Semicolon: ; (inserted before EOF)\n"; } return 0; }
+
 
 %%
