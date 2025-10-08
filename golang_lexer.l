@@ -19,7 +19,7 @@
 
 /* Macros */
 IDENTIFIER          [A-Za-z_][A-Za-z_0-9]*
-WHITE_SPACES        [ \t\r\n]
+WHITE_SPACES        [ \t\r\n\f\v]+
 
 DEC_DIG             [0-9]
 DEC_DIGS            {DEC_DIG}(_?{DEC_DIG})*
