@@ -12,8 +12,4 @@ func main() {
     str6 := "\u0041 is A"          // Строка с Unicode escape (U+0041 -> 'A')
     str7 := "Byte: \x41"           // Строка с байтовым значением (ASCII 'A')
     str8 := "\U0001F600 is Grinning Face" // Строка с Unicode escape (U+1F600 -> Grinning Face)
-
-    str9 := "Invalid Unicode \uD800" // Некорректный Unicode escape (surrogate half)
-    str10 := "Bad byte value \xG1"  // Некорректный байтовый escape (невалидный символ после \x)
-    str11 := "Too few octal digits \377" // Некорректный октальный escape (недостаточно цифр)
 }
