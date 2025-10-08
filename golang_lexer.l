@@ -262,6 +262,10 @@ static inline void comm_reset() {
     } else {
         str_add_char(yytext[2]);
     }
+	
+	cout << "Rune literal: " << str_buf << '\n'; 
+	str_reset(); 
+	SEMI_ON();
 }
 
 
