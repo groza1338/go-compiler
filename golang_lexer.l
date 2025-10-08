@@ -81,6 +81,7 @@ static inline void str_add_chars(const char *str, size_t len) {
 }
 
 static inline void str_reset() {
+    memset(str_buf, 0, str_pos + 1);
     str_pos = 0;
 }
 
@@ -222,7 +223,7 @@ static inline void comm_reset() {
 {DEC_FLOAT_LIT}         { cout << "Decimal float: " << std::stod(yytext) << '\n'; }
 
 "//"                    { BEGIN(SCOMM); }
-<SCOMM>[^\r\n]*         { cout << "Single-line comment: " << '"' << yytext << '"' << '\n'; BEGIN(INITIAL); }
+<SCOMM>[^\r\n]*         { cout << "Single-line comment: " << yytext << '\n'; BEGIN(INITIAL); }
 <SCOMM><<EOF>>          { BEGIN(INITIAL); }
 
 "/*"                    { comment_start_line = yylineno; BEGIN(MCOMM); }
@@ -253,10 +254,11 @@ static inline void comm_reset() {
 <INTER_STR><<EOF>>          { cout << "ERROR: unterminated string (\") before EOF\n"; BEGIN(INITIAL); }
 
 
-"`"                     { BEGIN(RAW_STR); }
-<RAW_STR>[^`\r\n]       { str_add_chars(yytext, yyleng); }
-<RAW_STR>\n             { str_add_chars("\n", 1); }
-<RAW_STR>"`"            { cout << "Raw string: " << str_buf << '\n'; str_reset(); BEGIN(INITIAL); }
+`                 			{ BEGIN(RAW_STR); }
+<RAW_STR>[^`\r]+           	{ str_add_chars(yytext, yyleng); }
+<RAW_STR>\r                	{ ; }
+<RAW_STR>`                 	{ cout << "Raw string: " << str_buf << '\n'; str_reset(); BEGIN(INITIAL); }
+<RAW_STR><<EOF>>          	{ cout << "ERROR: unterminated string (`) before EOF\n"; BEGIN(INITIAL); }
 
 {WHITE_SPACES}          { ; }
 
