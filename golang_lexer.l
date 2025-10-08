@@ -248,6 +248,23 @@ static inline void comm_reset() {
 <MCOMM>"*"+"/"          { cout << "Multi-line comment: " << comment_buf << '\n'; comm_reset(); BEGIN(INITIAL); }
 <MCOMM><<EOF>>          { cout << "ERROR: unterminated multiline comment (opened at line " << comment_start_line << ")\n"; comm_reset(); BEGIN(INITIAL); }
 
+\'(\\[abfnrtv\\\'"]|[^\r\n\']|{RUNE_LIT_BODY})\' {
+    if (yytext[1] == '\\') {
+        if (yytext[2] == 'n') {
+            return '\n';
+        } else if (yytext[2] == 'u' || yytext[2] == 'U') {
+			from_unicode_to_utf8(yytext + 3);
+        } else if (yytext[2] >= '0' && yytext[2] <= '7')) {
+			octal_escape(yytext + 1);
+        } else if (yytext[2] == 'x') {
+			hex_escape(yytext + 2);
+		}
+    } else {
+        return yytext[1];
+    }
+}
+
+
 \"                          { BEGIN(INTER_STR); }
 <INTER_STR>[^\\\"\n]+       { str_add_chars(yytext, yyleng); }
 <INTER_STR>\\a              { str_add_char('\a'); }
