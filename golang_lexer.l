@@ -280,7 +280,7 @@ static inline void comm_reset() {
 <MCOMM><<EOF>>          { cout << "ERROR: unterminated multiline comment (opened at line " << comment_start_line << ")\n"; comm_reset(); BEGIN(INITIAL); }
 
 \"                          { BEGIN(INTER_STR); }
-<INTER_STR>[^\\\"\n]+       { str_add_char(yytext, yyleng); }
+<INTER_STR>[^\\\"\n]+       { str_add_chars(yytext, yyleng); }
 <INTER_STR>\\a              { str_add_char('\a'); }
 <INTER_STR>\\b              { str_add_char('\b'); }
 <INTER_STR>\\f              { str_add_char('\f'); }
@@ -301,8 +301,8 @@ static inline void comm_reset() {
 
 
 "`"                     { BEGIN(RAW_STR); }
-<RAW_STR>[^`\r\n]       { str_append(yytext, yyleng); }
-<RAW_STR>\n             { str_append("\n", 1); }
+<RAW_STR>[^`\r\n]       { str_add_chars(yytext, yyleng); }
+<RAW_STR>\n             { str_add_chars("\n", 1); }
 <RAW_STR>"`"            { cout << "Raw string: " << str_buf << '\n'; str_reset(); BEGIN(INITIAL); }
 
 {WHITE_SPACES}          { ; }
