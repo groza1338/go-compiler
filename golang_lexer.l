@@ -248,25 +248,22 @@ static inline void comm_reset() {
 <MCOMM>"*"+"/"          { cout << "Multi-line comment: " << comment_buf << '\n'; comm_reset(); BEGIN(INITIAL); }
 <MCOMM><<EOF>>          { cout << "ERROR: unterminated multiline comment (opened at line " << comment_start_line << ")\n"; comm_reset(); BEGIN(INITIAL); }
 
-\'(\\[abfnrtv\\\'"]|[^\r\n\']|{RUNE_LIT_BODY})\' {
-    if (yytext[1] == '\\') {
-        if (yytext[2] == 'n') {
-            str_add_char('\n');
-        } else if (yytext[2] == 'u' || yytext[2] == 'U') {
-			from_unicode_to_utf8(yytext + 3);
-        } else if (yytext[2] >= '0' && yytext[2] <= '7') {
-			octal_escape(yytext + 2);
-        } else if (yytext[2] == 'x') {
-			hex_escape(yytext + 3);
-		}
-    } else {
-        str_add_char(yytext[1]);
-    }
-	
-	cout << "Rune literal: " << str_buf << '\n'; 
-	str_reset(); 
-	SEMI_ON();
-}
+\'[^\r\n\']\'				{ str_add_char(yytext[1]); cout << "Rune literal: " << str_buf << '\n'; str_reset(); SEMI_ON(); }
+\'\\a\'						{ str_add_char('\a'); cout << "Rune literal: " << str_buf << '\n'; str_reset(); SEMI_ON(); }
+\'\\b\'						{ str_add_char('\b'); cout << "Rune literal: " << str_buf << '\n'; str_reset(); SEMI_ON(); }
+\'\\f\'						{ str_add_char('\f'); cout << "Rune literal: " << str_buf << '\n'; str_reset(); SEMI_ON(); }
+\'\\n\'						{ str_add_char('\n'); cout << "Rune literal: " << str_buf << '\n'; str_reset(); SEMI_ON(); }
+\'\\r\'						{ str_add_char('\r'); cout << "Rune literal: " << str_buf << '\n'; str_reset(); SEMI_ON(); }
+\'\\t\'						{ str_add_char('\t'); cout << "Rune literal: " << str_buf << '\n'; str_reset(); SEMI_ON(); }
+\'\\v\'						{ str_add_char('\v'); cout << "Rune literal: " << str_buf << '\n'; str_reset(); SEMI_ON(); }
+\'\\\\\'					{ str_add_char('\\'); cout << "Rune literal: " << str_buf << '\n'; str_reset(); SEMI_ON(); }
+\'\\\"\'					{ str_add_char('"'); cout << "Rune literal: " << str_buf << '\n'; str_reset(); SEMI_ON(); }
+\'\\\''						{ str_add_char('\''); cout << "Rune literal: " << str_buf << '\n'; str_reset(); SEMI_ON(); }
+\'{OCT_BYTE_VAL}\'   		{ octal_escape(yytext + 2); cout << "Rune literal: " << str_buf << '\n'; str_reset(); SEMI_ON(); }
+\'{HEX_BYTE_VAL}\'   		{ hex_escape(yytext + 3); cout << "Rune literal: " << str_buf << '\n'; str_reset(); SEMI_ON(); }
+\'{LITTLE_U_VAL}\'   		{ from_unicode_to_utf8(yytext + 3); cout << "Rune literal: " << str_buf << '\n'; str_reset(); SEMI_ON(); }
+\'{BIG_U_VAL}\'      		{ from_unicode_to_utf8(yytext + 3); cout << "Rune literal: " << str_buf << '\n'; str_reset(); SEMI_ON(); }
+\'\n\'						{ cout << "ERROR: newline in interpreted string literal\n"; }
 
 
 \"                          { BEGIN(INTER_STR); }
