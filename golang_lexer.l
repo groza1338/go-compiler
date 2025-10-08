@@ -52,6 +52,8 @@ INTER_STR_LIT_BODY  ({UNICODE_VAL}|{BYTE_VAL})*
 #include <stdlib.h>
 #include <string.h>
 #include <ctype.h>
+#include <iostream>
+#include <cstring>
 using std::cout;
 
 #define MAX_STRING_LENGTH 2048
