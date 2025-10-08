@@ -191,6 +191,11 @@ static inline void comm_reset() {
 "<="                    { cout << "Operator: " << yytext << '\n'; }
 ":="                    { cout << "Operator: " << yytext << '\n'; }
 
+{DEC_LIT}               { cout << "Decimal integer: " << std::stoi(yytext) << '\n'; }
+{OCT_LIT}               { cout << "Octal integer: " << std::stoi(yytext, nullptr, 8) << '\n'; }
+{HEX_LIT}               { cout << "Hexadecimal integer: " << std::stoi(yytext, nullptr, 16) << '\n'; }
+{DEC_FLOAT_LIT}         { cout << "Decimal float: " << std::stod(yytext) << '\n'; }
+
 "+"                     { cout << "Operator: " << yytext << '\n'; }
 "-"                     { cout << "Operator: " << yytext << '\n'; }
 "*"                     { cout << "Operator: " << yytext << '\n'; }
@@ -216,11 +221,6 @@ static inline void comm_reset() {
 "]"                     { cout << "CBracket: "<< yytext << '\n'; }
 "{"                     { cout << "OBrace: "  << yytext << '\n'; }
 "}"                     { cout << "CBrace: "  << yytext << '\n'; }
-
-{DEC_LIT}               { cout << "Decimal integer: " << std::stoi(yytext) << '\n'; }
-{OCT_LIT}               { cout << "Octal integer: " << std::stoi(yytext, nullptr, 8) << '\n'; }
-{HEX_LIT}               { cout << "Hexadecimal integer: " << std::stoi(yytext, nullptr, 16) << '\n'; }
-{DEC_FLOAT_LIT}         { cout << "Decimal float: " << std::stod(yytext) << '\n'; }
 
 "//"                    { BEGIN(SCOMM); }
 <SCOMM>[^\r\n]*         { cout << "Single-line comment: " << yytext << '\n'; BEGIN(INITIAL); }
