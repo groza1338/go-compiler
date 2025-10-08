@@ -261,7 +261,7 @@ static inline void comm_reset() {
 {DEC_FLOAT_LIT}         { cout << "Decimal float: " << std::stod(yytext) << '\n'; }
 
 "//"                    { BEGIN(SCOMM); }
-<SCOMM>[^\r\n]*         { cout << "Single-line comment: " << '"' << yytext << '"' << '\n'; BEGIN(INITIAL); }
+<SCOMM>[^\r\n]*         { cout << "Single-line comment: " << yytext << '\n'; BEGIN(INITIAL); }
 <SCOMM><<EOF>>          { BEGIN(INITIAL); }
 
 "/*"                    { comment_start_line = yylineno; BEGIN(MCOMM); }
