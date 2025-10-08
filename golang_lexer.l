@@ -191,20 +191,11 @@ static inline void comm_reset() {
 "complex64"             { cout << "Predeclared Types: " << yytext << '\n'; }
 "complex128"            { cout << "Predeclared Types: " << yytext << '\n'; }
 "error"                 { cout << "Predeclared Types: " << yytext << '\n'; }
-"float32"               { cout << "Predeclared Types: " << yytext << '\n'; }
 "float64"               { cout << "Predeclared Types: " << yytext << '\n'; }
 "int"                   { cout << "Predeclared Types: " << yytext << '\n'; }
 "int8"                  { cout << "Predeclared Types: " << yytext << '\n'; }
-"int16"                 { cout << "Predeclared Types: " << yytext << '\n'; }
-"int32"                 { cout << "Predeclared Types: " << yytext << '\n'; }
-"int64"                 { cout << "Predeclared Types: " << yytext << '\n'; }
 "rune"                  { cout << "Predeclared Types: " << yytext << '\n'; }
 "string"                { cout << "Predeclared Types: " << yytext << '\n'; }
-"uint"                  { cout << "Predeclared Types: " << yytext << '\n'; }
-"uint8"                 { cout << "Predeclared Types: " << yytext << '\n'; }
-"uint16"                { cout << "Predeclared Types: " << yytext << '\n'; }
-"uint32"                { cout << "Predeclared Types: " << yytext << '\n'; }
-"uint64"                { cout << "Predeclared Types: " << yytext << '\n'; }
 "uintptr"               { cout << "Predeclared Types: " << yytext << '\n'; }
 
 {IDENTIFIER}            { cout << "Identifier: " << yytext << '\n'; }
