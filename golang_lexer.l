@@ -251,7 +251,7 @@ static inline void comm_reset() {
 \'(\\[abfnrtv\\\'"]|[^\r\n\']|{RUNE_LIT_BODY})\' {
     if (yytext[1] == '\\') {
         if (yytext[2] == 'n') {
-            return '\n';
+            str_add_char('\n');
         } else if (yytext[2] == 'u' || yytext[2] == 'U') {
 			from_unicode_to_utf8(yytext + 3);
         } else if (yytext[2] >= '0' && yytext[2] <= '7') {
