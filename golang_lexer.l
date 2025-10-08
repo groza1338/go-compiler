@@ -81,6 +81,7 @@ static inline void str_add_chars(const char *str, size_t len) {
 }
 
 static inline void str_reset() {
+    memset(str_buf, 0, str_pos + 1);
     str_pos = 0;
 }
 
