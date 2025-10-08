@@ -39,10 +39,10 @@ HEX_DIGS            {HEX_DIG}(_?{HEX_DIG})*
 HEX_LIT             0[xX]_?{HEX_DIGS}
 
 ESC_CHAR            \\[abfnrtv\\'"]
-BIG_U_VAL           \\U{HEX_DIG}{HEX_DIG}{HEX_DIG}{HEX_DIG}{HEX_DIG}{HEX_DIG}{HEX_DIG}{HEX_DIG}
-LITTLE_U_VAL        \\u{HEX_DIG}{HEX_DIG}{HEX_DIG}{HEX_DIG}
-HEX_BYTE_VAL        \\x{HEX_DIG}{HEX_DIG}
-OCT_BYTE_VAL        \\{OCT_DIG}{OCT_DIG}{OCT_DIG}
+BIG_U_VAL           \\U{HEX_DIG}{8}
+LITTLE_U_VAL        \\u{HEX_DIG}{4}
+HEX_BYTE_VAL        \\x{HEX_DIG}{2}
+OCT_BYTE_VAL        \\{OCT_DIG}{3}
 BYTE_VAL            {OCT_BYTE_VAL}|{HEX_BYTE_VAL}
 UNICODE_VAL         {LITTLE_U_VAL}|{BIG_U_VAL}|{ESC_CHAR}
 RUNE_LIT_BODY       ({UNICODE_VAL}|{BYTE_VAL})
