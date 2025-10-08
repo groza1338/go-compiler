@@ -292,10 +292,11 @@ static inline void comm_reset() {
 <INTER_STR><<EOF>>          { cout << "ERROR: unterminated string (\") before EOF\n"; BEGIN(INITIAL); }
 
 
-"`"                     { BEGIN(RAW_STR); }
-<RAW_STR>[^`\r\n]       { str_add_chars(yytext, yyleng); }
-<RAW_STR>\n             { str_add_chars("\n", 1); }
-<RAW_STR>"`"            { cout << "Raw string: " << str_buf << '\n'; str_reset(); BEGIN(INITIAL); }
+`                 			{ BEGIN(RAW_STR); }
+<RAW_STR>[^`\r]+           	{ str_add_chars(yytext, yyleng); }
+<RAW_STR>\r                	{ ; }
+<RAW_STR>`                 	{ cout << "Raw string: " << str_buf << '\n'; str_reset(); BEGIN(INITIAL); }
+<RAW_STR><<EOF>>          	{ cout << "ERROR: unterminated string (`) before EOF\n"; BEGIN(INITIAL); }
 
 {WHITE_SPACES}          { ; }
 
