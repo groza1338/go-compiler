@@ -244,6 +244,7 @@ static inline void str_reset() {
 <MCOMM><<EOF>>          { cout << "ERROR: unterminated multiline comment (opened at line " << comment_start_line << ")\n"; comm_reset(); BEGIN(INITIAL); }
 
 \"                      { BEGIN(INTER_STR); }
+<INTER_STR>\"           { cout << "Interpreted string: " << str_buf << '\n'; str_reset(); BEGIN(INITIAL); }
 <INTER_STR>[^\\\"\n]+   { str_append(yytext, yyleng); }
 <INTER_STR>{ESC_CHAR}   {
     switch (yytext[1]) {
@@ -292,7 +293,6 @@ static inline void str_reset() {
         cout << "ERROR: invalid Unicode code point (out of range)" << '\n';
     }
 }
-<INTER_STR>\"           { cout << "Interpreted string: " << str_buf << '\n'; str_reset(); BEGIN(INITIAL); }
 <INTER_STR>\n           { cout << "ERROR: newline in interpreted string literal\n"; str_reset(); BEGIN(INITIAL); }
 
 \'                      { BEGIN(RUNE_STR); }
