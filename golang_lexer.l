@@ -253,14 +253,14 @@ static inline void comm_reset() {
         if (yytext[2] == 'n') {
             str_add_char('\n');
         } else if (yytext[2] == 'u' || yytext[2] == 'U') {
-			from_unicode_to_utf8(yytext[3]);
+			from_unicode_to_utf8(&yytext[3]);
         } else if (yytext[2] >= '0' && yytext[2] <= '7') {
-			octal_escape(yytext[2]);
+			octal_escape(&yytext[2]);
         } else if (yytext[2] == 'x') {
-			hex_escape(yytext[3]);
+			hex_escape(&yytext[3]);
 		}
     } else {
-        str_add_char(yytext[2]);
+        str_add_char(&yytext[2]);
     }
 }
 
