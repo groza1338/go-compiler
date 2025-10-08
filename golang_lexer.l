@@ -132,26 +132,6 @@ static inline void comm_reset() {
 
 %%
 
-"append"                {cout << "Predeclared Functions: " << yytext << '\n';}
-"cap"                   {cout << "Predeclared Functions: " << yytext << '\n';}
-"clear"                 {cout << "Predeclared Functions: " << yytext << '\n';}
-"close"                 {cout << "Predeclared Functions: " << yytext << '\n';}
-"complex"               {cout << "Predeclared Functions: " << yytext << '\n';}
-"copy"                  {cout << "Predeclared Functions: " << yytext << '\n';}
-"delete"                {cout << "Predeclared Functions: " << yytext << '\n';}
-"imag"                  {cout << "Predeclared Functions: " << yytext << '\n';}
-"len"                   {cout << "Predeclared Functions: " << yytext << '\n';}
-"make"                  {cout << "Predeclared Functions: " << yytext << '\n';}
-"max"                   {cout << "Predeclared Functions: " << yytext << '\n';}
-"min"                   {cout << "Predeclared Functions: " << yytext << '\n';}
-"new"                   {cout << "Predeclared Functions: " << yytext << '\n';}
-"panic"                 {cout << "Predeclared Functions: " << yytext << '\n';}
-"println"               {cout << "Predeclared Functions: " << yytext << '\n';}
-"print"                 {cout << "Predeclared Functions: " << yytext << '\n';}
-"real"                  {cout << "Predeclared Functions: " << yytext << '\n';}
-"recover"               {cout << "Predeclared Functions: " << yytext << '\n';}
-
-
 "break"                 {cout << "Keyword: " << yytext << '\n';}
 "case"                  {cout << "Keyword: " << yytext << '\n';}
 "chan"                  {cout << "Keyword: " << yytext << '\n';}
@@ -177,24 +157,6 @@ static inline void comm_reset() {
 "switch"                {cout << "Keyword: " << yytext << '\n';}
 "type"                  {cout << "Keyword: " << yytext << '\n';}
 "var"                   {cout << "Keyword: " << yytext << '\n';}
-
-"true"                  { cout << "Predeclared Constants: " << yytext << '\n'; }
-"false"                 { cout << "Predeclared Constants: " << yytext << '\n'; }
-"iota"                  { cout << "Predeclared Constants: " << yytext << '\n'; }
-
-"any"                   { cout << "Predeclared Types: " << yytext << '\n'; }
-"bool"                  { cout << "Predeclared Types: " << yytext << '\n'; }
-"byte"                  { cout << "Predeclared Types: " << yytext << '\n'; }
-"comparable"            { cout << "Predeclared Types: " << yytext << '\n'; }
-"complex64"             { cout << "Predeclared Types: " << yytext << '\n'; }
-"complex128"            { cout << "Predeclared Types: " << yytext << '\n'; }
-"error"                 { cout << "Predeclared Types: " << yytext << '\n'; }
-"float64"               { cout << "Predeclared Types: " << yytext << '\n'; }
-"int"                   { cout << "Predeclared Types: " << yytext << '\n'; }
-"int8"                  { cout << "Predeclared Types: " << yytext << '\n'; }
-"rune"                  { cout << "Predeclared Types: " << yytext << '\n'; }
-"string"                { cout << "Predeclared Types: " << yytext << '\n'; }
-"uintptr"               { cout << "Predeclared Types: " << yytext << '\n'; }
 
 {IDENTIFIER}            { cout << "Identifier: " << yytext << '\n'; }
 
