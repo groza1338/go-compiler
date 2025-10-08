@@ -260,7 +260,7 @@ static inline void comm_reset() {
 			hex_escape(yytext + 2);
 		}
     } else {
-        return yytext[1];
+        str_add_char(yytext[1]);
     }
 }
 
