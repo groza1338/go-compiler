@@ -118,6 +118,9 @@ param_list		:	param_list ',' param_decl
 param_decl		:	id_list type
 				|	type
 				;
+				
+slice_type		:	'[' ']' type
+				;
 
 %%
 // Секция пользовательского кода
