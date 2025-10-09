@@ -6,6 +6,13 @@ using namespace std;
 %}
 // Секция объявлений
 
+%token	PACKAGE
+%token	CONST
+
+%token ID
+
+
+%start program
 
 %%
 // Секция правил грамматики
