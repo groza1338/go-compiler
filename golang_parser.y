@@ -77,11 +77,12 @@ type_name		:	INT
 				;
 				
 qualified_ident	:	package_name '.' ID
+				;
 
-package_name	:	FMT	
+package_name	:	FMT
+				;
 
 type_args		:	'[' type_list ']'
-				|	'[' type_list ',' ']'
 				;
 				
 type_list		:	type_list ',' type
