@@ -56,6 +56,8 @@ INTER_STR_LIT_BODY  ({UNICODE_VAL}|{BYTE_VAL})*
 #include <iostream>
 #include <cstring>
 #include <string>
+#include <algorithm>
+#include <cerrno>
 using std::cout;
 
 #define MAX_STRING_LENGTH 2048
@@ -138,6 +140,19 @@ static inline void comm_reset() {
     comment_start_line = 0;
 }
 
+static inline std::string strip_underscores(const char* y) {
+    std::string s(y);
+    s.erase(std::remove(s.begin(), s.end(), '_'), s.end());
+    return s;
+}
+
+static inline unsigned long long parse_u64(const char* p, int base) {
+    errno = 0;
+    char* end = nullptr;
+    unsigned long long v = std::strtoull(p, &end, base);
+    return v;
+}
+
 %}
 
 %%
@@ -200,10 +215,31 @@ static inline void comm_reset() {
 "<="                    { cout << "Operator: " << yytext << '\n'; SEMI_OFF();}
 ":="                    { cout << "Operator: " << yytext << '\n'; SEMI_OFF();}
 
-{DEC_LIT}               { cout << "Decimal integer: " << std::stoi(yytext) << '\n'; SEMI_ON();}
-{OCT_LIT}               { cout << "Octal integer: " << std::stoi(yytext, nullptr, 8) << '\n'; SEMI_ON();}
-{HEX_LIT}               { cout << "Hexadecimal integer: " << std::stoi(yytext, nullptr, 16) << '\n'; SEMI_ON();}
-{DEC_FLOAT_LIT}         { cout << "Decimal float: " << std::stod(yytext) << '\n'; SEMI_ON();}
+{DEC_LIT} {
+    std::string s = strip_underscores(yytext);
+    unsigned long long v = parse_u64(s.c_str(), 10);
+    cout << "Decimal integer: " << v << '\n'; SEMI_ON();
+}
+{OCT_LIT} {
+    std::string s = strip_underscores(yytext);       // "0o755"/"0755" -> без '_'
+    const char* p = s.c_str();
+    if (s.size() >= 2 && (s[1]=='o' || s[1]=='O'))   // "0o..." → сдвигаем на 2
+        p += 2;
+    // Для старого формата "0755" оставляем как есть — base=8 всё съест.
+    unsigned long long v = parse_u64(p, 8);
+    cout << "Octal integer: " << v << '\n'; SEMI_ON();
+}
+{HEX_LIT} {
+    std::string s = strip_underscores(yytext);       // "0xBad_Face" -> "0xBadFace"
+    const char* p = s.c_str() + 2;                    // пропускаем "0x"/"0X"
+    unsigned long long v = parse_u64(p, 16);
+    cout << "Hexadecimal integer: " << v << '\n'; SEMI_ON();
+}
+{DEC_FLOAT_LIT} {
+    std::string s = strip_underscores(yytext);       // "1_234.5_6e-1_0" -> "1234.56e-10"
+    double d = std::stod(s);
+    cout << "Decimal float: " << d << '\n'; SEMI_ON();
+}
 
 "+"                     { cout << "Operator: " << yytext << '\n'; SEMI_OFF();}
 "-"                     { cout << "Operator: " << yytext << '\n'; SEMI_OFF();}
