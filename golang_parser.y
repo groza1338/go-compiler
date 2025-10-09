@@ -34,7 +34,7 @@ stmt			:	decl
 				| 	continue_stmt 
 				| 	block 
 				| 	if_stmt 
-				| 	wwitc_stmt 
+				| 	switch_stmt 
 				| 	for_stmt
 				;
 
