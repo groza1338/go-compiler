@@ -1,6 +1,9 @@
 #include <iostream>
 #include <fstream>
 #include <FlexLexer.h>
+#include "golang_parser.tab.h"
+
+yyFlexLexer *lexer;
 
 int main(int argc, char* argv[])
 {
@@ -17,9 +20,9 @@ int main(int argc, char* argv[])
         return 1;
     }
 
-    yyFlexLexer lexer;
-    lexer.switch_streams(&file, &std::cout);
-    lexer.yylex();
+    lexer = new yyFlexLexer();      // создаём объект лексера
+    lexer->switch_streams(&file, &std::cout);  // Передаем файл для анализа
+    yyparse();
 
     return 0;
 }
