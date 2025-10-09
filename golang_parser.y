@@ -38,7 +38,8 @@ stmt			:	decl
 				| 	for_stmt
 				;
 
-decl			:	const_decl	
+decl			:	const_decl
+				:	var_decl
 				;
 
 const_decl		:	CONST const_spec
@@ -120,6 +121,19 @@ param_decl		:	id_list type
 				;
 				
 slice_type		:	'[' ']' type
+				;
+				
+var_decl		:	VAR var_spec
+				|	VAR '(' var_spec_list ')'
+				;
+
+var_spec_list	:	var_spec_list ';' var_spec
+				|	var_spec ';'
+				;
+				
+var_spec		:	id_list type
+				|	id_list type '=' expr_list
+				|	id_list '=' expr_list	
 				;
 
 %%
