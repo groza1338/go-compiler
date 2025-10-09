@@ -80,6 +80,14 @@ qualified_ident	:	package_name '.' ID
 
 package_name	:	FMT	
 
+type_args		:	'[' type_list ']'
+				|	'[' type_list ',' ']'
+				;
+				
+type_list		:	type_list ',' type
+				|	type
+				;
+
 %%
 // Секция пользовательского кода
 
