@@ -61,6 +61,24 @@ id_list			:	id_list ',' ID
 expr_list		:	expr_list ',' expr
 				|	expr
 				;
+				
+type			:	type_name
+				|	type_name type_args
+				|	type_lit
+				|	'(' type ')'
+				;
+				
+type_name		:	INT
+				|	FLOAT
+				|	BOOL
+				|	STRING
+				|	RUNE
+				|	qualified_ident
+				;
+				
+qualified_ident	:	package_name '.' ID
+
+package_name	:	FMT	
 
 %%
 // Секция пользовательского кода
