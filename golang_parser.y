@@ -88,6 +88,36 @@ type_args		:	'[' type_list ']'
 type_list		:	type_list ',' type
 				|	type
 				;
+				
+type_lit		:	array_type
+				|	func_type
+				|	slice_type
+				;
+				
+array_type		:	'[' expr ']' type
+				;
+				
+func_type		:	FUNC signature	
+				;
+				
+signature		:	params results
+				|	params
+				;
+				
+results			:	params
+				|	type
+				;
+				
+params			:	'(' param_list ')'
+				;
+				
+param_list		:	param_list ',' param_decl
+				|	param_decl
+				;
+				
+param_decl		:	id_list type
+				|	type
+				;
 
 %%
 // Секция пользовательского кода
