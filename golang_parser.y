@@ -24,6 +24,7 @@ void yyerror(char const* s) {
 }
 
 %token	PACKAGE
+%token 	IMPORT
 %token	CONST
 %token 	FUNC
 %token 	VAR
@@ -67,7 +68,54 @@ void yyerror(char const* s) {
 %%
 // Секция правил грамматики
 
-program			:	package_clause stmt_list
+program			:	package_clause ';' e_import_decl_list ';' e_top_level_decl_list
+				;
+				
+e_import_decl_list
+				:	import_decl_list
+				|
+				;
+				
+import_decl_list:	import_decl_list import_decl ';'
+				|	import_decl ';'
+				;
+				
+import_decl		:	IMPORT import_spec 
+				|	IMPORT '(' e_import_spec_list ')'
+				;
+				
+e_import_spec_list
+				:	import_spec_list
+				|
+				;
+				
+import_spec_list:	import_spec_list import_spec ';'
+				|	import_spec ';'
+				;
+				
+import_spec		:	STRING_LIT
+				|	'.' STRING_LIT
+				|	STRING_LIT STRING_LIT
+				;
+				
+e_top_level_decl_list
+				:	top_level_decl_list
+				|
+				;
+				
+top_level_decl_list
+				:	top_level_decl_list top_level_decl ';'
+				|	top_level_decl ';'
+				;
+				
+top_level_decl	:	decl
+				|	func_decl
+				;
+				
+func_decl		:	FUNC ID signature
+				|	FUNC ID signature block
+//				|	FUNC ID type_params signature
+//				|	FUNC ID type_params signature block
 				;
 
 package_clause	:	PACKAGE  ID
