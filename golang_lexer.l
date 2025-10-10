@@ -8,6 +8,9 @@
 /* Многострочный комментарий */
 %x MCOMM
 
+/* Rune lit */
+%x RUNE_LIT
+
 /* Raw string */
 %x RAW_STR
 
@@ -281,43 +284,37 @@ static inline unsigned long long parse_u64(const char* p, int base) {
 <MCOMM>"*"+"/"          { cout << "Multi-line comment: " << comment_buf << '\n'; comm_reset(); BEGIN(INITIAL); }
 <MCOMM><<EOF>>          { cout << "ERROR: unterminated multiline comment (opened at line " << comment_start_line << ")\n"; comm_reset(); BEGIN(INITIAL); }
 
-\'[^\r\n\']\'				{ str_add_char(yytext[1]); cout << "Rune literal: " << str_buf << '\n'; str_reset(); SEMI_ON(); }
-\'\\a\'						{ str_add_char('\a'); cout << "Rune literal: " << str_buf << '\n'; str_reset(); SEMI_ON(); }
-\'\\b\'						{ str_add_char('\b'); cout << "Rune literal: " << str_buf << '\n'; str_reset(); SEMI_ON(); }
-\'\\f\'						{ str_add_char('\f'); cout << "Rune literal: " << str_buf << '\n'; str_reset(); SEMI_ON(); }
-\'\\n\'						{ str_add_char('\n'); cout << "Rune literal: " << str_buf << '\n'; str_reset(); SEMI_ON(); }
-\'\\r\'						{ str_add_char('\r'); cout << "Rune literal: " << str_buf << '\n'; str_reset(); SEMI_ON(); }
-\'\\t\'						{ str_add_char('\t'); cout << "Rune literal: " << str_buf << '\n'; str_reset(); SEMI_ON(); }
-\'\\v\'						{ str_add_char('\v'); cout << "Rune literal: " << str_buf << '\n'; str_reset(); SEMI_ON(); }
-\'\\\\\'					{ str_add_char('\\'); cout << "Rune literal: " << str_buf << '\n'; str_reset(); SEMI_ON(); }
-\'\\\"\'					{ str_add_char('"'); cout << "Rune literal: " << str_buf << '\n'; str_reset(); SEMI_ON(); }
-\'\\\''						{ str_add_char('\''); cout << "Rune literal: " << str_buf << '\n'; str_reset(); SEMI_ON(); }
-\'{OCT_BYTE_VAL}\'   		{ octal_escape(yytext + 2); cout << "Rune literal: " << str_buf << '\n'; str_reset(); SEMI_ON(); }
-\'{HEX_BYTE_VAL}\'   		{ hex_escape(yytext + 3); cout << "Rune literal: " << str_buf << '\n'; str_reset(); SEMI_ON(); }
-\'{LITTLE_U_VAL}\'   		{ from_unicode_to_utf8(yytext + 3); cout << "Rune literal: " << str_buf << '\n'; str_reset(); SEMI_ON(); }
-\'{BIG_U_VAL}\'      		{ from_unicode_to_utf8(yytext + 3); cout << "Rune literal: " << str_buf << '\n'; str_reset(); SEMI_ON(); }
-\'\n\'						{ cout << "ERROR: newline in interpreted string literal\n"; }
-
-
 \"                          { BEGIN(INTER_STR); }
-<INTER_STR>[^\\\"\n]+       { str_add_chars(yytext, yyleng); }
-<INTER_STR>\\a              { str_add_char('\a'); }
-<INTER_STR>\\b              { str_add_char('\b'); }
-<INTER_STR>\\f              { str_add_char('\f'); }
-<INTER_STR>\\n              { str_add_char('\n'); }
-<INTER_STR>\\r              { str_add_char('\r'); }
-<INTER_STR>\\t              { str_add_char('\t'); }
-<INTER_STR>\\v              { str_add_char('\v'); }
-<INTER_STR>\\\\             { str_add_char('\\'); }
-<INTER_STR>\\\"             { str_add_char('"'); }
-<INTER_STR>\\\'             { str_add_char('\''); }
-<INTER_STR>{OCT_BYTE_VAL}   { octal_escape(yytext + 1); }
-<INTER_STR>{HEX_BYTE_VAL}   { hex_escape(yytext + 2); }
-<INTER_STR>{LITTLE_U_VAL}   { from_unicode_to_utf8(yytext + 2); }
-<INTER_STR>{BIG_U_VAL}      { from_unicode_to_utf8(yytext + 2); }
-<INTER_STR>\n               { cout << "ERROR: newline in interpreted string literal\n"; str_reset(); BEGIN(INITIAL); }
+\'							{ BEGIN(RUNE_LIT); }
+
+<INTER_STR, RUNE_LIT>[^\\\"\n]+       { str_add_chars(yytext, yyleng); }
+<INTER_STR, RUNE_LIT>\\a              { str_add_char('\a'); }
+<INTER_STR, RUNE_LIT>\\b              { str_add_char('\b'); }
+<INTER_STR, RUNE_LIT>\\f              { str_add_char('\f'); }
+<INTER_STR, RUNE_LIT>\\n              { str_add_char('\n'); }
+<INTER_STR, RUNE_LIT>\\r              { str_add_char('\r'); }
+<INTER_STR, RUNE_LIT>\\t              { str_add_char('\t'); }
+<INTER_STR, RUNE_LIT>\\v              { str_add_char('\v'); }
+<INTER_STR, RUNE_LIT>\\\\             { str_add_char('\\'); }
+<INTER_STR, RUNE_LIT>\\\"             { str_add_char('"'); }
+<INTER_STR, RUNE_LIT>\\\'             { str_add_char('\''); }
+<INTER_STR, RUNE_LIT>{OCT_BYTE_VAL}   { octal_escape(yytext + 1); }
+<INTER_STR, RUNE_LIT>{HEX_BYTE_VAL}   { hex_escape(yytext + 2); }
+<INTER_STR, RUNE_LIT>{LITTLE_U_VAL}   { from_unicode_to_utf8(yytext + 2); }
+<INTER_STR, RUNE_LIT>{BIG_U_VAL}      { from_unicode_to_utf8(yytext + 2); }
+<INTER_STR, RUNE_LIT>\n               { cout << "ERROR: newline in interpreted string literal\n"; str_reset(); BEGIN(INITIAL); }
+<INTER_STR, RUNE_LIT><<EOF>>          { cout << "ERROR: unterminated string (\") before EOF\n"; BEGIN(INITIAL); }
+
 <INTER_STR>\"               { cout << "Interpreted string: " << str_buf << '\n'; str_reset(); SEMI_ON(); BEGIN(INITIAL); }
-<INTER_STR><<EOF>>          { cout << "ERROR: unterminated string (\") before EOF\n"; BEGIN(INITIAL); }
+<RUNE_LIT>\'				{ 
+	if (strlen(str_buf) <= 1 { 
+		cout << "Rune literal: " << str_buf << '\n'; SEMI_ON();
+	} else {
+		cout << "ERROR: more then one char in rune literal\n";
+	} 
+	str_reset(); 
+	BEGIN(INITIAL); 
+}
 
 
 `                 			{ BEGIN(RAW_STR); }
