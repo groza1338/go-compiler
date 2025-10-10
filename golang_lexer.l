@@ -215,32 +215,6 @@ static inline unsigned long long parse_u64(const char* p, int base) {
 "<="                    { cout << "Operator: " << yytext << '\n'; SEMI_OFF();}
 ":="                    { cout << "Operator: " << yytext << '\n'; SEMI_OFF();}
 
-{DEC_LIT} {
-    std::string s = strip_underscores(yytext);
-    unsigned long long v = parse_u64(s.c_str(), 10);
-    cout << "Decimal integer: " << v << '\n'; SEMI_ON();
-}
-{OCT_LIT} {
-    std::string s = strip_underscores(yytext);
-    const char* p = s.c_str();
-    if (s.size() >= 2 && (s[1]=='o' || s[1]=='O'))
-        p += 2;
-    // Для старого формата "0755" оставляем как есть — base=8 всё съест.
-    unsigned long long v = parse_u64(p, 8);
-    cout << "Octal integer: " << v << '\n'; SEMI_ON();
-}
-{HEX_LIT} {
-    std::string s = strip_underscores(yytext);
-    const char* p = s.c_str() + 2;
-    unsigned long long v = parse_u64(p, 16);
-    cout << "Hexadecimal integer: " << v << '\n'; SEMI_ON();
-}
-{DEC_FLOAT_LIT} {
-    std::string s = strip_underscores(yytext);
-    double d = std::stod(s);
-    cout << "Decimal float: " << d << '\n'; SEMI_ON();
-}
-
 "+"                     { cout << "Operator: " << yytext << '\n'; SEMI_OFF();}
 "-"                     { cout << "Operator: " << yytext << '\n'; SEMI_OFF();}
 "*"                     { cout << "Operator: " << yytext << '\n'; SEMI_OFF();}
@@ -266,6 +240,31 @@ static inline unsigned long long parse_u64(const char* p, int base) {
 "]"                     { cout << "CBracket: "<< yytext << '\n'; SEMI_ON();}
 "{"                     { cout << "OBrace: "  << yytext << '\n'; SEMI_OFF();}
 "}"                     { cout << "CBrace: "  << yytext << '\n'; SEMI_ON();}
+
+{DEC_LIT} {
+    std::string s = strip_underscores(yytext);
+    unsigned long long v = parse_u64(s.c_str(), 10);
+    cout << "Decimal integer: " << v << '\n'; SEMI_ON();
+}
+{OCT_LIT} {
+    std::string s = strip_underscores(yytext);
+    const char* p = s.c_str();
+    if (s.size() >= 2 && (s[1]=='o' || s[1]=='O'))
+        p += 2;
+    unsigned long long v = parse_u64(p, 8);
+    cout << "Octal integer: " << v << '\n'; SEMI_ON();
+}
+{HEX_LIT} {
+    std::string s = strip_underscores(yytext);
+    const char* p = s.c_str() + 2;
+    unsigned long long v = parse_u64(p, 16);
+    cout << "Hexadecimal integer: " << v << '\n'; SEMI_ON();
+}
+{DEC_FLOAT_LIT} {
+    std::string s = strip_underscores(yytext);
+    double d = std::stod(s);
+    cout << "Decimal float: " << d << '\n'; SEMI_ON();
+}
 
 "//"                    { BEGIN(SCOMM); }
 <SCOMM>[^\r\n]*         { cout << "Single-line comment: " << yytext << '\n'; BEGIN(INITIAL); }
