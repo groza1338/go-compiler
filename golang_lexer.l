@@ -306,7 +306,7 @@ static inline unsigned long long parse_u64(const char* p, int base) {
 
 <INTER_STR>\"               { cout << "Interpreted string: " << str_buf << '\n'; str_reset(); SEMI_ON(); BEGIN(INITIAL); }
 <RUNE_LIT>\'				{ 
-	if (strlen(str_buf) <= 1 { 
+	if (strlen(str_buf) <= 1) { 
 		cout << "Rune literal: " << str_buf << '\n'; SEMI_ON();
 	} else {
 		cout << "ERROR: more then one char in rune literal: " << str_buf << "\n";
