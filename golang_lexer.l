@@ -8,9 +8,6 @@
 /* Многострочный комментарий */
 %x MCOMM
 
-/* Rune */
-%x RUNE_STR
-
 /* Raw string */
 %x RAW_STR
 
