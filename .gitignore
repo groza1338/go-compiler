@@ -1,3 +1,5 @@
 .idea
 result
 .venv
+CMakeFiles
+cmake-build-debug
