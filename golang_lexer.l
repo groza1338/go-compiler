@@ -286,7 +286,8 @@ static inline unsigned long long parse_u64(const char* p, int base) {
 \"                          { BEGIN(INTER_STR); }
 \'							{ BEGIN(RUNE_LIT); }
 
-<INTER_STR,RUNE_LIT>[^\\\"\n]+       { str_add_chars(yytext, yyleng); }
+<INTER_STR>[^\\\"\n]+       { str_add_chars(yytext, yyleng); }
+<RUNE_LIT>[^\\\'\n]+       { str_add_chars(yytext, yyleng); }
 <INTER_STR,RUNE_LIT>\\a              { str_add_char('\a'); }
 <INTER_STR,RUNE_LIT>\\b              { str_add_char('\b'); }
 <INTER_STR,RUNE_LIT>\\f              { str_add_char('\f'); }
