@@ -1,13 +1,31 @@
 %{ // Пролог
 #include <stdio.h>
 #include <stdlib.h>
+#include <iostream>
 
 using namespace std;
+
+extern int yylex(void);
+
+void yyerror(char const* s) {
+    cout << s << endl;
+}
+
 %}
 // Секция объявлений
 
 %token	PACKAGE
 %token	CONST
+%token 	FUNC
+%token 	VAR
+
+%token 	FMT
+
+%token	INT
+%token	FLOAT
+%token	BOOL
+%token 	STRING
+%token 	RUNE
 
 %token ID
 
@@ -17,7 +35,7 @@ using namespace std;
 %%
 // Секция правил грамматики
 
-program			:	package_clause stat_list
+program			:	package_clause stmt_list
 				;
 
 package_clause	:	PACKAGE  ID
@@ -28,14 +46,14 @@ stmt_list		:	stmt_list stmt
 				;
 				
 stmt			:	decl 
-				| 	simple_stmt 
-				|	return_stmt 
-				| 	break_stmt 
-				| 	continue_stmt 
-				| 	block 
-				| 	if_stmt 
-				| 	switch_stmt 
-				| 	for_stmt
+//				| 	simple_stmt 
+//				|	return_stmt 
+//				| 	break_stmt 
+//				| 	continue_stmt 
+//				| 	block 
+//				| 	if_stmt 
+//				| 	switch_stmt 
+//				| 	for_stmt
 				;
 
 decl			:	const_decl
@@ -59,8 +77,8 @@ id_list			:	id_list ',' ID
 				|	ID
 				;
 				
-expr_list		:	expr_list ',' expr
-				|	expr
+expr_list		:	expr_list ','// expr
+//				|	expr
 				;
 				
 type			:	type_name
@@ -95,7 +113,7 @@ type_lit		:	array_type
 				|	slice_type
 				;
 				
-array_type		:	'[' expr ']' type
+array_type		:	'[' /*expr*/ ']' type
 				;
 				
 func_type		:	FUNC signature	
