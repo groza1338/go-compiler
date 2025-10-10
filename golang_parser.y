@@ -27,6 +27,16 @@ void yyerror(char const* s) {
 %token	CONST
 %token 	FUNC
 %token 	VAR
+%token 	RETURN
+%token	BREAK
+%token 	CONTINUE
+%token 	IF
+%token 	ELSE
+%token 	SWITCH
+%token	CASE
+%token	DEFAULT
+%token	FOR
+%token 	RANGE
 
 %token 	FMT
 
@@ -63,36 +73,95 @@ program			:	package_clause stmt_list
 package_clause	:	PACKAGE  ID
 				;
 
-stmt_list		:	stmt_list stmt
-				|	stmt
+stmt_list		:	stmt_list stmt ';'
+				|	stmt ';'
 				;
-
-stmt			:	decl
-				| 	simple_stmt
-//				|	return_stmt
-//				| 	break_stmt
-//				| 	continue_stmt
-//				| 	block
-//				| 	if_stmt
-//				| 	switch_stmt
-//				| 	for_stmt
+				
+stmt			:	decl 
+				| 	simple_stmt 
+				|	return_stmt 
+				| 	BREAK 
+				| 	CONTINUE 
+				| 	block
+				| 	if_stmt 
+				| 	switch_stmt 
+				| 	for_stmt
 				;
-
+				
 simple_stmt		:	expr
 				|	expr INC
 				|	expr DEC
 				|	expr_list '=' expr_list
 				|	id_list WALRUS expr_list
 				;
+				
+return_stmt		:	RETURN 
+				|	RETURN expr_list
+				;
+				
+block			:	'{' stmt_list '}'
+				;
 
 decl			:	const_decl
 				:	var_decl
+				;
+				
+if_stmt			:	IF expr block 
+				|	IF simple_stmt ';' expr block
+				|	IF expr block ELSE if_stmt
+				|	IF expr block ELSE block
+				|	IF simple_stmt ';' expr block ELSE if_stmt
+				|	IF simple_stmt ';' expr block ELSE block
+				;
+				
+switch_stmt		:	SWITCH '{' e_expr_case_clause_list '}'
+				|	SWITCH simple_stmt ';' '{' e_expr_case_clause_list '}'
+				|	SWITCH expr '{' e_expr_case_clause_list '}'
+				|	SWITCH simple_stmt ';' expr '{' e_expr_case_clause_list '}'
+				;
+				
+for_stmt		:	FOR block
+				|	FOR expr block
+				|	FOR for_clause block
+				|	FOR range_clause block
+				;
+				
+for_clause		:	';' ';'
+				|	simple_stmt ';' ';'
+				|	simple_stmt ';' expr ';'
+				|	simple_stmt ';' ';' simple_stmt
+				|	simple_stmt ';' expr ';' simple_stmt
+				|	';' expr ';'
+				|	';' expr ';' simple_stmt
+				|	';' ';' simple_stmt
+				;
+				
+range_clause	:	RANGE expr
+				|	expr_list '=' RANGE expr
+				|	id_list WALRUS RANGE expr
+				;
+				
+e_expr_case_clause_list
+				:	expr_case_clause_list
+				|
+				;
+
+expr_case_clause_list
+				:	expr_case_clause_list expr_case_clause
+				|	expr_case_clause
+				;
+				
+expr_case_clause:	expr_switch_case ':' stmt_list
+				;
+					
+expr_switch_case:	CASE expr_list
+				|	DEFAULT
 				;
 
 const_decl		:	CONST const_spec
 				|	'(' const_spec_list ')'
 				;
-
+				
 const_spec_list	:	const_spec_list const_spec ';'
 				|	const_spec ';'
 				;
@@ -101,17 +170,17 @@ const_spec		:	id_list
 				|	id_list '=' expr_list
 				|	id_list type '=' expr_list
 				;
-
+				
 id_list			:	id_list ',' ID
 				|	ID
 				;
-
+				
 type			:	type_name
 				|	type_name type_args
 				|	type_lit
 				|	'(' type ')'
 				;
-
+				
 type_name		:	INT
 				|	FLOAT
 				|	BOOL
@@ -119,7 +188,7 @@ type_name		:	INT
 				|	RUNE
 				|	qualified_ident
 				;
-
+				
 qualified_ident	:	package_name '.' ID
 				;
 
@@ -128,44 +197,44 @@ package_name	:	FMT
 
 type_args		:	'[' type_list ']'
 				;
-
+				
 type_list		:	type_list ',' type
 				|	type
 				;
-
+				
 type_lit		:	array_type
 				|	func_type
 				|	slice_type
 				;
-
+				
 array_type		:	'[' expr ']' type
 				;
-
-func_type		:	FUNC signature
+				
+func_type		:	FUNC signature	
 				;
-
+				
 signature		:	params results
 				|	params
 				;
-
+				
 results			:	params
 				|	type
 				;
-
+				
 params			:	'(' param_list ')'
 				;
-
+				
 param_list		:	param_list ',' param_decl
 				|	param_decl
 				;
-
+				
 param_decl		:	id_list type
 				|	type
 				;
-
+				
 slice_type		:	'[' ']' type
 				;
-
+				
 var_decl		:	VAR var_spec
 				|	VAR '(' var_spec_list ')'
 				;
@@ -173,16 +242,16 @@ var_decl		:	VAR var_spec
 var_spec_list	:	var_spec_list ';' var_spec
 				|	var_spec ';'
 				;
-
+				
 var_spec		:	id_list type
 				|	id_list type '=' expr_list
-				|	id_list '=' expr_list
+				|	id_list '=' expr_list	
 				;
-
+				
 expr_list		:	expr_list ',' expr
 				|	expr
 				;
-
+				
 expr			:	primary_expr
 				|	expr '+' expr
 				|	expr '-' expr
@@ -209,7 +278,7 @@ primary_expr	:	operand
 				|	primary_expr '[' ':' expr ':' expr ']'
 				|	primary_expr '[' expr ':' expr ':' expr ']'
 				;
-
+				
 operand			:	ID
 				|	INT_LIT
 				|	FLOAT_LIT
@@ -217,11 +286,11 @@ operand			:	ID
 				|	STRING_LIT
 				|	BOOL_LIT
 				|	ID type_args
-				|	qualified_ident
+				|	qualified_ident 
 				|	qualified_ident type_args
-				|	'(' expr ')'
+				|	'(' expr ')'	
 				;
-
+				
 
 %%
 // Секция пользовательского кода
