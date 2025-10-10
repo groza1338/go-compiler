@@ -286,30 +286,30 @@ static inline unsigned long long parse_u64(const char* p, int base) {
 \"                          { BEGIN(INTER_STR); }
 \'							{ BEGIN(RUNE_LIT); }
 
-<INTER_STR, RUNE_LIT>[^\\\"\n]+       { str_add_chars(yytext, yyleng); }
-<INTER_STR, RUNE_LIT>\\a              { str_add_char('\a'); }
-<INTER_STR, RUNE_LIT>\\b              { str_add_char('\b'); }
-<INTER_STR, RUNE_LIT>\\f              { str_add_char('\f'); }
-<INTER_STR, RUNE_LIT>\\n              { str_add_char('\n'); }
-<INTER_STR, RUNE_LIT>\\r              { str_add_char('\r'); }
-<INTER_STR, RUNE_LIT>\\t              { str_add_char('\t'); }
-<INTER_STR, RUNE_LIT>\\v              { str_add_char('\v'); }
-<INTER_STR, RUNE_LIT>\\\\             { str_add_char('\\'); }
-<INTER_STR, RUNE_LIT>\\\"             { str_add_char('"'); }
-<INTER_STR, RUNE_LIT>\\\'             { str_add_char('\''); }
-<INTER_STR, RUNE_LIT>{OCT_BYTE_VAL}   { octal_escape(yytext + 1); }
-<INTER_STR, RUNE_LIT>{HEX_BYTE_VAL}   { hex_escape(yytext + 2); }
-<INTER_STR, RUNE_LIT>{LITTLE_U_VAL}   { from_unicode_to_utf8(yytext + 2); }
-<INTER_STR, RUNE_LIT>{BIG_U_VAL}      { from_unicode_to_utf8(yytext + 2); }
-<INTER_STR, RUNE_LIT>\n               { cout << "ERROR: newline in interpreted string literal\n"; str_reset(); BEGIN(INITIAL); }
-<INTER_STR, RUNE_LIT><<EOF>>          { cout << "ERROR: unterminated string (\") before EOF\n"; BEGIN(INITIAL); }
+<INTER_STR,RUNE_LIT>[^\\\"\n]+       { str_add_chars(yytext, yyleng); }
+<INTER_STR,RUNE_LIT>\\a              { str_add_char('\a'); }
+<INTER_STR,RUNE_LIT>\\b              { str_add_char('\b'); }
+<INTER_STR,RUNE_LIT>\\f              { str_add_char('\f'); }
+<INTER_STR,RUNE_LIT>\\n              { str_add_char('\n'); }
+<INTER_STR,RUNE_LIT>\\r              { str_add_char('\r'); }
+<INTER_STR,RUNE_LIT>\\t              { str_add_char('\t'); }
+<INTER_STR,RUNE_LIT>\\v              { str_add_char('\v'); }
+<INTER_STR,RUNE_LIT>\\\\             { str_add_char('\\'); }
+<INTER_STR,RUNE_LIT>\\\"             { str_add_char('"'); }
+<INTER_STR,RUNE_LIT>\\\'             { str_add_char('\''); }
+<INTER_STR,RUNE_LIT>{OCT_BYTE_VAL}   { octal_escape(yytext + 1); }
+<INTER_STR,RUNE_LIT>{HEX_BYTE_VAL}   { hex_escape(yytext + 2); }
+<INTER_STR,RUNE_LIT>{LITTLE_U_VAL}   { from_unicode_to_utf8(yytext + 2); }
+<INTER_STR,RUNE_LIT>{BIG_U_VAL}      { from_unicode_to_utf8(yytext + 2); }
+<INTER_STR,RUNE_LIT>\n               { cout << "ERROR: newline in interpreted string literal\n"; str_reset(); BEGIN(INITIAL); }
+<INTER_STR,RUNE_LIT><<EOF>>          { cout << "ERROR: unterminated string (\") before EOF\n"; BEGIN(INITIAL); }
 
 <INTER_STR>\"               { cout << "Interpreted string: " << str_buf << '\n'; str_reset(); SEMI_ON(); BEGIN(INITIAL); }
 <RUNE_LIT>\'				{ 
 	if (strlen(str_buf) <= 1 { 
 		cout << "Rune literal: " << str_buf << '\n'; SEMI_ON();
 	} else {
-		cout << "ERROR: more then one char in rune literal\n";
+		cout << "ERROR: more then one char in rune literal: " << str_buf << "\n";
 	} 
 	str_reset(); 
 	BEGIN(INITIAL); 
