@@ -267,11 +267,11 @@ int can_insert_semi = 0;
     cout << "Decimal float: " << d << '\n'; SEMI_ON();
 }
 
-"//"                    { BEGIN(SCOMM); }
-<SCOMM>[^\r\n]*         { cout << "Single-line comment: " << yytext << '\n'; BEGIN(INITIAL); }
-<SCOMM><<EOF>>          { BEGIN(INITIAL); }
+"//"                                    { BEGIN(SCOMM); }
+<SCOMM>[^\r\n]*                         { cout << "Single-line comment: " << yytext << '\n'; BEGIN(INITIAL); }
+<SCOMM><<EOF>>                          { BEGIN(INITIAL); }
 
-"/*"                    { comment_start_line = yylineno; BEGIN(MCOMM); }
+"/*"                                    { comment_start_line = yylineno; BEGIN(MCOMM); }
 <MCOMM>{NL} {
     if (can_insert_semi) {
         cout << "Semicolon: ; (inserted)\n";
@@ -279,35 +279,35 @@ int can_insert_semi = 0;
     }
     comm_append("\n", 1);
 }
-<MCOMM>[^*\r\n]*        { comm_append(yytext, yyleng); }
-<MCOMM>"*"+[^*/\r\n]*   { comm_append(yytext, yyleng); }
-<MCOMM>"*"+"/"          { cout << "Multi-line comment: " << comment_buf << '\n'; comm_reset(); BEGIN(INITIAL); }
-<MCOMM><<EOF>>          { cout << "ERROR: unterminated multiline comment (opened at line " << comment_start_line << ")\n"; comm_reset(); BEGIN(INITIAL); }
+<MCOMM>[^*\r\n]*                        { comm_append(yytext, yyleng); }
+<MCOMM>"*"+[^*/\r\n]*                   { comm_append(yytext, yyleng); }
+<MCOMM>"*"+"/"                          { cout << "Multi-line comment: " << comment_buf << '\n'; comm_reset(); BEGIN(INITIAL); }
+<MCOMM><<EOF>>                          { cout << "ERROR: unterminated multiline comment (opened at line " << comment_start_line << ")\n"; comm_reset(); BEGIN(INITIAL); }
 
-\"                          { BEGIN(INTER_STR); }
-\'							{ BEGIN(RUNE_LIT); }
+\"                                      { BEGIN(INTER_STR); }
+\'							            { BEGIN(RUNE_LIT); }
 
-<INTER_STR>[^\\\"\n]+       { str_add_chars(yytext, yyleng); }
-<RUNE_LIT>[^\\\'\n]+       { str_add_chars(yytext, yyleng); }
-<INTER_STR,RUNE_LIT>\\a              { str_add_char('\a'); }
-<INTER_STR,RUNE_LIT>\\b              { str_add_char('\b'); }
-<INTER_STR,RUNE_LIT>\\f              { str_add_char('\f'); }
-<INTER_STR,RUNE_LIT>\\n              { str_add_char('\n'); }
-<INTER_STR,RUNE_LIT>\\r              { str_add_char('\r'); }
-<INTER_STR,RUNE_LIT>\\t              { str_add_char('\t'); }
-<INTER_STR,RUNE_LIT>\\v              { str_add_char('\v'); }
-<INTER_STR,RUNE_LIT>\\\\             { str_add_char('\\'); }
-<INTER_STR,RUNE_LIT>\\\"             { str_add_char('"'); }
-<INTER_STR,RUNE_LIT>\\\'             { str_add_char('\''); }
-<INTER_STR,RUNE_LIT>{OCT_BYTE_VAL}   { octal_escape(yytext + 1); }
-<INTER_STR,RUNE_LIT>{HEX_BYTE_VAL}   { hex_escape(yytext + 2); }
-<INTER_STR,RUNE_LIT>{LITTLE_U_VAL}   { from_unicode_to_utf8(yytext + 2); }
-<INTER_STR,RUNE_LIT>{BIG_U_VAL}      { from_unicode_to_utf8(yytext + 2); }
-<INTER_STR,RUNE_LIT>\n               { cout << "ERROR: newline in interpreted string literal\n"; str_reset(); BEGIN(INITIAL); }
-<INTER_STR,RUNE_LIT><<EOF>>          { cout << "ERROR: unterminated string (\") before EOF\n"; BEGIN(INITIAL); }
+<INTER_STR>[^\\\"\n]+       			{ str_add_chars(yytext, yyleng); }
+<RUNE_LIT>[^\\\'\n]+       				{ str_add_chars(yytext, yyleng); }
+<INTER_STR,RUNE_LIT>\\a              	{ str_add_char('\a'); }
+<INTER_STR,RUNE_LIT>\\b              	{ str_add_char('\b'); }
+<INTER_STR,RUNE_LIT>\\f              	{ str_add_char('\f'); }
+<INTER_STR,RUNE_LIT>\\n              	{ str_add_char('\n'); }
+<INTER_STR,RUNE_LIT>\\r              	{ str_add_char('\r'); }
+<INTER_STR,RUNE_LIT>\\t              	{ str_add_char('\t'); }
+<INTER_STR,RUNE_LIT>\\v                 { str_add_char('\v'); }
+<INTER_STR,RUNE_LIT>\\\\                { str_add_char('\\'); }
+<INTER_STR,RUNE_LIT>\\\"                { str_add_char('"'); }
+<INTER_STR,RUNE_LIT>\\\'                { str_add_char('\''); }
+<INTER_STR,RUNE_LIT>{OCT_BYTE_VAL}      { octal_escape(yytext + 1); }
+<INTER_STR,RUNE_LIT>{HEX_BYTE_VAL}      { hex_escape(yytext + 2); }
+<INTER_STR,RUNE_LIT>{LITTLE_U_VAL}      { from_unicode_to_utf8(yytext + 2); }
+<INTER_STR,RUNE_LIT>{BIG_U_VAL}         { from_unicode_to_utf8(yytext + 2); }
+<INTER_STR,RUNE_LIT>\n                  { cout << "ERROR: newline in interpreted string literal\n"; str_reset(); BEGIN(INITIAL); }
+<INTER_STR,RUNE_LIT><<EOF>>             { cout << "ERROR: unterminated string (\") before EOF\n"; BEGIN(INITIAL); }
 
-<INTER_STR>\"               { cout << "Interpreted string: " << str_buf << '\n'; str_reset(); SEMI_ON(); BEGIN(INITIAL); }
-<RUNE_LIT>\'				{ 
+<INTER_STR>\"                           { cout << "Interpreted string: " << str_buf << '\n'; str_reset(); SEMI_ON(); BEGIN(INITIAL); }
+<RUNE_LIT>\' {
 	if (strlen(str_buf) <= 1) { 
 		cout << "Rune literal: " << str_buf << '\n'; SEMI_ON();
 	} else {
@@ -318,16 +318,24 @@ int can_insert_semi = 0;
 }
 
 
-`                 			{ BEGIN(RAW_STR); }
-<RAW_STR>[^`\r]+           	{ str_add_chars(yytext, yyleng); }
-<RAW_STR>\r                	{ ; }
-<RAW_STR>`                 	{ cout << "Raw string: " << str_buf << '\n'; str_reset(); SEMI_ON(); BEGIN(INITIAL); }
-<RAW_STR><<EOF>>          	{ cout << "ERROR: unterminated string (`) before EOF\n"; BEGIN(INITIAL); }
+`                       { BEGIN(RAW_STR); }
+<RAW_STR>[^`\r]+        { str_add_chars(yytext, yyleng); }
+<RAW_STR>\r             { ; }
+<RAW_STR>`              { cout << "Raw string: " << str_buf << '\n'; str_reset(); SEMI_ON(); BEGIN(INITIAL); }
+<RAW_STR><<EOF>>        { cout << "ERROR: unterminated string (`) before EOF\n"; BEGIN(INITIAL); }
 
-{NL}                        { if (can_insert_semi) { cout << "Semicolon: ; (inserted)\n"; can_insert_semi = 0; } }
-{WHITE_SPACES_NO_NL}        { ; }
+{NL}                    { if (can_insert_semi) { cout << "Semicolon: ; (inserted)\n"; can_insert_semi = 0; } }
+{WHITE_SPACES_NO_NL}    { ; }
 
-<<EOF>> { if (can_insert_semi) { cout << "Semicolon: ; (inserted before EOF)\n"; } return 0; }
+<<EOF>> {
+    if (can_insert_semi) {
+        cout << "Semicolon: ; (inserted before EOF)\n";
+    }
+    return 0;
+}
 
 
 %%
+
+
+
