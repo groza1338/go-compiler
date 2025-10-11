@@ -65,14 +65,6 @@ using std::cout;
 #define SEMI_ON()  (can_insert_semi = 1)
 #define SEMI_OFF() (can_insert_semi = 0)
 
-static char comment_buf[8192];
-static size_t comment_pos = 0;
-static int comment_start_line = 0;
-
-static char str_buf[MAX_STRING_LENGTH];
-static int str_pos = 0;
-
-static int can_insert_semi = 0;
 
 static inline void str_add_char(unsigned char c) {
     if (str_pos < MAX_STRING_LENGTH - 1) {
@@ -156,6 +148,15 @@ static inline unsigned long long parse_u64(const char* p, int base) {
 %}
 
 %%
+
+%{
+char comment_buf[MAX_STRING_LENGTH];
+size_t comment_pos = 0;
+int comment_start_line = 0;
+char str_buf[MAX_STRING_LENGTH];
+int str_pos = 0;
+int can_insert_semi = 0;
+%}
 
 "break"                 {cout << "Keyword: " << yytext << '\n'; SEMI_ON();}
 "case"                  {cout << "Keyword: " << yytext << '\n'; SEMI_OFF();}
