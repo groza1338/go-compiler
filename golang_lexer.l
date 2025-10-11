@@ -65,85 +65,16 @@ using std::cout;
 #define SEMI_ON()  (can_insert_semi = 1)
 #define SEMI_OFF() (can_insert_semi = 0)
 
-
-static inline void str_add_char(unsigned char c) {
-    if (str_pos < MAX_STRING_LENGTH - 1) {
-        str_buf[str_pos++] = c;
-    }
-}
-
-static inline void str_add_chars(const char *str, size_t len) {
-    if (str_pos + len < MAX_STRING_LENGTH) {
-        memcpy(&str_buf[str_pos], str, len);
-        str_pos += len;
-    } else {
-        size_t available_space = MAX_STRING_LENGTH - str_pos;
-        memcpy(&str_buf[str_pos], str, available_space);
-        str_pos = MAX_STRING_LENGTH - 1;
-    }
-}
-
-static inline void str_reset() {
-    memset(str_buf, 0, str_pos + 1);
-    str_pos = 0;
-}
-
-static inline void from_unicode_to_utf8(char *unicode_str) {
-    int code_point = strtol(unicode_str, NULL, 16);
-    if (code_point <= 0x7F) {
-        str_add_char((char)code_point);
-    } else if (code_point <= 0x7FF) {
-        str_add_char(0xC0 | ((code_point >> 6) & 0x1F));
-        str_add_char(0x80 | (code_point & 0x3F));
-    } else if (code_point <= 0xFFFF) {
-        str_add_char(0xE0 | ((code_point >> 12) & 0x0F));
-        str_add_char(0x80 | ((code_point >> 6) & 0x3F));
-        str_add_char(0x80 | (code_point & 0x3F));
-    } else if (code_point <= 0x10FFFF) {
-        str_add_char(0xF0 | ((code_point >> 18) & 0x07));
-        str_add_char(0x80 | ((code_point >> 12) & 0x3F));
-        str_add_char(0x80 | ((code_point >> 6) & 0x3F));
-        str_add_char(0x80 | (code_point & 0x3F));
-    }
-}
-
-void hex_escape(const char *hex) {
-    int value = strtol(hex, NULL, 16);
-    str_add_char((char)value);
-}
-
-void octal_escape(const char *oct) {
-    int value = strtol(oct, NULL, 8);
-    str_add_char((char)value);
-}
-
-static inline void comm_append(const char* s, size_t n) {
-    if (comment_pos + n >= sizeof(comment_buf)) n = sizeof(comment_buf) - 1 - comment_pos;
-    if (n > 0) {
-        std::memcpy(comment_buf + comment_pos, s, n);
-        comment_pos += n;
-        comment_buf[comment_pos] = '\0';
-    }
-}
-
-static inline void comm_reset() {
-    comment_pos = 0;
-    comment_buf[0] = '\0';
-    comment_start_line = 0;
-}
-
-static inline std::string strip_underscores(const char* y) {
-    std::string s(y);
-    s.erase(std::remove(s.begin(), s.end(), '_'), s.end());
-    return s;
-}
-
-static inline unsigned long long parse_u64(const char* p, int base) {
-    errno = 0;
-    char* end = nullptr;
-    unsigned long long v = std::strtoull(p, &end, base);
-    return v;
-}
+void str_add_char(unsigned char c);
+void str_add_chars(const char *str, size_t len);
+void str_reset();
+void from_unicode_to_utf8(char *unicode_str);
+void hex_escape(const char *hex);
+void octal_escape(const char *oct);
+void comm_append(const char* s, size_t n);
+void comm_reset();
+std::string strip_underscores(const char* y);
+unsigned long long parse_u64(const char* p, int base);
 
 %}
 
@@ -336,6 +267,81 @@ int can_insert_semi = 0;
 
 
 %%
+void str_add_char(unsigned char c) {
+    if (str_pos < MAX_STRING_LENGTH - 1) {
+        str_buf[str_pos++] = c;
+    }
+}
 
+void str_add_chars(const char *str, size_t len) {
+    if (str_pos + len < MAX_STRING_LENGTH) {
+        memcpy(&str_buf[str_pos], str, len);
+        str_pos += len;
+    } else {
+        size_t available_space = MAX_STRING_LENGTH - str_pos;
+        memcpy(&str_buf[str_pos], str, available_space);
+        str_pos = MAX_STRING_LENGTH - 1;
+    }
+}
 
+void str_reset() {
+    memset(str_buf, 0, str_pos + 1);
+    str_pos = 0;
+}
 
+void from_unicode_to_utf8(char *unicode_str) {
+    int code_point = strtol(unicode_str, NULL, 16);
+    if (code_point <= 0x7F) {
+        str_add_char((char)code_point);
+    } else if (code_point <= 0x7FF) {
+        str_add_char(0xC0 | ((code_point >> 6) & 0x1F));
+        str_add_char(0x80 | (code_point & 0x3F));
+    } else if (code_point <= 0xFFFF) {
+        str_add_char(0xE0 | ((code_point >> 12) & 0x0F));
+        str_add_char(0x80 | ((code_point >> 6) & 0x3F));
+        str_add_char(0x80 | (code_point & 0x3F));
+    } else if (code_point <= 0x10FFFF) {
+        str_add_char(0xF0 | ((code_point >> 18) & 0x07));
+        str_add_char(0x80 | ((code_point >> 12) & 0x3F));
+        str_add_char(0x80 | ((code_point >> 6) & 0x3F));
+        str_add_char(0x80 | (code_point & 0x3F));
+    }
+}
+
+void hex_escape(const char *hex) {
+    int value = strtol(hex, NULL, 16);
+    str_add_char((char)value);
+}
+
+void octal_escape(const char *oct) {
+    int value = strtol(oct, NULL, 8);
+    str_add_char((char)value);
+}
+
+void comm_append(const char* s, size_t n) {
+    if (comment_pos + n >= sizeof(comment_buf)) n = sizeof(comment_buf) - 1 - comment_pos;
+    if (n > 0) {
+        std::memcpy(comment_buf + comment_pos, s, n);
+        comment_pos += n;
+        comment_buf[comment_pos] = '\0';
+    }
+}
+
+void comm_reset() {
+    comment_pos = 0;
+    comment_buf[0] = '\0';
+    comment_start_line = 0;
+}
+
+std::string strip_underscores(const char* y) {
+    std::string s(y);
+    s.erase(std::remove(s.begin(), s.end(), '_'), s.end());
+    return s;
+}
+
+unsigned long long parse_u64(const char* p, int base) {
+    errno = 0;
+    char* end = nullptr;
+    unsigned long long v = std::strtoull(p, &end, base);
+    return v;
+}
