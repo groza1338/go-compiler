@@ -22,7 +22,7 @@ set(GENERATED_BISON_HEADER "${CMAKE_CURRENT_BINARY_DIR}/golang_parser.tab.h")
 # Generation bison source file
 add_custom_command(
         OUTPUT ${GENERATED_BISON_FILE} ${GENERATED_BISON_HEADER}
-        COMMAND ${BISON_EXECUTABLE} -d -o ${GENERATED_BISON_FILE} golang_parser.y
+        COMMAND ${BISON_EXECUTABLE} -d -o ${GENERATED_BISON_FILE} -v golang_parser.y
         DEPENDS golang_parser.y
         COMMENT "Generating C++ parser with Bison"
 )
