@@ -266,7 +266,8 @@ int can_insert_semi = 0;
 void str_add_char(char *dest_str, unsigned char c) {
 	int dest_len = strlen(dest_str); 
     if (dest_len < MAX_STRING_LENGTH - 1) {
-        strcat(dest_str, &c);
+        char tmp = static_cast<char>(c);
+        strcat(dest_str, &tmp);
     }
 }
 
