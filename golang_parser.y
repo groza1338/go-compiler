@@ -114,11 +114,31 @@ top_level_decl	:	decl
 				
 func_decl		:	FUNC ID signature
 				|	FUNC ID signature block
-//				|	FUNC ID type_params signature
-//				|	FUNC ID type_params signature block
+				|	FUNC ID type_params signature
+				|	FUNC ID type_params signature block
+				;
+				
+type_params		:	'[' type_param_decl_list ']'
+				;
+				
+type_param_decl_list	
+				:	type_param_decl_list ',' type_param_decl
+				|	type_param_decl
 				;
 
-package_clause	:	PACKAGE  ID
+type_param_decl	:	id_list type_constraint_list
+				;
+				
+type_constraint_list	
+				:	type_constraint_list '|' type_term
+				|	type_term
+				;
+				
+type_term		:	type
+				|	'~' type
+				;
+
+package_clause	:	PACKAGE ID
 				;
 
 stmt_list		:	stmt_list stmt ';'
@@ -224,9 +244,8 @@ id_list			:	id_list ',' ID
 				;
 				
 type			:	type_name
-				|	type_name type_args
+				|	type_name '[' type_list ']'
 				|	type_lit
-				|	'(' type ')'
 				;
 				
 type_name		:	INT
@@ -234,10 +253,6 @@ type_name		:	INT
 				|	BOOL
 				|	STRING
 				|	RUNE
-				|	qualified_ident
-				;
-				
-qualified_ident	:	package_name '.' ID
 				;
 
 package_name	:	FMT
@@ -301,6 +316,11 @@ expr_list		:	expr_list ',' expr
 				;
 				
 expr			:	primary_expr
+				|	INT_LIT
+				|	FLOAT_LIT
+				|	RUNE_LIT
+				|	STRING_LIT
+				|	BOOL_LIT
 				|	expr '+' expr
 				|	expr '-' expr
 				|	expr '*' expr
@@ -326,18 +346,15 @@ primary_expr	:	operand
 				|	primary_expr '[' ':' expr ':' expr ']'
 				|	primary_expr '[' expr ':' expr ':' expr ']'
 				;
-				
-operand			:	ID
-				|	INT_LIT
-				|	FLOAT_LIT
-				|	RUNE_LIT
-				|	STRING_LIT
-				|	BOOL_LIT
-				|	ID type_args
-				|	qualified_ident 
-				|	qualified_ident type_args
-				|	'(' expr ')'	
+
+operand			:	operand_name
+				|	operand_name '[' type_list ']'
+				|	'(' expr ')'
 				;
+
+operand_name    :   ID
+                |   package_name '.' ID
+                ;
 				
 
 %%
