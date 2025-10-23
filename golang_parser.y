@@ -114,28 +114,6 @@ top_level_decl	:	decl
 				
 func_decl		:	FUNC ID signature
 				|	FUNC ID signature block
-				|	FUNC ID type_params signature
-				|	FUNC ID type_params signature block
-				;
-				
-type_params		:	'[' type_param_decl_list ']'
-				;
-				
-type_param_decl_list	
-				:	type_param_decl_list ',' type_param_decl
-				|	type_param_decl
-				;
-
-type_param_decl	:	id_list type_constraint_list
-				;
-				
-type_constraint_list	
-				:	type_constraint_list '|' type_term
-				|	type_term
-				;
-				
-type_term		:	type
-				|	'~' type
 				;
 
 package_clause	:	PACKAGE ID
@@ -348,7 +326,6 @@ primary_expr	:	operand
 				;
 
 operand			:	operand_name
-				|	operand_name '[' type_list ']'
 				|	'(' expr ')'
 				;
 
