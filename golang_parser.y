@@ -294,11 +294,6 @@ expr_list		:	expr_list ',' expr
 				;
 				
 expr			:	primary_expr
-				|	INT_LIT
-				|	FLOAT_LIT
-				|	RUNE_LIT
-				|	STRING_LIT
-				|	BOOL_LIT
 				|	expr '+' expr
 				|	expr '-' expr
 				|	expr '*' expr
@@ -327,6 +322,11 @@ primary_expr	:	operand
 
 operand			:	operand_name
 				|	'(' expr ')'
+				|	INT_LIT
+				|	FLOAT_LIT
+				|	RUNE_LIT
+				|	STRING_LIT
+				|	BOOL_LIT
 				;
 
 operand_name    :   ID
