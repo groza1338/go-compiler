@@ -119,6 +119,10 @@ func_decl		:	FUNC ID signature
 package_clause	:	PACKAGE ID
 				;
 
+e_stmt_list     :   stmt_list
+                |
+                ;
+
 stmt_list		:	stmt_list stmt ';'
 				|	stmt ';'
 				;
@@ -145,7 +149,7 @@ return_stmt		:	RETURN
 				|	RETURN expr_list
 				;
 				
-block			:	'{' stmt_list '}'
+block			:	'{' e_stmt_list '}'
 				;
 
 decl			:	const_decl
