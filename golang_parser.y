@@ -324,7 +324,7 @@ primary_expr	:	operand
 				|	primary_expr '[' expr ':' expr ':' expr ']'
 				;
 
-operand			:	operand_name
+operand			:	ID
 				|	'(' expr ')'
 				|	INT_LIT
 				|	FLOAT_LIT
@@ -332,11 +332,6 @@ operand			:	operand_name
 				|	STRING_LIT
 				|	BOOL_LIT
 				;
-
-operand_name    :   ID
-                |   package_name '.' ID
-                ;
-				
 
 %%
 // Секция пользовательского кода
