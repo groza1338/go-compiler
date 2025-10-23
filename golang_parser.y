@@ -205,7 +205,7 @@ expr_switch_case:	CASE expr_list
 				;
 
 const_decl		:	CONST const_spec
-				|	'(' const_spec_list ')'
+				|	CONST'(' const_spec_list ')'
 				;
 				
 const_spec_list	:	const_spec_list const_spec ';'
