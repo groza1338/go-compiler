@@ -61,6 +61,7 @@ void yyerror(char const* s) {
 %left	'+' '-'
 %left	'*' '/'
 %right	INC DEC '!' UMINUS
+%nonassoc	'(' ')'
 
 
 %start program
@@ -123,27 +124,28 @@ e_stmt_list     :   stmt_list
                 |
                 ;
 
-stmt_list		:	stmt_list stmt ';'
-				|	stmt ';'
-				|	';'
+stmt_list		:	stmt_list stmt
+				|	stmt
 				;
 				
-stmt			:	decl 
-				| 	simple_stmt 
-				|	return_stmt 
-				| 	BREAK 
-				| 	CONTINUE 
-				| 	block
-				| 	if_stmt 
-				| 	switch_stmt 
-				| 	for_stmt
+				
+stmt			:	decl ';'
+				| 	simple_stmt ';'
+				|	return_stmt ';'
+				| 	BREAK ';'
+				| 	CONTINUE ';'
+				| 	block ';'
+				| 	if_stmt ';'
+				| 	switch_stmt ';'
+				| 	for_stmt ';'
+				|   ';'
 				;
 				
 simple_stmt		:	expr
 				|	expr INC
 				|	expr DEC
 				|	expr_list '=' expr_list
-				|	id_list WALRUS expr_list
+				|	expr_list WALRUS expr_list
 				;
 				
 return_stmt		:	RETURN 
@@ -154,7 +156,7 @@ block			:	'{' e_stmt_list '}'
 				;
 
 decl			:	const_decl
-				:	var_decl
+				|	var_decl
 				;
 				
 if_stmt			:	IF expr block 
@@ -189,7 +191,7 @@ for_clause		:	';' ';'
 				
 range_clause	:	RANGE expr
 				|	expr_list '=' RANGE expr
-				|	id_list WALRUS RANGE expr
+				|	expr_list WALRUS RANGE expr
 				;
 				
 e_expr_case_clause_list
@@ -298,7 +300,13 @@ expr_list		:	expr_list ',' expr
 				|	expr
 				;
 				
-expr			:	primary_expr
+expr			:	ID
+				|	'(' expr ')'
+				|	INT_LIT
+				|	FLOAT_LIT
+				|	RUNE_LIT
+				|	STRING_LIT
+				|	BOOL_LIT
 				|	expr '+' expr
 				|	expr '-' expr
 				|	expr '*' expr
@@ -313,25 +321,15 @@ expr			:	primary_expr
 				|	expr OR expr
 				|	'!' expr
 				|	'-' expr	%prec UMINUS
-				;
-
-primary_expr	:	operand
-				|	primary_expr '[' expr ']'
-				|	primary_expr '[' ':' ']'
-				|	primary_expr '[' expr ':' ']'
-				|	primary_expr '[' ':' expr ']'
-				|	primary_expr '[' expr ':' expr ']'
-				|	primary_expr '[' ':' expr ':' expr ']'
-				|	primary_expr '[' expr ':' expr ':' expr ']'
-				;
-
-operand			:	ID
-				|	'(' expr ')'
-				|	INT_LIT
-				|	FLOAT_LIT
-				|	RUNE_LIT
-				|	STRING_LIT
-				|	BOOL_LIT
+				|	expr '[' expr ']'
+				|	ID '[' ':' ']'
+				|	ID '[' expr ':' ']'
+				|	ID '[' ':' expr ']'
+				|	ID '[' expr ':' expr ']'
+				|	ID '[' ':' expr ':' expr ']'
+				|	ID '[' expr ':' expr ':' expr ']'
+				|	ID '(' ')'
+				|	ID '(' expr_list ')'
 				;
 
 %%
