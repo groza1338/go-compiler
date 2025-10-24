@@ -125,6 +125,7 @@ e_stmt_list     :   stmt_list
 
 stmt_list		:	stmt_list stmt ';'
 				|	stmt ';'
+				|	';'
 				;
 				
 stmt			:	decl 
