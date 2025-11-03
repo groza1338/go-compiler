@@ -61,7 +61,7 @@ void yyerror(char const* s) {
 %left	'+' '-'
 %left	'*' '/'
 %right	INC DEC '!' UMINUS
-%nonassoc	'(' ')'
+%nonassoc	'(' ')' '[' ']' '{' '}'
 
 
 %start program
@@ -322,14 +322,14 @@ expr			:	ID
 				|	'!' expr
 				|	'-' expr	%prec UMINUS
 				|	expr '[' expr ']'
-				|	ID '[' ':' ']'
-				|	ID '[' expr ':' ']'
-				|	ID '[' ':' expr ']'
-				|	ID '[' expr ':' expr ']'
-				|	ID '[' ':' expr ':' expr ']'
-				|	ID '[' expr ':' expr ':' expr ']'
-				|	ID '(' ')'
-				|	ID '(' expr_list ')'
+				|	expr '[' ':' ']'
+				|	expr '[' expr ':' ']'
+				|	expr '[' ':' expr ']'
+				|	expr '[' expr ':' expr ']'
+				|	expr '[' ':' expr ':' expr ']'
+				|	expr '[' expr ':' expr ':' expr ']'
+				|	expr '(' ')'
+				|	expr '(' expr_list ')'
 				;
 
 %%
