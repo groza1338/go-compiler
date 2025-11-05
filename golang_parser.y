@@ -300,36 +300,36 @@ expr_list		:	expr_list ',' expr
 				|	expr
 				;
 				
-expr			:	ID
+expr			:	ID {$$=ExprNode::createIdentifier($1);}
 				|	'(' expr ')'
-				|	INT_LIT
-				|	FLOAT_LIT
-				|	RUNE_LIT
-				|	STRING_LIT
-				|	BOOL_LIT
-				|	expr '+' expr
-				|	expr '-' expr
-				|	expr '*' expr
-				|	expr '/' expr
-				|	expr EQUAL expr
-				|	expr NEQUAL expr
-				|	expr '<' expr
-				|	expr '>' expr
-				|	expr LESS_EQUAL expr
-				|	expr GREATER_EQUAL expr
-				|	expr AND expr
-				|	expr OR expr
-				|	'!' expr
-				|	'-' expr	%prec UMINUS
-				|	expr '[' expr ']'
-				|	expr '[' ':' ']'
-				|	expr '[' expr ':' ']'
-				|	expr '[' ':' expr ']'
-				|	expr '[' expr ':' expr ']'
-				|	expr '[' ':' expr ':' expr ']'
-				|	expr '[' expr ':' expr ':' expr ']'
-				|	expr '(' ')'
-				|	expr '(' expr_list ')'
+				|	INT_LIT {$$=ExprNode::createIntLiteral($1);}
+				|	FLOAT_LIT {$$=ExprNode::createFloatLiteral($1);}
+				|	RUNE_LIT {$$=ExprNode::createRuneLiteral($1);}
+				|	STRING_LIT {$$=ExprNode::createStringLiteral($1);}
+				|	BOOL_LIT {$$=ExprNode::createBoolLiteral($1);}
+				|	expr '+' expr {$$=ExprNode::createSummary($1, $3);}
+				|	expr '-' expr {$$=ExprNode::createSubtraction($1, $3);}
+				|	expr '*' expr {$$=ExprNode::createMultiplication($1, $3);}
+				|	expr '/' expr {$$=ExprNode::createDivision($1, $3);}
+				|	expr EQUAL expr {$$=ExprNode::createEqual($1, $3);}
+				|	expr NEQUAL expr {$$=ExprNode::createNotEqual($1, $3);}
+				|	expr '<' expr {$$=ExprNode::createLess($1, $3);}
+				|	expr '>' expr {$$=ExprNode::createGreater($1, $3);}
+				|	expr LESS_EQUAL expr {$$=ExprNode::createLessOrEqual($1, $3);}
+				|	expr GREATER_EQUAL expr {$$=ExprNode::createGreaterOrEqual($1, $3);}
+				|	expr AND expr {$$=ExprNode::createAnd($1, $3);}
+				|	expr OR expr {$$=ExprNode::createOr($1, $3);}
+				|	'!' expr {$$=ExprNode::createNot($2);}
+				|	'-' expr	%prec UMINUS {$$=ExprNode::createUnaryMinus($2);}
+				|	expr '[' expr ']' {$$=ExprNode::createElementAccess($1, $3);}
+				|	expr '[' ':' ']' {$$=ExprNode::createSlice($1, nullptr, nullptr, nullptr);}
+				|	expr '[' expr ':' ']' {$$=ExprNode::createSlice($1, $3, nullptr, nullptr);}
+				|	expr '[' ':' expr ']' {$$=ExprNode::createSlice($1, nullptr, $4, nullptr);}
+				|	expr '[' expr ':' expr ']' {$$=ExprNode::createSlice($1, $3, $5, nullptr);}
+				|	expr '[' ':' expr ':' expr ']' {$$=ExprNode::createSlice($1, nullptr, $4, $6);}
+				|	expr '[' expr ':' expr ':' expr ']' {$$=ExprNode::createSlice($1, $3, $5, $7);}
+				|	expr '(' ')' {$$=ExprNode::createFunctionCall($1, nullptr);}
+				|	expr '(' expr_list ')' {$$=ExprNode::createFunctionCall($1, $3);}
 				;
 
 %%
