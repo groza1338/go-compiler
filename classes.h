@@ -23,6 +23,7 @@ public:
     enum Type {
         NONE,
         ID,
+        EXPR_IN_BRACKETS,
         INT_LITERAL,
         FLOAT_LITERAL,
         RUNE_LITERAL,
