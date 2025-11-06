@@ -296,8 +296,8 @@ var_spec		:	id_list type
 				|	id_list '=' expr_list	
 				;
 				
-expr_list		:	expr_list ',' expr
-				|	expr
+expr_list		:	expr_list ',' expr {$$=ExprListNode::addExprToList($1, $3);}
+				|	expr {$$=ExprListNode::createExprList($1);}
 				;
 				
 expr			:	ID {$$=ExprNode::createIdentifier($1);}
