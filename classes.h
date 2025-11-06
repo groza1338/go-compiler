@@ -21,7 +21,7 @@ public:
 
 class ExprNode : public AstNode {
 public:
-    enum Type {
+    enum ExprType {
         NONE,
         ID,
         EXPR_IN_BRACKETS,
@@ -73,7 +73,7 @@ public:
     static ExprNode* createSlice(ExprNode* operand, ExprNode* low, ExprNode* high, ExprNode* max);
     static ExprNode* createFunctionCall(ExprNode* operand, list<ExprNode*> &args);
 
-    Type getType() const;
+    ExprType getType() const;
     string getIdentifier() const;
     int getIntLiteral() const;
     float getFloatLiteral() const;
@@ -90,7 +90,7 @@ public:
     ExprNode* getMax() const;
 
 protected:
-    Type type;
+    ExprType type;
     string identifier;
     int intLiteral;
     float floatLiteral;

@@ -184,7 +184,7 @@ ExprNode* ExprNode::createFunctionCall(ExprNode *operand, list<ExprNode *> &args
     return node;
 }
 
-ExprNode::Type ExprNode::getType() const {
+ExprNode::ExprType ExprNode::getType() const {
     return type;
 }
 
