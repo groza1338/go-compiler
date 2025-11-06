@@ -243,3 +243,18 @@ ExprNode* ExprNode::getHigh() const {
 ExprNode* ExprNode::getMax() const {
     return sliceMax;
 }
+
+ExprListNode* ExprListNode::createExprList(ExprNode *expr) {
+    ExprListNode *node = new ExprListNode();
+    node->exprs = new list<ExprNode*>{expr};
+    return node;
+}
+
+ExprListNode* ExprListNode::addExprToList(ExprListNode *list, ExprNode *expr) {
+    list->exprs->push_back(expr);
+    return list;
+}
+
+list<ExprNode*>* ExprListNode::getExprList() const {
+    return exprs;
+}

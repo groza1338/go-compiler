@@ -124,3 +124,16 @@ protected:
         sliceMax = nullptr;
     };
 };
+
+class ExprListNode : public AstNode {
+public:
+    static ExprListNode* createExprList(ExprNode *expr);
+    static ExprListNode* addExprToList(ExprListNode *list, ExprNode *expr);
+
+    list<ExprNode*>* getExprList() const;
+
+protected:
+    ExprListNode(): AstNode() {exprs = nullptr;};
+    list<ExprNode*>* exprs;
+
+};
