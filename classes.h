@@ -138,3 +138,32 @@ protected:
     list<ExprNode*>* exprs;
 
 };
+
+class StmtNode : public AstNode {
+public:
+    enum StmtType {
+        NONE,
+        DECLARATION,
+        SIMPLE,
+        RETURN,
+        BREAK,
+        CONTINUE,
+        BLOCK,
+        IF,
+        SWITCH,
+        FOR,
+        EMPTY
+    };
+
+    static StmtNode* createReturn(ExprListNode *exprList);
+    static StmtNode* createBreak();
+
+protected:
+    StmtType type;
+    ExprListNode *returnExprList;
+
+    StmtNode(): AstNode() {
+        type = NONE;
+        returnExprList = nullptr;
+    }
+};

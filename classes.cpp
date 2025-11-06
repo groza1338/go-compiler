@@ -258,3 +258,16 @@ ExprListNode* ExprListNode::addExprToList(ExprListNode *list, ExprNode *expr) {
 list<ExprNode*>* ExprListNode::getExprList() const {
     return exprs;
 }
+
+StmtNode* StmtNode::createReturn(ExprListNode *exprList) {
+    StmtNode *node = new StmtNode();
+    node->type = RETURN;
+    node->returnExprList = exprList;
+    return node;
+}
+
+StmtNode* StmtNode::createBreak() {
+    StmtNode *node = new StmtNode();
+    node->type = BREAK;
+    return node;
+}

@@ -132,7 +132,7 @@ stmt_list		:	stmt_list stmt
 stmt			:	decl ';'
 				| 	simple_stmt ';'
 				|	return_stmt ';'
-				| 	BREAK ';'
+				| 	BREAK ';' {$$=StmtNode::createBreak();}
 				| 	CONTINUE ';'
 				| 	block ';'
 				| 	if_stmt ';'
@@ -148,8 +148,8 @@ simple_stmt		:	expr
 				|	expr_list WALRUS expr_list
 				;
 				
-return_stmt		:	RETURN 
-				|	RETURN expr_list
+return_stmt		:	RETURN {$$=StmtNode::createReturn(nullptr);}
+				|	RETURN expr_list {$$=StmtNode::createReturn($2);}
 				;
 				
 block			:	'{' e_stmt_list '}'
