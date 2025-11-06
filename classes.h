@@ -16,6 +16,7 @@ protected:
 
 public:
     AstNode() {id = ++maxId;};
+    unsigned int getId() const {return id;};
 };
 
 class ExprNode : public AstNode {
