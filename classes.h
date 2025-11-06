@@ -71,7 +71,7 @@ public:
     static ExprNode* createUnaryMinus(ExprNode* operand);
     static ExprNode* createElementAccess(ExprNode* operand, ExprNode* index);
     static ExprNode* createSlice(ExprNode* operand, ExprNode* low, ExprNode* high, ExprNode* max);
-    static ExprNode* createFunctionCall(ExprNode* operand, list<ExprNode*> &args);
+    static ExprNode* createFunctionCall(ExprNode* operand, list<ExprNode*> *args);
 
     ExprType getType() const;
     string getIdentifier() const;
@@ -84,7 +84,7 @@ public:
     ExprNode* getRight() const;
     ExprNode* getOperand() const;
     ExprNode* getIndex() const;
-    list<ExprNode*> getArgs() const;
+    list<ExprNode*>* getArgs() const;
     ExprNode* getLow() const;
     ExprNode* getHigh() const;
     ExprNode* getMax() const;
@@ -102,7 +102,7 @@ protected:
     ExprNode *right;
     ExprNode *operand;
     ExprNode *index;
-    list<ExprNode*> args;
+    list<ExprNode*>* args;
     ExprNode *sliceLow;
     ExprNode *sliceHigh;
     ExprNode *sliceMax;
@@ -119,6 +119,7 @@ protected:
         right = nullptr;
         operand = nullptr;
         index = nullptr;
+        args = nullptr;
         sliceLow = nullptr;
         sliceHigh = nullptr;
         sliceMax = nullptr;

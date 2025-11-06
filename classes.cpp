@@ -176,7 +176,7 @@ ExprNode* ExprNode::createSlice(ExprNode *operand, ExprNode *low, ExprNode *high
     return node;
 }
 
-ExprNode* ExprNode::createFunctionCall(ExprNode *operand, list<ExprNode *> &args) {
+ExprNode* ExprNode::createFunctionCall(ExprNode *operand, list<ExprNode *> *args) {
     ExprNode *node = new ExprNode();
     node->type = FUNCTION_CALL;
     node->operand = operand;
@@ -228,7 +228,7 @@ ExprNode* ExprNode::getIndex() const {
     return index;
 }
 
-list<ExprNode*> ExprNode::getArgs() const {
+list<ExprNode*>* ExprNode::getArgs() const {
     return args;
 }
 
