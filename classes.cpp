@@ -122,7 +122,7 @@ ExprNode* ExprNode::createLessOrEqual(ExprNode *left, ExprNode *right) {
 
 ExprNode* ExprNode::createGreaterOrEqual(ExprNode *left, ExprNode *right) {
     ExprNode *node = new ExprNode();
-    node->type = GREAT_OR_EQUAL;
+    node->type = GREATER_OR_EQUAL;
     node->left = left;
     node->right = right;
     return node;

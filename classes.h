@@ -41,7 +41,7 @@ public:
         LESS,
         GREATER,
         LESS_OR_EQUAL,
-        GREAT_OR_EQUAL,
+        GREATER_OR_EQUAL,
         AND,
         OR,
         NOT,
