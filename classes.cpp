@@ -259,6 +259,21 @@ list<ExprNode*>* ExprListNode::getExprList() const {
     return exprs;
 }
 
+StmtListNode* StmtListNode::createStmtList(StmtNode *stmt) {
+    StmtListNode *node = new StmtListNode();
+    node->stmts = new list<StmtNode*>{stmt};
+    return node;
+}
+
+StmtListNode* StmtListNode::addStmtToList(StmtListNode *list, StmtNode *stmt) {
+    list->stmts->push_back(stmt);
+    return list;
+}
+
+list<StmtNode*>* StmtListNode::getStmtList() const {
+    return stmts;
+}
+
 StmtNode* StmtNode::createReturn(ExprListNode *exprList) {
     StmtNode *node = new StmtNode();
     node->type = RETURN;

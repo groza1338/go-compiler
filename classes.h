@@ -9,6 +9,8 @@
 
 using namespace std;
 
+class StmtNode;
+
 class AstNode {
 protected:
     static unsigned int maxId;
@@ -137,6 +139,18 @@ protected:
     ExprListNode(): AstNode() {exprs = nullptr;};
     list<ExprNode*>* exprs;
 
+};
+
+class StmtListNode : public AstNode {
+public:
+    static StmtListNode* createStmtList(StmtNode* stmt);
+    static StmtListNode* addStmtToList(StmtListNode* list, StmtNode* stmt);
+
+    list<StmtNode*>* getStmtList() const;
+
+protected:
+    StmtListNode(): AstNode() {stmts = nullptr;};
+    list<StmtNode*>* stmts;
 };
 
 class StmtNode : public AstNode {

@@ -120,12 +120,12 @@ func_decl		:	FUNC ID signature
 package_clause	:	PACKAGE ID
 				;
 
-e_stmt_list     :   stmt_list
-                |
+e_stmt_list     :   stmt_list {$$=$1;}
+                |   {$$=nullptr;}
                 ;
 
-stmt_list		:	stmt_list stmt
-				|	stmt
+stmt_list		:	stmt_list stmt {$$=StmtListNode::addStmtToList($1, $2);}
+				|	stmt {$$=StmtListNode::createStmtList($1);}
 				;
 				
 				
@@ -134,7 +134,7 @@ stmt			:	decl ';'
 				|	return_stmt ';' {$$=$1;}
 				| 	BREAK ';' {$$=StmtNode::createBreak();}
 				| 	CONTINUE ';' {$$=StmtNode::createContinue();}
-				| 	block ';'
+				| 	block ';' {$$=$1;}
 				| 	if_stmt ';'
 				| 	switch_stmt ';'
 				| 	for_stmt ';'
@@ -152,7 +152,7 @@ return_stmt		:	RETURN {$$=StmtNode::createReturn(nullptr);}
 				|	RETURN expr_list {$$=StmtNode::createReturn($2);}
 				;
 				
-block			:	'{' e_stmt_list '}'
+block			:	'{' e_stmt_list '}' {$$=$2;}
 				;
 
 decl			:	const_decl
