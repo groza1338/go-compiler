@@ -146,8 +146,8 @@ ExprNode* ExprNode::createOr(ExprNode *left, ExprNode *right) {
 
 ExprNode* ExprNode::createNot(ExprNode *operand) {
     ExprNode *node = new ExprNode();
-    node->type = NOT_EQUAL;
-    node->left = operand;
+    node->type = NOT;
+    node->operand = operand;
     return node;
 }
 
