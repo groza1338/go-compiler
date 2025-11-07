@@ -299,3 +299,63 @@ StmtNode* StmtNode::createBlock(StmtListNode *stmtList) {
     node->stmtList = stmtList;
     return node;
 }
+
+SimpleStmtNode* SimpleStmtNode::createExpr(ExprNode *expr) {
+    SimpleStmtNode *node = new SimpleStmtNode();
+    node->type = EXPR;
+    node->expr = expr;
+    return node;
+}
+
+SimpleStmtNode* SimpleStmtNode::createInc(ExprNode *expr) {
+    SimpleStmtNode *node = new SimpleStmtNode();
+    node->type = INC;
+    node->expr = expr;
+    return node;
+}
+
+SimpleStmtNode* SimpleStmtNode::createDec(ExprNode *expr) {
+    SimpleStmtNode *node = new SimpleStmtNode();
+    node->type = DEC;
+    node->expr = expr;
+    return node;
+}
+
+SimpleStmtNode* SimpleStmtNode::createAssign(ExprListNode *left, ExprListNode *right) {
+    SimpleStmtNode* node = new SimpleStmtNode();
+    node->type = ASSIGN;
+    node->left = left;
+    node->right = right;
+    return node;
+}
+
+SimpleStmtNode* SimpleStmtNode::createShortVarDecl(ExprListNode *left, ExprListNode *right) {
+    SimpleStmtNode* node = new SimpleStmtNode();
+    node->type = SHORT_VAR_DECL;
+    node->left = left;
+    node->right = right;
+    return node;
+}
+
+SimpleStmtNode::SimpleStmtType SimpleStmtNode::getType() const {
+    return type;
+}
+
+ExprNode* SimpleStmtNode::getExpr() const {
+    return expr;
+}
+
+ExprListNode* SimpleStmtNode::getLeft() const {
+    return left;
+}
+
+ExprListNode* SimpleStmtNode::getRight() const {
+    return right;
+}
+
+SimpleStmtNode::SimpleStmtNode(): AstNode() {
+    type = NONE;
+    expr = nullptr;
+    left = nullptr;
+    right = nullptr;
+}

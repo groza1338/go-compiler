@@ -141,11 +141,11 @@ stmt			:	decl ';'
 				|   ';'
 				;
 				
-simple_stmt		:	expr
-				|	expr INC
-				|	expr DEC
-				|	expr_list '=' expr_list
-				|	expr_list WALRUS expr_list
+simple_stmt		:	expr {$$=SimpleStmtNode::createExpr($1);}
+				|	expr INC {$$=SimpleStmtNode::createInc($1);}
+				|	expr DEC {$$=SimpleStmtNode::createDec($1);}
+				|	expr_list '=' expr_list {$$=SimpleStmtNode::createAssign($1, $3);}
+				|	expr_list WALRUS expr_list {$$=SimpleStmtNode::createShortVarDecl($1, $3);}
 				;
 				
 return_stmt		:	RETURN {$$=StmtNode::createReturn(nullptr);}

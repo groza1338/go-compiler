@@ -184,3 +184,34 @@ protected:
         returnExprList = nullptr;
     }
 };
+
+class SimpleStmtNode : public AstNode {
+public:
+    enum SimpleStmtType {
+        NONE,
+        EXPR,
+        INC,
+        DEC,
+        ASSIGN,
+        SHORT_VAR_DECL
+    };
+
+    static SimpleStmtNode* createExpr(ExprNode *expr);
+    static SimpleStmtNode* createInc(ExprNode *expr);
+    static SimpleStmtNode* createDec(ExprNode *expr);
+    static SimpleStmtNode* createAssign(ExprListNode *left, ExprListNode *right);
+    static SimpleStmtNode* createShortVarDecl(ExprListNode *left, ExprListNode *right);
+
+    SimpleStmtType getType() const;
+    ExprNode* getExpr() const;
+    ExprListNode* getLeft() const;
+    ExprListNode* getRight() const;
+
+protected:
+    SimpleStmtType type;
+    ExprNode *expr;
+    ExprListNode *left;
+    ExprListNode *right;
+
+    SimpleStmtNode();
+};
