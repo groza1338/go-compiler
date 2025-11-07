@@ -244,6 +244,24 @@ ExprNode* ExprNode::getMax() const {
     return sliceMax;
 }
 
+ExprNode::ExprNode(): AstNode() {
+    type = NONE;
+    identifier = "";
+    intLiteral = 0;
+    floatLiteral = 0;
+    runeLiteral = 0;
+    stringLiteral = "";
+    boolLiteral = false;
+    left = nullptr;
+    right = nullptr;
+    operand = nullptr;
+    index = nullptr;
+    args = nullptr;
+    sliceLow = nullptr;
+    sliceHigh = nullptr;
+    sliceMax = nullptr;
+}
+
 ExprListNode* ExprListNode::createExprList(ExprNode *expr) {
     ExprListNode *node = new ExprListNode();
     node->exprs = new list<ExprNode*>{expr};
@@ -298,6 +316,11 @@ StmtNode* StmtNode::createBlock(StmtListNode *stmtList) {
     node->type = BLOCK;
     node->stmtList = stmtList;
     return node;
+}
+
+StmtNode::StmtNode(): AstNode() {
+    type = NONE;
+    returnExprList = nullptr;
 }
 
 SimpleStmtNode* SimpleStmtNode::createExpr(ExprNode *expr) {

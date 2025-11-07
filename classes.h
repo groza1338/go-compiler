@@ -109,23 +109,7 @@ protected:
     ExprNode *sliceHigh;
     ExprNode *sliceMax;
 
-    ExprNode(): AstNode() {
-        type = NONE;
-        identifier = "";
-        intLiteral = 0;
-        floatLiteral = 0;
-        runeLiteral = 0;
-        stringLiteral = "";
-        boolLiteral = false;
-        left = nullptr;
-        right = nullptr;
-        operand = nullptr;
-        index = nullptr;
-        args = nullptr;
-        sliceLow = nullptr;
-        sliceHigh = nullptr;
-        sliceMax = nullptr;
-    };
+    ExprNode();
 };
 
 class ExprListNode : public AstNode {
@@ -180,10 +164,7 @@ protected:
     ExprListNode *returnExprList;
     StmtListNode *stmtList;
 
-    StmtNode(): AstNode() {
-        type = NONE;
-        returnExprList = nullptr;
-    }
+    StmtNode();
 };
 
 class SimpleStmtNode : public AstNode {
