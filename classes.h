@@ -154,6 +154,7 @@ public:
         EMPTY
     };
 
+    static StmtNode* createSimple(SimpleStmtNode *simpleStmt);
     static StmtNode* createReturn(ExprListNode *exprList);
     static StmtNode* createBreak();
     static StmtNode* createContinue();

@@ -292,6 +292,13 @@ list<StmtNode*>* StmtListNode::getStmtList() const {
     return stmts;
 }
 
+StmtNode* StmtNode::createSimple(SimpleStmtNode *simpleStmt) {
+    StmtNode *node = new StmtNode();
+    node->type = SIMPLE;
+    node->simpleStmt = simpleStmt;
+    return node;
+}
+
 StmtNode* StmtNode::createReturn(ExprListNode *exprList) {
     StmtNode *node = new StmtNode();
     node->type = RETURN;

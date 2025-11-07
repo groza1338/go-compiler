@@ -130,7 +130,7 @@ stmt_list		:	stmt_list stmt {$$=StmtListNode::addStmtToList($1, $2);}
 				
 				
 stmt			:	decl ';'
-				| 	simple_stmt ';'
+				| 	simple_stmt ';' {$$=StmtNode::createSimple($1);}
 				|	return_stmt ';' {$$=$1;}
 				| 	BREAK ';' {$$=StmtNode::createBreak();}
 				| 	CONTINUE ';' {$$=StmtNode::createContinue();}
