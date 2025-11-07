@@ -131,7 +131,7 @@ stmt_list		:	stmt_list stmt
 				
 stmt			:	decl ';'
 				| 	simple_stmt ';'
-				|	return_stmt ';'
+				|	return_stmt ';' {$$=$1;}
 				| 	BREAK ';' {$$=StmtNode::createBreak();}
 				| 	CONTINUE ';'
 				| 	block ';'
@@ -301,7 +301,7 @@ expr_list		:	expr_list ',' expr {$$=ExprListNode::addExprToList($1, $3);}
 				;
 				
 expr			:	ID {$$=ExprNode::createIdentifier($1);}
-				|	'(' expr ')'
+				|	'(' expr ')' {$$=$1;}
 				|	INT_LIT {$$=ExprNode::createIntLiteral($1);}
 				|	FLOAT_LIT {$$=ExprNode::createFloatLiteral($1);}
 				|	RUNE_LIT {$$=ExprNode::createRuneLiteral($1);}
