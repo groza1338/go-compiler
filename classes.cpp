@@ -322,7 +322,7 @@ SimpleStmtNode* SimpleStmtNode::createDec(ExprNode *expr) {
 }
 
 SimpleStmtNode* SimpleStmtNode::createAssign(ExprListNode *left, ExprListNode *right) {
-    SimpleStmtNode* node = new SimpleStmtNode();
+    SimpleStmtNode *node = new SimpleStmtNode();
     node->type = ASSIGN;
     node->left = left;
     node->right = right;
@@ -330,7 +330,7 @@ SimpleStmtNode* SimpleStmtNode::createAssign(ExprListNode *left, ExprListNode *r
 }
 
 SimpleStmtNode* SimpleStmtNode::createShortVarDecl(ExprListNode *left, ExprListNode *right) {
-    SimpleStmtNode* node = new SimpleStmtNode();
+    SimpleStmtNode *node = new SimpleStmtNode();
     node->type = SHORT_VAR_DECL;
     node->left = left;
     node->right = right;

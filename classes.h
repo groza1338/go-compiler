@@ -57,23 +57,23 @@ public:
     static ExprNode* createRuneLiteral(int value);
     static ExprNode* createStringLiteral(const string &value);
     static ExprNode* createBoolLiteral(bool value);
-    static ExprNode* createSummary(ExprNode* left, ExprNode* right);
-    static ExprNode* createSubtraction(ExprNode* left, ExprNode* right);
-    static ExprNode* createMultiplication(ExprNode* left, ExprNode* right);
-    static ExprNode* createDivision(ExprNode* left, ExprNode* right);
-    static ExprNode* createEqual(ExprNode* left, ExprNode* right);
-    static ExprNode* createNotEqual(ExprNode* left, ExprNode* right);
-    static ExprNode* createLess(ExprNode* left, ExprNode* right);
-    static ExprNode* createGreater(ExprNode* left, ExprNode* right);
-    static ExprNode* createLessOrEqual(ExprNode* left, ExprNode* right);
-    static ExprNode* createGreaterOrEqual(ExprNode* left, ExprNode* right);
-    static ExprNode* createAnd(ExprNode* left, ExprNode* right);
-    static ExprNode* createOr(ExprNode* left, ExprNode* right);
-    static ExprNode* createNot(ExprNode* operand);
-    static ExprNode* createUnaryMinus(ExprNode* operand);
-    static ExprNode* createElementAccess(ExprNode* operand, ExprNode* index);
-    static ExprNode* createSlice(ExprNode* operand, ExprNode* low, ExprNode* high, ExprNode* max);
-    static ExprNode* createFunctionCall(ExprNode* operand, list<ExprNode*> *args);
+    static ExprNode* createSummary(ExprNode *left, ExprNode *right);
+    static ExprNode* createSubtraction(ExprNode *left, ExprNode *right);
+    static ExprNode* createMultiplication(ExprNode *left, ExprNode *right);
+    static ExprNode* createDivision(ExprNode *left, ExprNode *right);
+    static ExprNode* createEqual(ExprNode *left, ExprNode *right);
+    static ExprNode* createNotEqual(ExprNode *left, ExprNode *right);
+    static ExprNode* createLess(ExprNode *left, ExprNode *right);
+    static ExprNode* createGreater(ExprNode *left, ExprNode *right);
+    static ExprNode* createLessOrEqual(ExprNode *left, ExprNode *right);
+    static ExprNode* createGreaterOrEqual(ExprNode *left, ExprNode *right);
+    static ExprNode* createAnd(ExprNode *left, ExprNode *right);
+    static ExprNode* createOr(ExprNode *left, ExprNode *right);
+    static ExprNode* createNot(ExprNode *operand);
+    static ExprNode* createUnaryMinus(ExprNode *operand);
+    static ExprNode* createElementAccess(ExprNode *operand, ExprNode *index);
+    static ExprNode* createSlice(ExprNode *operand, ExprNode *low, ExprNode *high, ExprNode *max);
+    static ExprNode* createFunctionCall(ExprNode *operand, list<ExprNode*> *args);
 
     ExprType getType() const;
     string getIdentifier() const;
@@ -104,7 +104,7 @@ protected:
     ExprNode *right;
     ExprNode *operand;
     ExprNode *index;
-    list<ExprNode*>* args;
+    list<ExprNode*> *args;
     ExprNode *sliceLow;
     ExprNode *sliceHigh;
     ExprNode *sliceMax;
@@ -137,20 +137,20 @@ public:
 
 protected:
     ExprListNode(): AstNode() {exprs = nullptr;};
-    list<ExprNode*>* exprs;
+    list<ExprNode*> *exprs;
 
 };
 
 class StmtListNode : public AstNode {
 public:
-    static StmtListNode* createStmtList(StmtNode* stmt);
-    static StmtListNode* addStmtToList(StmtListNode* list, StmtNode* stmt);
+    static StmtListNode* createStmtList(StmtNode *stmt);
+    static StmtListNode* addStmtToList(StmtListNode *list, StmtNode *stmt);
 
     list<StmtNode*>* getStmtList() const;
 
 protected:
     StmtListNode(): AstNode() {stmts = nullptr;};
-    list<StmtNode*>* stmts;
+    list<StmtNode*> *stmts;
 };
 
 class StmtNode : public AstNode {
@@ -173,6 +173,7 @@ public:
     static StmtNode* createBreak();
     static StmtNode* createContinue();
     static StmtNode* createBlock(StmtListNode *stmtList);
+    static StmtNode* createIf();
 
 protected:
     StmtType type;
