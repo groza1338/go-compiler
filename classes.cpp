@@ -335,6 +335,15 @@ StmtNode* StmtNode::createIf(SimpleStmtNode *simpleStmt, ExprNode *condition, St
     return node;
 }
 
+StmtNode* StmtNode::createSwitch(SimpleStmtNode *simpleStmt, ExprNode *condition, CaseListNode *cases) {
+    StmtNode *node = new StmtNode();
+    node->type = SWITCH;
+    node->simpleStmt = simpleStmt;
+    node->condition = condition;
+    node->caseList = cases;
+    return node;
+}
+
 StmtNode::StmtNode(): AstNode() {
     type = NONE;
     returnExprList = nullptr;
@@ -343,6 +352,9 @@ StmtNode::StmtNode(): AstNode() {
     condition = nullptr;
     thenBranch = nullptr;
     elseBranch = nullptr;
+    caseList = nullptr;
+}
+
 CaseNode* CaseNode::createCase(ExprListNode *exprList, StmtListNode *stmtList) {
     CaseNode* node = new CaseNode();
     node->exprList = exprList;

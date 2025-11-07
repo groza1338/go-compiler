@@ -167,10 +167,10 @@ if_stmt			:	IF expr block {$$=StmtNode::createIf(nullptr, $2, $3, nullptr);}
 				|	IF simple_stmt ';' expr block ELSE block {$$=StmtNode::createIf($2, $4, $5, $7);}
 				;
 				
-switch_stmt		:	SWITCH '{' e_expr_case_clause_list '}'
-				|	SWITCH simple_stmt ';' '{' e_expr_case_clause_list '}'
-				|	SWITCH expr '{' e_expr_case_clause_list '}'
-				|	SWITCH simple_stmt ';' expr '{' e_expr_case_clause_list '}'
+switch_stmt		:	SWITCH '{' e_expr_case_clause_list '}' {$$=StmtNode::createSwitch(nullptr, nullptr, $3);}
+				|	SWITCH simple_stmt ';' '{' e_expr_case_clause_list '}' {$$=StmtNode::createSwitch($2, nullptr, $5);}
+				|	SWITCH expr '{' e_expr_case_clause_list '}' {$$=StmtNode::createSwitch(nullptr, $2, $4);}
+				|	SWITCH simple_stmt ';' expr '{' e_expr_case_clause_list '}' {$$=StmtNode::createSwitch($2, $4, $6);}
 				;
 				
 for_stmt		:	FOR block

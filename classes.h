@@ -12,6 +12,7 @@ using namespace std;
 class StmtNode;
 class SimpleStmtNode;
 class CaseNode;
+class CaseListNode;
 
 class AstNode {
 protected:
@@ -161,6 +162,7 @@ public:
     static StmtNode* createContinue();
     static StmtNode* createBlock(StmtListNode *stmtList);
     static StmtNode* createIf(SimpleStmtNode *simpleStmt, ExprNode *condition, StmtNode *thenBranch, StmtNode *elseBranch);
+    static StmtNode* createSwitch(SimpleStmtNode *simpleStmt, ExprNode *condition, CaseListNode *cases);
 
 protected:
     StmtType type;
@@ -169,6 +171,7 @@ protected:
     SimpleStmtNode *simpleStmt;
     ExprNode *condition;
     StmtNode *thenBranch, *elseBranch;
+    CaseListNode *caseList;
 
     StmtNode();
 };
