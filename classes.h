@@ -172,6 +172,19 @@ protected:
     StmtNode();
 };
 
+class CaseNode : public AstNode {
+public:
+    static CaseNode* createCase(ExprListNode *exprList, StmtListNode *stmtList);
+
+    ExprListNode* getExprList() const;
+    StmtListNode* getStmtList() const;
+
+protected:
+    ExprListNode *exprList;
+    StmtListNode *stmtList;
+
+    CaseNode();
+};
 class SimpleStmtNode : public AstNode {
 public:
     enum SimpleStmtType {

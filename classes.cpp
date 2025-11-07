@@ -343,6 +343,25 @@ StmtNode::StmtNode(): AstNode() {
     condition = nullptr;
     thenBranch = nullptr;
     elseBranch = nullptr;
+CaseNode* CaseNode::createCase(ExprListNode *exprList, StmtListNode *stmtList) {
+    CaseNode* node = new CaseNode();
+    node->exprList = exprList;
+    node->stmtList = stmtList;
+    return node;
+}
+
+ExprListNode* CaseNode::getExprList() const {
+    return exprList;
+}
+
+StmtListNode* CaseNode::getStmtList() const {
+    return stmtList;
+}
+
+CaseNode::CaseNode() : AstNode() {
+    exprList = nullptr;
+    stmtList = nullptr;
+}
 }
 
 SimpleStmtNode* SimpleStmtNode::createExpr(ExprNode *expr) {

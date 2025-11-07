@@ -204,11 +204,11 @@ expr_case_clause_list
 				|	expr_case_clause
 				;
 				
-expr_case_clause:	expr_switch_case ':' stmt_list
+expr_case_clause:	expr_switch_case ':' stmt_list {$$=CaseNode::createCase($1, $3);}
 				;
 					
-expr_switch_case:	CASE expr_list
-				|	DEFAULT
+expr_switch_case:	CASE expr_list {$$=$2;}
+				|	DEFAULT {$$=nullptr;}
 				;
 
 const_decl		:	CONST const_spec
