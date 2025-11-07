@@ -195,13 +195,13 @@ range_clause	:	RANGE expr
 				;
 				
 e_expr_case_clause_list
-				:	expr_case_clause_list
-				|
+				:	expr_case_clause_list {$$=$1;}
+				|   {$$=nullptr;}
 				;
 
 expr_case_clause_list
-				:	expr_case_clause_list expr_case_clause
-				|	expr_case_clause
+				:	expr_case_clause_list expr_case_clause {$$=CaseListNode::addCaseToList($1, $2);}
+				|	expr_case_clause {$$=CaseListNode::createCaseList($1);}
 				;
 				
 expr_case_clause:	expr_switch_case ':' stmt_list {$$=CaseNode::createCase($1, $3);}

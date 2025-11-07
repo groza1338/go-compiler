@@ -362,6 +362,20 @@ CaseNode::CaseNode() : AstNode() {
     exprList = nullptr;
     stmtList = nullptr;
 }
+
+CaseListNode* CaseListNode::createCaseList(CaseNode *inCase) {
+    CaseListNode *node = new CaseListNode();
+    node->caseList = new list<CaseNode*>{inCase};
+    return node;
+}
+
+CaseListNode* CaseListNode::addCaseToList(CaseListNode *list, CaseNode *inCase) {
+    list->caseList->push_back(inCase);
+    return list;
+}
+
+list<CaseNode*>* CaseListNode::getCaseList() const {
+    return caseList;
 }
 
 SimpleStmtNode* SimpleStmtNode::createExpr(ExprNode *expr) {

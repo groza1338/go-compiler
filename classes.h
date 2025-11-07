@@ -11,6 +11,7 @@ using namespace std;
 
 class StmtNode;
 class SimpleStmtNode;
+class CaseNode;
 
 class AstNode {
 protected:
@@ -185,6 +186,20 @@ protected:
 
     CaseNode();
 };
+
+class CaseListNode : public AstNode {
+public:
+    static CaseListNode* createCaseList(CaseNode *inCase);
+    static CaseListNode* addCaseToList(CaseListNode *list, CaseNode *inCase);
+
+    list<CaseNode*>* getCaseList() const;
+
+protected:
+    list<CaseNode*> *caseList;
+
+    CaseListNode(): AstNode() {caseList = nullptr;};
+};
+
 class SimpleStmtNode : public AstNode {
 public:
     enum SimpleStmtType {
@@ -215,3 +230,5 @@ protected:
 
     SimpleStmtNode();
 };
+
+
