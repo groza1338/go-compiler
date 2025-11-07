@@ -10,6 +10,7 @@
 using namespace std;
 
 class StmtNode;
+class SimpleStmtNode;
 
 class AstNode {
 protected:
@@ -157,12 +158,15 @@ public:
     static StmtNode* createBreak();
     static StmtNode* createContinue();
     static StmtNode* createBlock(StmtListNode *stmtList);
-    static StmtNode* createIf();
+    static StmtNode* createIf(SimpleStmtNode *simpleStmt, ExprNode *condition, StmtNode *thenBranch, StmtNode *elseBranch);
 
 protected:
     StmtType type;
     ExprListNode *returnExprList;
     StmtListNode *stmtList;
+    SimpleStmtNode *simpleStmt;
+    ExprNode *condition;
+    StmtNode *thenBranch, *elseBranch;
 
     StmtNode();
 };

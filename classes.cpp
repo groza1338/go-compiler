@@ -318,9 +318,24 @@ StmtNode* StmtNode::createBlock(StmtListNode *stmtList) {
     return node;
 }
 
+StmtNode* StmtNode::createIf(SimpleStmtNode *simpleStmt, ExprNode *condition, StmtNode *thenBranch, StmtNode *elseBranch) {
+    StmtNode *node = new StmtNode();
+    node->type = IF;
+    node->simpleStmt = simpleStmt;
+    node->condition = condition;
+    node->thenBranch = thenBranch;
+    node->elseBranch = elseBranch;
+    return node;
+}
+
 StmtNode::StmtNode(): AstNode() {
     type = NONE;
     returnExprList = nullptr;
+    stmtList = nullptr;
+    simpleStmt = nullptr;
+    condition = nullptr;
+    thenBranch = nullptr;
+    elseBranch = nullptr;
 }
 
 SimpleStmtNode* SimpleStmtNode::createExpr(ExprNode *expr) {

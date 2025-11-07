@@ -135,7 +135,7 @@ stmt			:	decl ';'
 				| 	BREAK ';' {$$=StmtNode::createBreak();}
 				| 	CONTINUE ';' {$$=StmtNode::createContinue();}
 				| 	block ';' {$$=$1;}
-				| 	if_stmt ';'
+				| 	if_stmt ';' {$$=$1;}
 				| 	switch_stmt ';'
 				| 	for_stmt ';'
 				|   ';'
@@ -159,12 +159,12 @@ decl			:	const_decl
 				|	var_decl
 				;
 				
-if_stmt			:	IF expr block 
-				|	IF simple_stmt ';' expr block
-				|	IF expr block ELSE if_stmt
-				|	IF expr block ELSE block
-				|	IF simple_stmt ';' expr block ELSE if_stmt
-				|	IF simple_stmt ';' expr block ELSE block
+if_stmt			:	IF expr block {$$=StmtNode::createIf(nullptr, $2, $3, nullptr);}
+				|	IF simple_stmt ';' expr block {$$=StmtNode::createIf($2, $4, $5, nullptr);}
+				|	IF expr block ELSE if_stmt {$$=StmtNode::createIf(nullptr, $2, $3, $5);}
+				|	IF expr block ELSE block {$$=StmtNode::createIf(nullptr, $2, $3, $5);}
+				|	IF simple_stmt ';' expr block ELSE if_stmt {$$=StmtNode::createIf($2, $4, $5, $7);}
+				|	IF simple_stmt ';' expr block ELSE block {$$=StmtNode::createIf($2, $4, $5, $7);}
 				;
 				
 switch_stmt		:	SWITCH '{' e_expr_case_clause_list '}'
