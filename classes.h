@@ -157,6 +157,7 @@ public:
 
     static StmtNode* createReturn(ExprListNode *exprList);
     static StmtNode* createBreak();
+    static StmtNode* createContinue();
 
 protected:
     StmtType type;

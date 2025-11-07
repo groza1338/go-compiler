@@ -271,3 +271,9 @@ StmtNode* StmtNode::createBreak() {
     node->type = BREAK;
     return node;
 }
+
+StmtNode* StmtNode::createContinue() {
+    StmtNode *node = new StmtNode();
+    node->type = CONTINUE;
+    return node;
+}

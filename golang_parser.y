@@ -133,7 +133,7 @@ stmt			:	decl ';'
 				| 	simple_stmt ';'
 				|	return_stmt ';' {$$=$1;}
 				| 	BREAK ';' {$$=StmtNode::createBreak();}
-				| 	CONTINUE ';'
+				| 	CONTINUE ';' {$$=StmtNode::createContinue();}
 				| 	block ';'
 				| 	if_stmt ';'
 				| 	switch_stmt ';'
