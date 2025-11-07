@@ -172,10 +172,12 @@ public:
     static StmtNode* createReturn(ExprListNode *exprList);
     static StmtNode* createBreak();
     static StmtNode* createContinue();
+    static StmtNode* createBlock(StmtListNode *stmtList);
 
 protected:
     StmtType type;
     ExprListNode *returnExprList;
+    StmtListNode *stmtList;
 
     StmtNode(): AstNode() {
         type = NONE;

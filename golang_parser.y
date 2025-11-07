@@ -152,7 +152,7 @@ return_stmt		:	RETURN {$$=StmtNode::createReturn(nullptr);}
 				|	RETURN expr_list {$$=StmtNode::createReturn($2);}
 				;
 				
-block			:	'{' e_stmt_list '}' {$$=$2;}
+block			:	'{' e_stmt_list '}' {$$=StmtNode::createBlock($2);}
 				;
 
 decl			:	const_decl

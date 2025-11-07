@@ -292,3 +292,10 @@ StmtNode* StmtNode::createContinue() {
     node->type = CONTINUE;
     return node;
 }
+
+StmtNode* StmtNode::createBlock(StmtListNode *stmtList) {
+    StmtNode *node = new StmtNode();
+    node->type = BLOCK;
+    node->stmtList = stmtList;
+    return node;
+}
