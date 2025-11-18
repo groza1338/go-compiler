@@ -242,4 +242,17 @@ protected:
     SimpleStmtNode();
 };
 
+class IdListNode : public AstNode {
+public:
+    static IdListNode* createIdList(string *id);
+    static IdListNode* addIdToList(IdListNode *list, string *id);
+
+    list<string*>* getIdList() const;
+
+protected:
+    list<string*> *ids;
+
+    IdListNode(): AstNode() {ids = nullptr;};
+};
+
 

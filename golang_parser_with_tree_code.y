@@ -215,8 +215,8 @@ const_spec		:	id_list
 				|	id_list type '=' expr_list
 				;
 				
-id_list			:	id_list ',' ID
-				|	ID
+id_list			:	id_list ',' ID {$$=IdListNode::addIdToList($1, $3);}
+				|	ID {$$=IdListNode::createIdList($1);}
 				;
 				
 type			:	type_name

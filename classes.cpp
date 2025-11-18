@@ -479,3 +479,18 @@ SimpleStmtNode::SimpleStmtNode(): AstNode() {
     left = nullptr;
     right = nullptr;
 }
+
+IdListNode* IdListNode::createIdList(string *id) {
+    IdListNode *node = new IdListNode();
+    node->ids = new list<string*>{id};
+    return node;
+}
+
+IdListNode* IdListNode::addIdToList(IdListNode *list, string *id) {
+    list->ids->push_back(id);
+    return list;
+}
+
+list<string*>* IdListNode::getIdList() const {
+    return ids;
+}
