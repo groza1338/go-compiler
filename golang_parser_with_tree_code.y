@@ -137,8 +137,8 @@ stmt			:	decl ';'
 				| 	block ';' {$$=$1;}
 				| 	if_stmt ';' {$$=$1;}
 				| 	switch_stmt ';' {$$=$1;}
-				|   ';'
 				| 	for_stmt ';' {$$=$1;}
+				|   ';' {$$=nullptr;}
 				;
 
 e_simple_stmt   :   simple_stmt
