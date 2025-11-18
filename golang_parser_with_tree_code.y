@@ -159,8 +159,10 @@ return_stmt		:	RETURN {$$=StmtNode::createReturn(nullptr);}
 block			:	'{' e_stmt_list '}' {$$=StmtNode::createBlock($2);}
 				;
 
-decl			:	const_decl
-				|	var_decl
+decl			:	CONST const_spec
+                |	CONST '(' const_spec_list ')'
+				|	VAR var_spec
+                |	VAR '(' var_spec_list ')'
 				;
 				
 if_stmt			:	IF expr block {$$=StmtNode::createIf(nullptr, $2, $3, nullptr);}
@@ -200,10 +202,6 @@ expr_case_clause:	expr_switch_case ':' stmt_list {$$=CaseNode::createCase($1, $3
 					
 expr_switch_case:	CASE expr_list {$$=$2;}
 				|	DEFAULT {$$=nullptr;}
-				;
-
-const_decl		:	CONST const_spec
-				|	CONST '(' const_spec_list ')'
 				;
 				
 const_spec_list	:	const_spec_list const_spec ';'
@@ -263,10 +261,6 @@ param_list		:	param_list ',' param_decl
 				
 param_decl		:	id_list type
 				|	type
-				;
-				
-var_decl		:	VAR var_spec
-				|	VAR '(' var_spec_list ')'
 				;
 
 var_spec_list	:	var_spec_list ';' var_spec
