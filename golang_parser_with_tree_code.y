@@ -136,7 +136,7 @@ stmt			:	decl ';'
 				| 	CONTINUE ';' {$$=StmtNode::createContinue();}
 				| 	block ';' {$$=$1;}
 				| 	if_stmt ';' {$$=$1;}
-				| 	switch_stmt ';'
+				| 	switch_stmt ';' {$$=$1;}
 				| 	for_stmt ';'
 				|   ';'
 				;
