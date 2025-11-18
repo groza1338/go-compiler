@@ -137,8 +137,8 @@ stmt			:	decl ';'
 				| 	block ';' {$$=$1;}
 				| 	if_stmt ';' {$$=$1;}
 				| 	switch_stmt ';' {$$=$1;}
-				| 	for_stmt ';'
 				|   ';'
+				| 	for_stmt ';' {$$=$1;}
 				;
 
 e_simple_stmt   :   simple_stmt
@@ -177,12 +177,12 @@ switch_stmt		:	SWITCH '{' e_expr_case_clause_list '}' {$$=StmtNode::createSwitch
 				|	SWITCH simple_stmt ';' expr '{' e_expr_case_clause_list '}' {$$=StmtNode::createSwitch($2, $4, $6);}
 				;
 				
-for_stmt		:	FOR block
-				|	FOR expr block
-				|	FOR e_simple_stmt ';' e_expr ';' e_simple_stmt block
-				|	FOR RANGE expr block
-				|	FOR expr_list '=' RANGE expr block
-				|	FOR expr_list WALRUS RANGE expr block
+for_stmt		:	FOR block {$$=StmtNode::createFor(nullptr, $2);}
+				|	FOR expr block {$$=StmtNode::createFor($1, $2);}
+				|	FOR e_simple_stmt ';' e_expr ';' e_simple_stmt block {$$=StmtNode::createFor($2, $4, $6, $7);}
+				|	FOR RANGE expr block {$$=StmtNode::createFor(nullptr, $3, $4);}
+				|	FOR expr_list '=' RANGE expr block {$$=StmtNode::createFor($2, $5, $6);}
+				|	FOR expr_list WALRUS RANGE expr block {$$=StmtNode::createFor($2, $5, $6);}
 				;
 
 e_expr_case_clause_list

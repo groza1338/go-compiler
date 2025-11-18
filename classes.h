@@ -153,6 +153,8 @@ public:
         IF,
         SWITCH,
         FOR,
+        FOR_PARAM,
+        FOR_RANGE,
         EMPTY
     };
 
@@ -163,15 +165,21 @@ public:
     static StmtNode* createBlock(StmtListNode *stmtList);
     static StmtNode* createIf(SimpleStmtNode *simpleStmt, ExprNode *condition, StmtNode *thenBranch, StmtNode *elseBranch);
     static StmtNode* createSwitch(SimpleStmtNode *simpleStmt, ExprNode *condition, CaseListNode *cases);
+    static StmtNode* createFor(ExprNode *condition, StmtNode *body);
+    static StmtNode* createFor(SimpleStmtNode *initStmt, ExprNode *condition, SimpleStmtNode *postStmt, StmtNode *body);
+    static StmtNode* createFor(ExprListNode *exprList, ExprNode *expr, StmtNode *body);
 
 protected:
     StmtType type;
-    ExprListNode *returnExprList;
+    ExprListNode *exprList;
     StmtListNode *stmtList;
     SimpleStmtNode *simpleStmt;
     ExprNode *condition;
     StmtNode *thenBranch, *elseBranch;
+    StmtNode *body;
     CaseListNode *caseList;
+    SimpleStmtNode *initStmt;
+    SimpleStmtNode *postStmt;
 
     StmtNode();
 };

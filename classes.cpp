@@ -302,7 +302,7 @@ StmtNode* StmtNode::createSimple(SimpleStmtNode *simpleStmt) {
 StmtNode* StmtNode::createReturn(ExprListNode *exprList) {
     StmtNode *node = new StmtNode();
     node->type = RETURN;
-    node->returnExprList = exprList;
+    node->exprList = exprList;
     return node;
 }
 
@@ -344,9 +344,36 @@ StmtNode* StmtNode::createSwitch(SimpleStmtNode *simpleStmt, ExprNode *condition
     return node;
 }
 
+StmtNode* StmtNode::createFor(ExprNode *condition, StmtNode *body) {
+    StmtNode *node = new StmtNode();
+    node->type = FOR;
+    node->condition = condition;
+    node->body = body;
+    return node;
+}
+
+StmtNode* StmtNode::createFor(SimpleStmtNode *initStmt, ExprNode *condition, SimpleStmtNode *postStmt, StmtNode *body) {
+    StmtNode *node = new StmtNode();
+    node->type = FOR_PARAM;
+    node->initStmt = initStmt;
+    node->condition = condition;
+    node->postStmt = postStmt;
+    node->body = body;
+    return node;
+}
+
+StmtNode * StmtNode::createFor(ExprListNode *exprList, ExprNode *expr, StmtNode *body) {
+    StmtNode *node = new StmtNode();
+    node->type = FOR_RANGE;
+    node->exprList = exprList;
+    node->condition = expr;
+    node->body = body;
+    return node;
+}
+
 StmtNode::StmtNode(): AstNode() {
     type = NONE;
-    returnExprList = nullptr;
+    exprList = nullptr;
     stmtList = nullptr;
     simpleStmt = nullptr;
     condition = nullptr;
