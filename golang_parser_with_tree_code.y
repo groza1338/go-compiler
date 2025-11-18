@@ -216,7 +216,6 @@ id_list			:	id_list ',' ID {$$=IdListNode::addIdToList($1, $3);}
 				;
 				
 type			:	type_name
-				|	type_name '[' type_list ']'
 				|	'[' expr ']' type
                 |	FUNC signature
                 |	'[' ']' type
