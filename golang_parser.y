@@ -140,6 +140,10 @@ stmt			:	decl ';'
 				| 	for_stmt ';'
 				|   ';'
 				;
+
+e_simple_stmt   :   simple_stmt
+                |
+                ;
 				
 simple_stmt		:	expr {$$=SimpleStmtNode::createExpr($1);}
 				|	expr INC {$$=SimpleStmtNode::createInc($1);}
@@ -175,25 +179,12 @@ switch_stmt		:	SWITCH '{' e_expr_case_clause_list '}' {$$=StmtNode::createSwitch
 				
 for_stmt		:	FOR block
 				|	FOR expr block
-				|	FOR for_clause block
-				|	FOR range_clause block
+				|	FOR e_simple_stmt ';' e_expr ';' e_simple_stmt block
+				|	FOR RANGE expr block
+				|	FOR expr_list '=' RANGE expr block
+				|	FOR expr_list WALRUS RANGE expr block
 				;
-				
-for_clause		:	';' ';'
-				|	simple_stmt ';' ';'
-				|	simple_stmt ';' expr ';'
-				|	simple_stmt ';' ';' simple_stmt
-				|	simple_stmt ';' expr ';' simple_stmt
-				|	';' expr ';'
-				|	';' expr ';' simple_stmt
-				|	';' ';' simple_stmt
-				;
-				
-range_clause	:	RANGE expr
-				|	expr_list '=' RANGE expr
-				|	expr_list WALRUS RANGE expr
-				;
-				
+
 e_expr_case_clause_list
 				:	expr_case_clause_list {$$=$1;}
 				|   {$$=nullptr;}
@@ -299,7 +290,11 @@ var_spec		:	id_list type
 expr_list		:	expr_list ',' expr {$$=ExprListNode::addExprToList($1, $3);}
 				|	expr {$$=ExprListNode::createExprList($1);}
 				;
-				
+
+e_expr          :   expr
+                |
+                ;
+
 expr			:	ID {$$=ExprNode::createIdentifier($1);}
 				|	'(' expr ')' {$$=$1;}
 				|	INT_LIT {$$=ExprNode::createIntLiteral($1);}
