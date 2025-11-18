@@ -379,7 +379,10 @@ StmtNode::StmtNode(): AstNode() {
     condition = nullptr;
     thenBranch = nullptr;
     elseBranch = nullptr;
+    body = nullptr;
     caseList = nullptr;
+    initStmt = nullptr;
+    postStmt = nullptr;
 }
 
 CaseNode* CaseNode::createCase(ExprListNode *exprList, StmtListNode *stmtList) {
