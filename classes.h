@@ -6,6 +6,7 @@
 #include <iostream>
 #include <string>
 #include <list>
+#include <vector>
 
 using namespace std;
 
@@ -13,6 +14,10 @@ class StmtNode;
 class SimpleStmtNode;
 class CaseNode;
 class CaseListNode;
+class ParamDeclNode;
+class ParamDeclListNode;
+class ResultNode;
+class SignatureNode;
 
 class AstNode {
 protected:
@@ -253,6 +258,91 @@ protected:
     list<string*> *ids;
 
     IdListNode(): AstNode() {ids = nullptr;};
+};
+
+class TypeNode : public AstNode {
+public:
+    enum Kind {
+        NONE,
+        NAMED,
+        ARRAY,
+        SLICE,
+        FUNC
+    };
+
+    static TypeNode* createNamedType(string *name);
+    static TypeNode* createArrayType(ExprNode *len, TypeNode *elemType);
+    static TypeNode* createFuncType(SignatureNode *signature);
+    static TypeNode* createSliceType(TypeNode *elemType);
+
+private:
+    Kind kind;
+    string *name;
+    ExprNode *arrayLen;
+    TypeNode *elemType;
+    SignatureNode *signature;
+
+    TypeNode();
+};
+
+class TypeListNode : public AstNode {
+public:
+    static TypeListNode* createTypeList(TypeNode *type);
+    static TypeListNode* addTypeToList(TypeListNode *list, TypeNode *type);
+
+    list<TypeNode*>* getTypeList() const;
+
+protected:
+    list<TypeNode*> *typeList;
+
+    TypeListNode(): AstNode() {typeList = nullptr;};
+};
+
+class ParamDeclNode : public AstNode {
+public:
+    static ParamDeclNode* createParamDecl(IdListNode *ids, TypeNode* type);
+
+protected:
+    IdListNode *idList;
+    TypeNode* type;
+
+    ParamDeclNode();
+};
+
+class ParamDeclListNode : public AstNode {
+public:
+    static ParamDeclListNode* createParamDeclList(ParamDeclNode* param);
+    static ParamDeclListNode* addParamDeclToList(ParamDeclListNode *list, ParamDeclNode *param);
+
+    list<ParamDeclNode*>* getParamList() const;
+
+protected:
+    list<ParamDeclNode*> *paramList;
+
+    ParamDeclListNode(): AstNode() {paramList = nullptr;};
+};
+
+class SignatureNode : public AstNode {
+public:
+    static SignatureNode* createSignature(ParamDeclListNode *paramList, ResultNode *result);
+
+protected:
+    ParamDeclListNode *paramList;
+    ResultNode *result;
+
+    SignatureNode();
+};
+
+class ResultNode : public AstNode {
+public:
+    static ResultNode* createResult(ParamDeclListNode *paramList);
+    static ResultNode* createResult(TypeNode *type);
+
+protected:
+    ParamDeclListNode *paramList;
+    TypeNode *type;
+
+    ResultNode();
 };
 
 

@@ -215,37 +215,37 @@ id_list			:	id_list ',' ID {$$=IdListNode::addIdToList($1, $3);}
 				|	ID {$$=IdListNode::createIdList($1);}
 				;
 				
-type			:	type_name
-				|	'[' expr ']' type
-                |	FUNC signature
-                |	'[' ']' type
+type			:	type_name {$$=TypeNode::createNamedType($1);}
+				|	'[' expr ']' type {$$=TypeNode::createArrayType($2, $4);}
+                |	FUNC signature {$$=TypeNode::createFuncType($2);}
+                |	'[' ']' type {$$=TypeNode::createSliceType($3);}
 				;
 				
-type_name		:	INT
-				|	FLOAT
-				|	BOOL
-				|	STRING
-				|	RUNE
+type_name		:	INT {$$=$1;}
+				|	FLOAT {$$=$1;}
+				|	BOOL {$$=$1;}
+				|	STRING {$$=$1;}
+				|	RUNE {$$=$1;}
 				;
 				
-type_list		:	type_list ',' type
-				|	type
+type_list		:	type_list ',' type {$$=TypeListNode::addTypeToList($1, $3);}
+				|	type {$$=TypeListNode::createTypeList($1);}
 				;
 				
-signature		:	'(' param_list ')' results
-				|	'(' param_list ')'
+signature		:	'(' param_list ')' results {$$=SignatureNode::createSignature($2, $4);}
+				|	'(' param_list ')' {$$=SignatureNode::createSignature($2, nullptr);}
 				;
 				
-results			:	'(' param_list ')'
-				|	type
+results			:	'(' param_list ')' {$$=ResultNode::createResult($2);}
+				|	type {$$=ResultNode::createResult($1);}
 				;
 				
-param_list		:	param_list ',' param_decl
-				|	param_decl
+param_list		:	param_list ',' param_decl {$$=ParamDeclListNode::addParamDeclToList($1, $3);}
+				|	param_decl {$$=ParamDeclListNode::createParamDeclList($1);}
 				;
 				
-param_decl		:	id_list type
-				|	type
+param_decl		:	id_list type {$$=ParamDeclNode::createParamDecl($1, $2);}
+				|	type {$$=ParamDeclNode::createParamDecl(nullptr, $1);}
 				;
 
 var_spec_list	:	var_spec_list ';' var_spec

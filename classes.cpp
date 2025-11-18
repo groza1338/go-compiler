@@ -494,3 +494,111 @@ IdListNode* IdListNode::addIdToList(IdListNode *list, string *id) {
 list<string*>* IdListNode::getIdList() const {
     return ids;
 }
+
+TypeNode* TypeNode::createNamedType(string *name) {
+    TypeNode *node = new TypeNode();
+    node->kind = NAMED;
+    node->name = name;
+    return node;
+}
+
+TypeNode* TypeNode::createArrayType(ExprNode *len, TypeNode *elemType) {
+    TypeNode *node = new TypeNode();
+    node->kind = ARRAY;
+    node->arrayLen = len;
+    node->elemType = elemType;
+    return node;
+}
+
+TypeNode* TypeNode::createFuncType(SignatureNode *signature) {
+    TypeNode *node = new TypeNode();
+    node->kind = FUNC;
+    node->signature = signature;
+    return node;
+}
+
+TypeNode* TypeNode::createSliceType(TypeNode *elemType) {
+    TypeNode *node = new TypeNode();
+    node->kind = SLICE;
+    node->elemType = elemType;
+    return node;
+}
+
+TypeNode::TypeNode(): AstNode() {
+    kind = NONE;
+    name = nullptr;
+    arrayLen = nullptr;
+    elemType = nullptr;
+    signature = nullptr;
+}
+
+TypeListNode* TypeListNode::createTypeList(TypeNode *type) {
+    TypeListNode *node = new TypeListNode();
+    node->typeList = new list<TypeNode*>{type};
+    return node;
+}
+
+TypeListNode* TypeListNode::addTypeToList(TypeListNode *list, TypeNode *type) {
+    list->typeList->push_back(type);
+    return list;
+}
+
+list<TypeNode*>* TypeListNode::getTypeList() const {
+    return typeList;
+}
+
+ParamDeclNode* ParamDeclNode::createParamDecl(IdListNode *ids, TypeNode *type) {
+    ParamDeclNode *node = new ParamDeclNode();
+    node->idList = ids;
+    node->type = type;
+    return node;
+}
+
+ParamDeclNode::ParamDeclNode() {
+    idList = nullptr;
+    type = nullptr;
+}
+
+ParamDeclListNode* ParamDeclListNode::createParamDeclList(ParamDeclNode *param) {
+    ParamDeclListNode *node = new ParamDeclListNode();
+    node->paramList = new list<ParamDeclNode*>{param};
+    return node;
+}
+
+ParamDeclListNode* ParamDeclListNode::addParamDeclToList(ParamDeclListNode *list, ParamDeclNode *param) {
+    list->paramList->push_back(param);
+    return list;
+}
+
+list<ParamDeclNode*>* ParamDeclListNode::getParamList() const {
+    return paramList;
+}
+
+SignatureNode* SignatureNode::createSignature(ParamDeclListNode *paramList, ResultNode *result) {
+    SignatureNode *node = new SignatureNode();
+    node->paramList = paramList;
+    node->result = result;
+    return node;
+}
+
+SignatureNode::SignatureNode(): AstNode() {
+    paramList = nullptr;
+    result = nullptr;
+}
+
+ResultNode* ResultNode::createResult(ParamDeclListNode *paramList) {
+    ResultNode *node = new ResultNode();
+    node->paramList = paramList;
+    return node;
+}
+
+ResultNode* ResultNode::createResult(TypeNode *type) {
+    ResultNode *node = new ResultNode();
+    node->type = type;
+    return node;
+}
+
+ResultNode::ResultNode(): AstNode() {
+    paramList = nullptr;
+    type = nullptr;
+}
