@@ -291,12 +291,12 @@ expr_list		:	expr_list ',' expr {$$=ExprListNode::addExprToList($1, $3);}
 				|	expr {$$=ExprListNode::createExprList($1);}
 				;
 
-e_expr          :   expr
-                |
+e_expr          :   expr {$$=$1;}
+                |   {$$=nullptr;}
                 ;
 
 expr			:	ID {$$=ExprNode::createIdentifier($1);}
-				|	'(' expr ')' {$$=$1;}
+				|	'(' expr ')' {$$=$2;}
 				|	INT_LIT {$$=ExprNode::createIntLiteral($1);}
 				|	FLOAT_LIT {$$=ExprNode::createFloatLiteral($1);}
 				|	RUNE_LIT {$$=ExprNode::createRuneLiteral($1);}
