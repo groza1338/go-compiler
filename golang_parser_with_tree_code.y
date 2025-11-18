@@ -236,15 +236,12 @@ type_lit		:	'[' expr ']' type
 				|	'[' ']' type
 				;
 				
-signature		:	params results
-				|	params
+signature		:	'(' param_list ')' results
+				|	'(' param_list ')'
 				;
 				
-results			:	params
+results			:	'(' param_list ')'
 				|	type
-				;
-				
-params			:	'(' param_list ')'
 				;
 				
 param_list		:	param_list ',' param_decl
