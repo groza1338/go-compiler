@@ -39,8 +39,6 @@ void yyerror(char const* s) {
 %token	FOR
 %token 	RANGE
 
-%token 	FMT
-
 %token	INT
 %token	FLOAT
 %token	BOOL
@@ -227,12 +225,6 @@ type_name		:	INT
 				|	BOOL
 				|	STRING
 				|	RUNE
-				;
-
-package_name	:	FMT
-				;
-
-type_args		:	'[' type_list ']'
 				;
 				
 type_list		:	type_list ',' type
