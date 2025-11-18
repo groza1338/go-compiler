@@ -241,15 +241,9 @@ type_list		:	type_list ',' type
 				|	type
 				;
 				
-type_lit		:	array_type
-				|	func_type
-				|	slice_type
-				;
-				
-array_type		:	'[' expr ']' type
-				;
-				
-func_type		:	FUNC signature	
+type_lit		:	'[' expr ']' type
+				|	FUNC signature
+				|	'[' ']' type
 				;
 				
 signature		:	params results
@@ -269,9 +263,6 @@ param_list		:	param_list ',' param_decl
 				
 param_decl		:	id_list type
 				|	type
-				;
-				
-slice_type		:	'[' ']' type
 				;
 				
 var_decl		:	VAR var_spec
