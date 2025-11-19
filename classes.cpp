@@ -380,6 +380,7 @@ StmtNode * StmtNode::createFor(ExprListNode *exprList, ExprNode *expr, StmtNode 
 
 StmtNode::StmtNode(): AstNode() {
     type = NONE;
+    decl = nullptr;
     exprList = nullptr;
     stmtList = nullptr;
     simpleStmt = nullptr;
