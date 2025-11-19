@@ -127,7 +127,7 @@ stmt_list		:	stmt_list stmt {$$=StmtListNode::addStmtToList($1, $2);}
 				;
 				
 				
-stmt			:	decl ';'
+stmt			:	decl ';' {$$=StmtNode::createDecl($1);}
 				| 	simple_stmt ';' {$$=StmtNode::createSimple($1);}
 				|	return_stmt ';' {$$=$1;}
 				| 	BREAK ';' {$$=StmtNode::createBreak();}

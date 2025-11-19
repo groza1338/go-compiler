@@ -22,6 +22,7 @@ class ResultNode;
 class SignatureNode;
 class VarSpecNode;
 class ConstSpecNode;
+class DeclNode;
 
 class AstNode {
 protected:
@@ -167,6 +168,7 @@ public:
         EMPTY
     };
 
+    static StmtNode* createDecl(DeclNode *decl);
     static StmtNode* createSimple(SimpleStmtNode *simpleStmt);
     static StmtNode* createReturn(ExprListNode *exprList);
     static StmtNode* createBreak();
@@ -180,6 +182,7 @@ public:
 
 protected:
     StmtType type;
+    DeclNode *decl;
     ExprListNode *exprList;
     StmtListNode *stmtList;
     SimpleStmtNode *simpleStmt;

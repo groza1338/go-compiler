@@ -292,6 +292,13 @@ list<StmtNode*>* StmtListNode::getStmtList() const {
     return stmts;
 }
 
+StmtNode* StmtNode::createDecl(DeclNode *decl) {
+    StmtNode *node = new StmtNode();
+    node->type = DECLARATION;
+    node->decl = decl;
+    return node;
+}
+
 StmtNode* StmtNode::createSimple(SimpleStmtNode *simpleStmt) {
     StmtNode *node = new StmtNode();
     node->type = SIMPLE;
