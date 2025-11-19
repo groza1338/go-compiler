@@ -92,9 +92,9 @@ import_spec_list:	import_spec_list import_spec ';'
 				|	import_spec ';'
 				;
 				
-import_spec		:	STRING_LIT
-				|	'.' STRING_LIT
-				|	ID STRING_LIT
+import_spec		:	STRING_LIT {$$=ImportSpecNode::createSimple($1);}
+				|	'.' STRING_LIT {$$=ImportSpecNode::createPoint($2);}
+				|	ID STRING_LIT {$$=ImportSpecNode::createNamed($1, $2);}
 				;
 				
 e_top_level_decl_list

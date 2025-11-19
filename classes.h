@@ -446,3 +446,24 @@ protected:
 
     PackageClauseNode();
 };
+
+class ImportSpecNode : public AstNode {
+public:
+    enum ImportType {
+        NONE,
+        SIMPLE,
+        POINT,
+        NAMED
+    };
+
+    static ImportSpecNode* createSimple(string *import);
+    static ImportSpecNode* createPoint(string *import);
+    static ImportSpecNode* createNamed(string *alias, string *import);
+
+protected:
+    ImportType importType;
+    string *import;
+    string *alias;
+
+    ImportSpecNode();
+};

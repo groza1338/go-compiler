@@ -742,3 +742,31 @@ PackageClauseNode* PackageClauseNode::createNode(string *id) {
 PackageClauseNode::PackageClauseNode() {
     id = nullptr;
 }
+
+ImportSpecNode* ImportSpecNode::createSimple(string *import) {
+    ImportSpecNode *node = new ImportSpecNode();
+    node->importType = SIMPLE;
+    node->import = import;
+    return node;
+}
+
+ImportSpecNode* ImportSpecNode::createPoint(string *import) {
+    ImportSpecNode *node = new ImportSpecNode();
+    node->importType = POINT;
+    node->import = import;
+    return node;
+}
+
+ImportSpecNode* ImportSpecNode::createNamed(string *alias, string *import) {
+    ImportSpecNode *node = new ImportSpecNode();
+    node->importType = NAMED;
+    node->alias = alias;
+    node->import = import;
+    return node;
+}
+
+ImportSpecNode::ImportSpecNode() {
+    importType = NONE;
+    import = nullptr;
+    alias = nullptr;
+}
