@@ -665,7 +665,7 @@ list<ConstSpecNode*>* ConstSpecListNode::getList() const {
     return specList;
 }
 
-ConstSpecListNode::ConstSpecListNode() {
+ConstSpecListNode::ConstSpecListNode(): AstNode() {
     specList = nullptr;
 }
 
@@ -706,7 +706,7 @@ FuncDeclNode* FuncDeclNode::createFuncDecl(string *id, SignatureNode *signature,
     return node;
 }
 
-FuncDeclNode::FuncDeclNode() {
+FuncDeclNode::FuncDeclNode(): AstNode() {
     id = nullptr;
     signature = nullptr;
     body = nullptr;
@@ -724,7 +724,7 @@ TopLevelDeclNode* TopLevelDeclNode::createTopLevelDecl(FuncDeclNode *funcDecl) {
     return node;
 }
 
-TopLevelDeclNode::TopLevelDeclNode() {
+TopLevelDeclNode::TopLevelDeclNode(): AstNode() {
     decl = nullptr;
     funcDecl = nullptr;
 }
@@ -744,6 +744,6 @@ list<TopLevelDeclNode*>* TopLevelDeclListNode::getList() const {
     return elemList;
 }
 
-TopLevelDeclListNode::TopLevelDeclListNode() {
+TopLevelDeclListNode::TopLevelDeclListNode(): AstNode() {
     elemList = nullptr;
 }
