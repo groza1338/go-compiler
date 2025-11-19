@@ -202,7 +202,7 @@ expr_switch_case:	CASE expr_list {$$=$2;}
 				|	DEFAULT {$$=nullptr;}
 				;
 				
-const_spec_list	:	const_spec_list ';' const_spec {$$=ConstSpecListNode::addConstSpecToList($1, $3);}
+const_spec_list	:	const_spec_list const_spec ';' {$$=ConstSpecListNode::addConstSpecToList($1, $3);}
 				|	const_spec ';' {$$=ConstSpecListNode::createConstSpecList($1);}
 				;
 
