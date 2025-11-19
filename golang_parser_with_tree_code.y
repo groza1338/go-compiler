@@ -111,8 +111,8 @@ top_level_decl	:	decl
 				|	func_decl
 				;
 				
-func_decl		:	FUNC ID signature
-				|	FUNC ID signature block
+func_decl		:	FUNC ID signature {$$=FuncDeclNode::createFuncDecl($2, $3, nullptr);}
+				|	FUNC ID signature block {$$=FuncDeclNode::createFuncDecl($2, $3, $4);}
 				;
 
 package_clause	:	PACKAGE ID

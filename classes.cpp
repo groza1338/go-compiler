@@ -697,3 +697,17 @@ DeclNode::DeclNode(): AstNode() {
     constSpecList = nullptr;
     varSpecList = nullptr;
 }
+
+FuncDeclNode* FuncDeclNode::createFuncDecl(string *id, SignatureNode *signature, StmtNode *body) {
+    FuncDeclNode *node = new FuncDeclNode();
+    node->id = id;
+    node->signature = signature;
+    node->body = body;
+    return node;
+}
+
+FuncDeclNode::FuncDeclNode() {
+    id = nullptr;
+    signature = nullptr;
+    body = nullptr;
+}

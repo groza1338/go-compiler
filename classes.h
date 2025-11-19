@@ -8,6 +8,8 @@
 #include <list>
 #include <vector>
 
+#include "classes.h"
+
 using namespace std;
 
 class StmtNode;
@@ -409,4 +411,16 @@ protected:
     VarSpecListNode *varSpecList;
 
     DeclNode();
+};
+
+class FuncDeclNode : public AstNode {
+public:
+    static FuncDeclNode* createFuncDecl(string *id, SignatureNode *signature, StmtNode *body);
+
+protected:
+    string *id;
+    SignatureNode *signature;
+    StmtNode *body;
+
+    FuncDeclNode();
 };
