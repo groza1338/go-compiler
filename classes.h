@@ -108,6 +108,9 @@ public:
     ExprNode* getHigh() const;
     ExprNode* getMax() const;
 
+    string getDotLabel() const override;
+    string toDot() const override;
+
 protected:
     ExprType type;
     string identifier;

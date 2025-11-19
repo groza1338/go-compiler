@@ -244,6 +244,95 @@ ExprNode* ExprNode::getMax() const {
     return sliceMax;
 }
 
+string ExprNode::getDotLabel() const {
+    switch (type) {
+        case ID:                return identifier;
+        case EXPR_IN_BRACKETS:  return "()";
+        case INT_LITERAL:       return to_string(intLiteral);
+        case FLOAT_LITERAL:     return to_string(floatLiteral);
+        case RUNE_LITERAL:      return to_string(runeLiteral);
+        case STRING_LITERAL:    return stringLiteral;
+        case BOOL_LITERAL:      return boolLiteral ? "true" : "false";
+        case SUMMARY:           return "+";
+        case SUBTRACTION:       return "-";
+        case MULTIPLICATION:    return "*";
+        case DIVISION:          return "/";
+        case EQUAL:             return "==";
+        case NOT_EQUAL:         return "!=";
+        case LESS:              return "<";
+        case GREATER:           return ">";
+        case LESS_OR_EQUAL:     return "<=";
+        case GREATER_OR_EQUAL:  return ">=";
+        case AND:               return "&&";
+        case OR:                return "||";
+        case NOT:               return "!";
+        case UNARY_MINUS:       return "-";
+        case ELEMENT_ACCESS:    return "[i]";
+        case SLICE:             return "[]";
+        case FUNCTION_CALL:     return "func()";
+        default:                return "UNKNOWN";
+    }
+}
+
+string ExprNode::toDot() const {
+    string result = "";
+
+    result += "  node" + to_string(id) + " [label=\"" + getDotLabel() + "\"];\n";
+
+    if (left) {
+         result += "  node" + to_string(id) +
+               " -> node" + to_string(left->getId()) + ";\n";
+         result += left->toDot();
+    }
+
+    if (right) {
+         result += "  node" + to_string(id) +
+               " -> node" + to_string(right->getId()) + ";\n";
+         result += right->toDot();
+    }
+
+    if (operand) {
+         result += "  node" + to_string(id) +
+               " -> node" + to_string(operand->getId()) + ";\n";
+         result += operand->toDot();
+    }
+
+    if (index) {
+         result += "  node" + to_string(id) +
+               " -> node" + to_string(index->getId()) + ";\n";
+         result += index->toDot();
+    }
+
+    if (sliceLow) {
+         result += "  node" + to_string(id) +
+               " -> node" + to_string(sliceLow->getId()) + ";\n";
+         result += sliceLow->toDot();
+    }
+
+    if (sliceHigh) {
+         result += "  node" + to_string(id) +
+               " -> node" + to_string(sliceHigh->getId()) + ";\n";
+         result += sliceHigh->toDot();
+    }
+
+    if (sliceMax) {
+         result += "  node" + to_string(id) +
+               " -> node" + to_string(sliceMax->getId()) + ";\n";
+         result += sliceMax->toDot();
+    }
+
+    if (args) {
+        for (ExprNode* arg : *args) {
+            if (!arg) continue;
+             result += "  node" + to_string(id) +
+                   " -> node" + to_string(arg->getId()) + ";\n";
+             result += arg->toDot();
+        }
+    }
+
+    return  result;
+}
+
 ExprNode::ExprNode(): AstNode() {
     type = NONE;
     identifier = "";
