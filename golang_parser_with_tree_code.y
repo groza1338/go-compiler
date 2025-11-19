@@ -94,7 +94,7 @@ import_spec_list:	import_spec_list import_spec ';'
 				
 import_spec		:	STRING_LIT
 				|	'.' STRING_LIT
-				|	STRING_LIT STRING_LIT
+				|	ID STRING_LIT
 				;
 				
 e_top_level_decl_list
