@@ -289,19 +289,6 @@ private:
     TypeNode();
 };
 
-class TypeListNode : public AstNode {
-public:
-    static TypeListNode* createTypeList(TypeNode *type);
-    static TypeListNode* addTypeToList(TypeListNode *list, TypeNode *type);
-
-    list<TypeNode*>* getTypeList() const;
-
-protected:
-    list<TypeNode*> *typeList;
-
-    TypeListNode(): AstNode() {typeList = nullptr;};
-};
-
 class ParamDeclNode : public AstNode {
 public:
     static ParamDeclNode* createParamDecl(IdListNode *ids, TypeNode* type);

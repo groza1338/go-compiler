@@ -228,10 +228,6 @@ type_name		:	INT {$$=$1;}
 				|	RUNE {$$=$1;}
 				;
 				
-type_list		:	type_list ',' type {$$=TypeListNode::addTypeToList($1, $3);}
-				|	type {$$=TypeListNode::createTypeList($1);}
-				;
-				
 signature		:	'(' param_list ')' results {$$=SignatureNode::createSignature($2, $4);}
 				|	'(' param_list ')' {$$=SignatureNode::createSignature($2, nullptr);}
 				;

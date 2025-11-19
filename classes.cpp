@@ -532,21 +532,6 @@ TypeNode::TypeNode(): AstNode() {
     signature = nullptr;
 }
 
-TypeListNode* TypeListNode::createTypeList(TypeNode *type) {
-    TypeListNode *node = new TypeListNode();
-    node->typeList = new list<TypeNode*>{type};
-    return node;
-}
-
-TypeListNode* TypeListNode::addTypeToList(TypeListNode *list, TypeNode *type) {
-    list->typeList->push_back(type);
-    return list;
-}
-
-list<TypeNode*>* TypeListNode::getTypeList() const {
-    return typeList;
-}
-
 ParamDeclNode* ParamDeclNode::createParamDecl(IdListNode *ids, TypeNode *type) {
     ParamDeclNode *node = new ParamDeclNode();
     node->idList = ids;

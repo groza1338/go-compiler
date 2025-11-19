@@ -228,10 +228,6 @@ type_name		:	INT
 				|	RUNE
 				;
 				
-type_list		:	type_list ',' type
-				|	type
-				;
-				
 signature		:	'(' param_list ')' results
 				|	'(' param_list ')'
 				;
