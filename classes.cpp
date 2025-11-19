@@ -747,3 +747,13 @@ list<TopLevelDeclNode*>* TopLevelDeclListNode::getList() const {
 TopLevelDeclListNode::TopLevelDeclListNode(): AstNode() {
     elemList = nullptr;
 }
+
+PackageClauseNode* PackageClauseNode::createNode(string *id) {
+    PackageClauseNode *node = new PackageClauseNode();
+    node->id = id;
+    return node;
+}
+
+PackageClauseNode::PackageClauseNode() {
+    id = nullptr;
+}

@@ -449,3 +449,13 @@ protected:
 
     TopLevelDeclListNode();
 };
+
+class PackageClauseNode : public AstNode {
+public:
+    static PackageClauseNode* createNode(string *id);
+
+protected:
+    string *id;
+
+    PackageClauseNode();
+};
