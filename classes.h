@@ -396,3 +396,17 @@ protected:
 
     ConstSpecListNode();
 };
+
+class DeclNode : public AstNode {
+public:
+    static DeclNode* createDecl(ConstSpecNode *constSpec);
+    static DeclNode* createDecl(ConstSpecListNode *constSpecList);
+    static DeclNode* createDecl(VarSpecNode *varSpec);
+    static DeclNode* createDecl(VarSpecListNode *varSpecList);
+
+protected:
+    ConstSpecListNode *constSpecList;
+    VarSpecListNode *varSpecList;
+
+    DeclNode();
+};

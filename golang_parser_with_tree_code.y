@@ -157,10 +157,10 @@ return_stmt		:	RETURN {$$=StmtNode::createReturn(nullptr);}
 block			:	'{' e_stmt_list '}' {$$=StmtNode::createBlock($2);}
 				;
 
-decl			:	CONST const_spec
-                |	CONST '(' const_spec_list ')'
-				|	VAR var_spec
-                |	VAR '(' var_spec_list ')'
+decl			:	CONST const_spec {$$=DeclNode::createDecl($2);}
+                |	CONST '(' const_spec_list ')' {$$=DeclNode::createDecl($3);}
+				|	VAR var_spec {$$=DeclNode::createDecl($2);}
+                |	VAR '(' var_spec_list ')' {$$=DeclNode::createDecl($3);}
 				;
 				
 if_stmt			:	IF expr block {$$=StmtNode::createIf(nullptr, $2, $3, nullptr);}

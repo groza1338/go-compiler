@@ -668,3 +668,32 @@ list<ConstSpecNode*>* ConstSpecListNode::getList() const {
 ConstSpecListNode::ConstSpecListNode() {
     specList = nullptr;
 }
+
+DeclNode* DeclNode::createDecl(ConstSpecNode *constSpec) {
+    DeclNode *node = new DeclNode();
+    node->constSpecList = ConstSpecListNode::createConstSpecList(constSpec);
+    return node;
+}
+
+DeclNode* DeclNode::createDecl(ConstSpecListNode *constSpecList) {
+    DeclNode *node = new DeclNode();
+    node->constSpecList = constSpecList;
+    return node;
+}
+
+DeclNode* DeclNode::createDecl(VarSpecNode *varSpec) {
+    DeclNode *node = new DeclNode();
+    node->varSpecList = VarSpecListNode::createVarSpecList(varSpec);
+    return node;
+}
+
+DeclNode* DeclNode::createDecl(VarSpecListNode *varSpecList) {
+    DeclNode *node = new DeclNode();
+    node->varSpecList = varSpecList;
+    return node;
+}
+
+DeclNode::DeclNode(): AstNode() {
+    constSpecList = nullptr;
+    varSpecList = nullptr;
+}
