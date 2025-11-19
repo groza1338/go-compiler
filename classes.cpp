@@ -831,3 +831,18 @@ list<ImportDeclNode*>* ImportDeclListNode::getList() const {
 ImportDeclListNode::ImportDeclListNode() {
     elemList = nullptr;
 }
+
+ProgramNode* ProgramNode::createNode(PackageClauseNode *packageClause, ImportDeclListNode *importDeclList,
+    TopLevelDeclListNode *topLevelDeclList) {
+    ProgramNode *node = new ProgramNode();
+    node->packageClause = packageClause;
+    node->importDeclList = importDeclList;
+    node->topLevelDeclList = topLevelDeclList;
+    return node;
+}
+
+ProgramNode::ProgramNode(): AstNode() {
+    packageClause = nullptr;
+    importDeclList = nullptr;
+    topLevelDeclList = nullptr;
+}

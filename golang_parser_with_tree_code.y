@@ -67,7 +67,7 @@ void yyerror(char const* s) {
 %%
 // Секция правил грамматики
 
-program			:	package_clause ';' e_import_decl_list ';' e_top_level_decl_list
+program			:	package_clause ';' e_import_decl_list ';' e_top_level_decl_list {$$=ProgramNode::createNode($1, $3, $5);}
 				;
 				
 e_import_decl_list

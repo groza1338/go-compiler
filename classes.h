@@ -507,3 +507,15 @@ protected:
 
     ImportDeclListNode();
 };
+
+class ProgramNode : public AstNode {
+public:
+    static ProgramNode* createNode(PackageClauseNode *packageClause, ImportDeclListNode *importDeclList, TopLevelDeclListNode *topLevelDeclList);
+
+protected:
+    PackageClauseNode *packageClause;
+    ImportDeclListNode *importDeclList;
+    TopLevelDeclListNode *topLevelDeclList;
+
+    ProgramNode();
+};
