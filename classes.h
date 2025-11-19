@@ -395,4 +395,4 @@ protected:
     list<ConstSpecNode*> *specList;
 
     ConstSpecListNode();
-}
+};
