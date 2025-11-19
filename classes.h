@@ -30,7 +30,12 @@ protected:
 
 public:
     AstNode() {id = ++maxId;};
+    virtual ~AstNode() = default;
+
     unsigned int getId() const {return id;};
+
+    virtual string getDotLabel() const = 0;
+    virtual string toDot() const = 0;
 };
 
 class ExprNode : public AstNode {
