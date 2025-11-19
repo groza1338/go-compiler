@@ -98,13 +98,13 @@ import_spec		:	STRING_LIT
 				;
 				
 e_top_level_decl_list
-				:	top_level_decl_list
-				|
+				:	top_level_decl_list {$$=$1;}
+				|   {$$=nullptr;}
 				;
 				
 top_level_decl_list
-				:	top_level_decl_list top_level_decl ';'
-				|	top_level_decl ';'
+				:	top_level_decl_list top_level_decl ';' {$$=TopLevelDeclListNode::addElemToList($1, $2);}
+				|	top_level_decl ';' {$$=TopLevelDeclListNode::createList($1);}
 				;
 				
 top_level_decl	:	decl {$$=TopLevelDeclNode::createTopLevelDecl($1);}

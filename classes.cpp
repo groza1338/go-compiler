@@ -728,3 +728,22 @@ TopLevelDeclNode::TopLevelDeclNode() {
     decl = nullptr;
     funcDecl = nullptr;
 }
+
+TopLevelDeclListNode* TopLevelDeclListNode::createList(TopLevelDeclNode *elem) {
+    TopLevelDeclListNode *node = new TopLevelDeclListNode();
+    node->elemList = new list<TopLevelDeclNode*>{elem};
+    return node;
+}
+
+TopLevelDeclListNode* TopLevelDeclListNode::addElemToList(TopLevelDeclListNode *elemList, TopLevelDeclNode *elem) {
+    elemList->elemList->push_back(elem);
+    return elemList;
+}
+
+list<TopLevelDeclNode*>* TopLevelDeclListNode::getList() const {
+    return elemList;
+}
+
+TopLevelDeclListNode::TopLevelDeclListNode() {
+    elemList = nullptr;
+}

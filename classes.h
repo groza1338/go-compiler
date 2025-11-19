@@ -436,3 +436,16 @@ protected:
 
     TopLevelDeclNode();
 };
+
+class TopLevelDeclListNode : public AstNode {
+public:
+    static TopLevelDeclListNode* createList(TopLevelDeclNode *elem);
+    static TopLevelDeclListNode* addElemToList(TopLevelDeclListNode *elemList, TopLevelDeclNode *elem);
+
+    list<TopLevelDeclNode*>* getList() const;
+
+protected:
+    list<TopLevelDeclNode*> *elemList;
+
+    TopLevelDeclListNode();
+};
