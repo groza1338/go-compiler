@@ -139,8 +139,8 @@ stmt			:	decl ';'
 				|   ';' {$$=nullptr;}
 				;
 
-e_simple_stmt   :   simple_stmt
-                |
+e_simple_stmt   :   simple_stmt {$$=$1;}
+                |   {$$=nullptr;}
                 ;
 				
 simple_stmt		:	expr {$$=SimpleStmtNode::createExpr($1);}
