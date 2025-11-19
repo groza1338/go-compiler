@@ -494,3 +494,16 @@ protected:
 
     ImportDeclNode();
 };
+
+class ImportDeclListNode : public AstNode {
+public:
+    static ImportDeclListNode* createList(ImportDeclNode *elem);
+    static ImportDeclListNode* addElemToList(ImportDeclListNode *elemList, ImportDeclNode *elem);
+
+    list<ImportDeclNode*>* getList() const;
+
+protected:
+    list<ImportDeclNode*> *elemList;
+
+    ImportDeclListNode();
+};

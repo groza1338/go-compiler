@@ -71,12 +71,12 @@ program			:	package_clause ';' e_import_decl_list ';' e_top_level_decl_list
 				;
 				
 e_import_decl_list
-				:	import_decl_list
-				|
+				:	import_decl_list {$$=$1;}
+				|   {$$=nullptr;}
 				;
 				
-import_decl_list:	import_decl_list import_decl ';'
-				|	import_decl ';'
+import_decl_list:	import_decl_list import_decl ';' {$$=ImportDeclListNode::addElemToList($1, $2);}
+				|	import_decl ';' {$$=ImportDeclListNode::createList($1);}
 				;
 				
 import_decl		:	IMPORT import_spec {$$=ImportDeclNode::createNode($2);}

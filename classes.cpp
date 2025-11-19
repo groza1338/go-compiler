@@ -812,3 +812,22 @@ ImportDeclNode* ImportDeclNode::createNode(ImportSpecListNode *importList) {
 ImportDeclNode::ImportDeclNode() {
     importList = nullptr;
 }
+
+ImportDeclListNode* ImportDeclListNode::createList(ImportDeclNode *elem) {
+    ImportDeclListNode *node = new ImportDeclListNode();
+    node->elemList = new list<ImportDeclNode*>{elem};
+    return node;
+}
+
+ImportDeclListNode* ImportDeclListNode::addElemToList(ImportDeclListNode *elemList, ImportDeclNode *elem) {
+    elemList->elemList->push_back(elem);
+    return elemList;
+}
+
+list<ImportDeclNode*>* ImportDeclListNode::getList() const {
+    return elemList;
+}
+
+ImportDeclListNode::ImportDeclListNode() {
+    elemList = nullptr;
+}
