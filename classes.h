@@ -467,3 +467,16 @@ protected:
 
     ImportSpecNode();
 };
+
+class ImportSpecListNode : public AstNode {
+public:
+    static ImportSpecListNode* createList(ImportSpecNode *elem);
+    static ImportSpecListNode* addElemToList(ImportSpecListNode *elemList, ImportSpecNode *elem);
+
+    list<ImportSpecNode*>* getList() const;
+
+protected:
+    list<ImportSpecNode*> *elemList;
+
+    ImportSpecListNode();
+};

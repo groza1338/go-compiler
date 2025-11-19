@@ -84,12 +84,12 @@ import_decl		:	IMPORT import_spec
 				;
 				
 e_import_spec_list
-				:	import_spec_list
-				|
+				:	import_spec_list {$$=$1;}
+				|   {$$=nullptr;}
 				;
 				
-import_spec_list:	import_spec_list import_spec ';'
-				|	import_spec ';'
+import_spec_list:	import_spec_list import_spec ';' {$$=ImportSpecListNode::addElemToList($1, $2);}
+				|	import_spec ';' {$$=ImportSpecListNode::createList($1);}
 				;
 				
 import_spec		:	STRING_LIT {$$=ImportSpecNode::createSimple($1);}

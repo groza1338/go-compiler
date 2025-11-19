@@ -770,3 +770,22 @@ ImportSpecNode::ImportSpecNode() {
     import = nullptr;
     alias = nullptr;
 }
+
+ImportSpecListNode* ImportSpecListNode::createList(ImportSpecNode *elem) {
+    ImportSpecListNode *node = new ImportSpecListNode();
+    node->elemList = new list<ImportSpecNode*>{elem};
+    return node;
+}
+
+ImportSpecListNode* ImportSpecListNode::addElemToList(ImportSpecListNode *elemList, ImportSpecNode *elem) {
+    elemList->elemList->push_back(elem);
+    return elemList;
+}
+
+list<ImportSpecNode*>* ImportSpecListNode::getList() const {
+    return elemList;
+}
+
+ImportSpecListNode::ImportSpecListNode() {
+    elemList = nullptr;
+}
