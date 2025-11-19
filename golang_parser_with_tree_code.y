@@ -252,9 +252,9 @@ var_spec_list	:	var_spec_list ';' var_spec
 				|	var_spec ';'
 				;
 				
-var_spec		:	id_list type
-				|	id_list type '=' expr_list
-				|	id_list '=' expr_list	
+var_spec		:	id_list type {$$=VarSpecNode::createVarSpec($1, $2, nullptr);}
+				|	id_list type '=' expr_list {$$=VarSpecNode::createVarSpec($1, $2, $4);}
+				|	id_list '=' expr_list {$$=VarSpecNode::createVarSpec($1, nullptr, $3);}
 				;
 				
 expr_list		:	expr_list ',' expr {$$=ExprListNode::addExprToList($1, $3);}

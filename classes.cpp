@@ -602,3 +602,17 @@ ResultNode::ResultNode(): AstNode() {
     paramList = nullptr;
     type = nullptr;
 }
+
+VarSpecNode* VarSpecNode::createVarSpec(IdListNode *idList, TypeNode *type, ExprNode *exprList) {
+    VarSpecNode *node = new VarSpecNode();
+    node->idList = idList;
+    node->type = type;
+    node->expr = exprList;
+    return node;
+}
+
+VarSpecNode::VarSpecNode() {
+    idList = nullptr;
+    type = nullptr;
+    expr = nullptr;
+}

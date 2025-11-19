@@ -345,4 +345,16 @@ protected:
     ResultNode();
 };
 
+class VarSpecNode : public AstNode {
+public:
+    static VarSpecNode* createVarSpec(IdListNode *idList, TypeNode *type, ExprNode *exprList);
+
+protected:
+    IdListNode *idList;
+    TypeNode *type;
+    ExprNode *expr;
+
+    VarSpecNode();
+};
+
 
