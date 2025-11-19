@@ -480,3 +480,14 @@ protected:
 
     ImportSpecListNode();
 };
+
+class ImportDeclNode : public AstNode {
+public:
+    static ImportDeclNode* createNode(ImportSpecNode *import);
+    static ImportDeclNode* createNode(ImportSpecListNode *importList);
+
+protected:
+    ImportSpecListNode *importList;
+
+    ImportDeclNode();
+};

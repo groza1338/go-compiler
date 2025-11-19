@@ -789,3 +789,19 @@ list<ImportSpecNode*>* ImportSpecListNode::getList() const {
 ImportSpecListNode::ImportSpecListNode() {
     elemList = nullptr;
 }
+
+ImportDeclNode* ImportDeclNode::createNode(ImportSpecNode *import) {
+    ImportDeclNode *node = new ImportDeclNode();
+    node->importList = ImportSpecListNode::createList(import);
+    return node;
+}
+
+ImportDeclNode* ImportDeclNode::createNode(ImportSpecListNode *importList) {
+    ImportDeclNode *node = new ImportDeclNode();
+    node->importList = importList;
+    return node;
+}
+
+ImportDeclNode::ImportDeclNode() {
+    importList = nullptr;
+}

@@ -79,8 +79,8 @@ import_decl_list:	import_decl_list import_decl ';'
 				|	import_decl ';'
 				;
 				
-import_decl		:	IMPORT import_spec 
-				|	IMPORT '(' e_import_spec_list ')'
+import_decl		:	IMPORT import_spec {$$=ImportDeclNode::createNode($2);}
+				|	IMPORT '(' e_import_spec_list ')' {$$=ImportDeclNode::createNode($3);}
 				;
 				
 e_import_spec_list
