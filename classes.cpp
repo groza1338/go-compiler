@@ -635,3 +635,17 @@ list<VarSpecNode*>* VarSpecListNode::getList() const {
 VarSpecListNode::VarSpecListNode(): AstNode() {
     varList = nullptr;
 }
+
+ConstSpecNode* ConstSpecNode::createConstSpec(IdListNode *idList, TypeNode *type, ExprListNode *exprList) {
+    ConstSpecNode *node = new ConstSpecNode();
+    node->idList = idList;
+    node->type = type;
+    node->exprList = exprList;
+    return node;
+}
+
+ConstSpecNode::ConstSpecNode(): AstNode() {
+    idList = nullptr;
+    type = nullptr;
+    exprList = nullptr;
+}

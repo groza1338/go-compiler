@@ -206,9 +206,9 @@ const_spec_list	:	const_spec_list const_spec ';'
 				|	const_spec ';'
 				;
 
-const_spec		:	id_list
-				|	id_list '=' expr_list
-				|	id_list type '=' expr_list
+const_spec		:	id_list {$$=ConstSpecNode::createConstSpec($1, nullptr, nullptr);}
+				|	id_list '=' expr_list {$$=ConstSpecNode::createConstSpec($1, nullptr, $3);}
+				|	id_list type '=' expr_list {$$=ConstSpecNode::createConstSpec($1, $2, $4);}
 				;
 				
 id_list			:	id_list ',' ID {$$=IdListNode::addIdToList($1, $3);}

@@ -371,4 +371,16 @@ protected:
     VarSpecListNode();
 };
 
+class ConstSpecNode : public AstNode {
+public:
+    static ConstSpecNode* createConstSpec(IdListNode *idList, TypeNode *type, ExprListNode *exprList);
+
+protected:
+    IdListNode *idList;
+    TypeNode *type;
+    ExprListNode *exprList;
+
+    ConstSpecNode();
+};
+
 
