@@ -107,8 +107,8 @@ top_level_decl_list
 				|	top_level_decl ';'
 				;
 				
-top_level_decl	:	decl
-				|	func_decl
+top_level_decl	:	decl {$$=TopLevelDeclNode::createTopLevelDecl($1);}
+				|	func_decl {$$=TopLevelDeclNode::createTopLevelDecl($1);}
 				;
 				
 func_decl		:	FUNC ID signature {$$=FuncDeclNode::createFuncDecl($2, $3, nullptr);}

@@ -711,3 +711,20 @@ FuncDeclNode::FuncDeclNode() {
     signature = nullptr;
     body = nullptr;
 }
+
+TopLevelDeclNode* TopLevelDeclNode::createTopLevelDecl(DeclNode *decl) {
+    TopLevelDeclNode *node = new TopLevelDeclNode();
+    node->decl = decl;
+    return node;
+}
+
+TopLevelDeclNode* TopLevelDeclNode::createTopLevelDecl(FuncDeclNode *funcDecl) {
+    TopLevelDeclNode *node = new TopLevelDeclNode();
+    node->funcDecl = funcDecl;
+    return node;
+}
+
+TopLevelDeclNode::TopLevelDeclNode() {
+    decl = nullptr;
+    funcDecl = nullptr;
+}

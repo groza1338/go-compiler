@@ -424,3 +424,15 @@ protected:
 
     FuncDeclNode();
 };
+
+class TopLevelDeclNode : public AstNode {
+public:
+    static TopLevelDeclNode* createTopLevelDecl(DeclNode *decl);
+    static TopLevelDeclNode* createTopLevelDecl(FuncDeclNode *funcDecl);
+
+protected:
+    DeclNode *decl;
+    FuncDeclNode *funcDecl;
+
+    TopLevelDeclNode();
+};
