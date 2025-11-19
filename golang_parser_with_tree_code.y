@@ -248,8 +248,8 @@ param_decl		:	id_list type {$$=ParamDeclNode::createParamDecl($1, $2);}
 				|	type {$$=ParamDeclNode::createParamDecl(nullptr, $1);}
 				;
 
-var_spec_list	:	var_spec_list ';' var_spec
-				|	var_spec ';'
+var_spec_list	:	var_spec_list ';' var_spec {$$=VarSpecListNode::addVarSpecToList($1, $3);}
+				|	var_spec ';' {$$=VarSpecListNode::createVarSpecList($1);}
 				;
 				
 var_spec		:	id_list type {$$=VarSpecNode::createVarSpec($1, $2, nullptr);}

@@ -616,3 +616,22 @@ VarSpecNode::VarSpecNode() {
     type = nullptr;
     expr = nullptr;
 }
+
+VarSpecListNode* VarSpecListNode::createVarSpecList(VarSpecNode *var) {
+    VarSpecListNode *node = new VarSpecListNode();
+    node->varList = new list<VarSpecNode*>{var};
+    return node;
+}
+
+VarSpecListNode* VarSpecListNode::addVarSpecToList(VarSpecListNode *list, VarSpecNode *var) {
+    list->varList->push_back(var);
+    return list;
+}
+
+list<VarSpecNode*>* VarSpecListNode::getList() const {
+    return varList;
+}
+
+VarSpecListNode::VarSpecListNode(): AstNode() {
+    varList = nullptr;
+}

@@ -18,6 +18,7 @@ class ParamDeclNode;
 class ParamDeclListNode;
 class ResultNode;
 class SignatureNode;
+class VarSpecNode;
 
 class AstNode {
 protected:
@@ -355,6 +356,19 @@ protected:
     ExprNode *expr;
 
     VarSpecNode();
+};
+
+class VarSpecListNode : public AstNode {
+public:
+    static VarSpecListNode* createVarSpecList(VarSpecNode* var);
+    static VarSpecListNode* addVarSpecToList(VarSpecListNode *list, VarSpecNode *elem);
+
+    list<VarSpecNode*>* getList() const;
+
+protected:
+    list<VarSpecNode*> *varList;
+
+    VarSpecListNode();
 };
 
 
