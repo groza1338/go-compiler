@@ -649,3 +649,22 @@ ConstSpecNode::ConstSpecNode(): AstNode() {
     type = nullptr;
     exprList = nullptr;
 }
+
+ConstSpecListNode* ConstSpecListNode::createConstSpecList(ConstSpecNode *spec) {
+    ConstSpecListNode *node = new ConstSpecListNode();
+    node->specList = new list<ConstSpecNode*>{spec};
+    return node;
+}
+
+ConstSpecListNode* ConstSpecListNode::addConstSpecToList(ConstSpecListNode *list, ConstSpecNode *spec) {
+    list->specList->push_back(spec);
+    return list;
+}
+
+list<ConstSpecNode*>* ConstSpecListNode::getList() const {
+    return specList;
+}
+
+ConstSpecListNode::ConstSpecListNode() {
+    specList = nullptr;
+}

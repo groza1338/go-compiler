@@ -19,6 +19,7 @@ class ParamDeclListNode;
 class ResultNode;
 class SignatureNode;
 class VarSpecNode;
+class ConstSpecNode;
 
 class AstNode {
 protected:
@@ -383,4 +384,15 @@ protected:
     ConstSpecNode();
 };
 
+class ConstSpecListNode : public AstNode {
+public:
+    static ConstSpecListNode* createConstSpecList(ConstSpecNode* spec);
+    static ConstSpecListNode* addConstSpecToList(ConstSpecListNode *list, ConstSpecNode *spec);
 
+    list<ConstSpecNode*>* getList() const;
+
+protected:
+    list<ConstSpecNode*> *specList;
+
+    ConstSpecListNode();
+}

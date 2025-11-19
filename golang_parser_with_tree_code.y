@@ -202,8 +202,8 @@ expr_switch_case:	CASE expr_list {$$=$2;}
 				|	DEFAULT {$$=nullptr;}
 				;
 				
-const_spec_list	:	const_spec_list ';' const_spec
-				|	const_spec ';'
+const_spec_list	:	const_spec_list ';' const_spec {$$=ConstSpecListNode::addConstSpecToList($1, $3);}
+				|	const_spec ';' {$$=ConstSpecListNode::createConstSpecList($1);}
 				;
 
 const_spec		:	id_list {$$=ConstSpecNode::createConstSpec($1, nullptr, nullptr);}
