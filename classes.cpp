@@ -746,7 +746,7 @@ PackageClauseNode* PackageClauseNode::createNode(string *id) {
     return node;
 }
 
-PackageClauseNode::PackageClauseNode() {
+PackageClauseNode::PackageClauseNode(): AstNode() {
     id = nullptr;
 }
 
@@ -772,7 +772,7 @@ ImportSpecNode* ImportSpecNode::createNamed(string *alias, string *import) {
     return node;
 }
 
-ImportSpecNode::ImportSpecNode() {
+ImportSpecNode::ImportSpecNode(): AstNode() {
     importType = NONE;
     import = nullptr;
     alias = nullptr;
@@ -793,7 +793,7 @@ list<ImportSpecNode*>* ImportSpecListNode::getList() const {
     return elemList;
 }
 
-ImportSpecListNode::ImportSpecListNode() {
+ImportSpecListNode::ImportSpecListNode(): AstNode() {
     elemList = nullptr;
 }
 
@@ -809,7 +809,7 @@ ImportDeclNode* ImportDeclNode::createNode(ImportSpecListNode *importList) {
     return node;
 }
 
-ImportDeclNode::ImportDeclNode() {
+ImportDeclNode::ImportDeclNode(): AstNode() {
     importList = nullptr;
 }
 
@@ -828,7 +828,7 @@ list<ImportDeclNode*>* ImportDeclListNode::getList() const {
     return elemList;
 }
 
-ImportDeclListNode::ImportDeclListNode() {
+ImportDeclListNode::ImportDeclListNode(): AstNode() {
     elemList = nullptr;
 }
 
