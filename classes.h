@@ -23,6 +23,7 @@ class VarSpecNode;
 class ConstSpecNode;
 class DeclNode;
 class TypeNameNode;
+class ExprListNode;
 
 class AstNode {
 protected:
@@ -72,11 +73,11 @@ public:
         FUNCTION_CALL
     };
 
-    static ExprNode* createIdentifier(const string &value);
+    static ExprNode* createIdentifier(string *value);
     static ExprNode* createIntLiteral(int value);
     static ExprNode* createFloatLiteral(float value);
     static ExprNode* createRuneLiteral(int value);
-    static ExprNode* createStringLiteral(const string &value);
+    static ExprNode* createStringLiteral(string *value);
     static ExprNode* createBoolLiteral(bool value);
     static ExprNode* createSummary(ExprNode *left, ExprNode *right);
     static ExprNode* createSubtraction(ExprNode *left, ExprNode *right);
@@ -94,20 +95,20 @@ public:
     static ExprNode* createUnaryMinus(ExprNode *operand);
     static ExprNode* createElementAccess(ExprNode *operand, ExprNode *index);
     static ExprNode* createSlice(ExprNode *operand, ExprNode *low, ExprNode *high, ExprNode *max);
-    static ExprNode* createFunctionCall(ExprNode *operand, list<ExprNode*> *args);
+    static ExprNode* createFunctionCall(ExprNode *operand, ExprListNode *args);
 
     ExprType getType() const;
-    string getIdentifier() const;
+    string* getIdentifier() const;
     int getIntLiteral() const;
     float getFloatLiteral() const;
     int getRuneLiteral() const;
-    string getStringLiteral() const;
+    string* getStringLiteral() const;
     bool getBoolLiteral() const;
     ExprNode* getLeft() const;
     ExprNode* getRight() const;
     ExprNode* getOperand() const;
     ExprNode* getIndex() const;
-    list<ExprNode*>* getArgs() const;
+    ExprListNode* getArgs() const;
     ExprNode* getLow() const;
     ExprNode* getHigh() const;
     ExprNode* getMax() const;
@@ -117,18 +118,18 @@ public:
 
 protected:
     ExprType type;
-    string identifier;
+    string *identifier;
     int intLiteral;
     float floatLiteral;
     int runeLiteral;
-    string stringLiteral;
+    string *stringLiteral;
     bool boolLiteral;
 
     ExprNode *left;
     ExprNode *right;
     ExprNode *operand;
     ExprNode *index;
-    list<ExprNode*> *args;
+    ExprListNode *args;
     ExprNode *sliceLow;
     ExprNode *sliceHigh;
     ExprNode *sliceMax;
@@ -369,12 +370,12 @@ protected:
 
 class VarSpecNode : public AstNode {
 public:
-    static VarSpecNode* createVarSpec(IdListNode *idList, TypeNode *type, ExprNode *exprList);
+    static VarSpecNode* createVarSpec(IdListNode *idList, TypeNode *type, ExprListNode *exprList);
 
 protected:
     IdListNode *idList;
     TypeNode *type;
-    ExprNode *expr;
+    ExprListNode *exprList;
 
     VarSpecNode();
 };

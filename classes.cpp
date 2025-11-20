@@ -22,7 +22,7 @@ void AstNode::appendDotEdge(string &res, const AstNode *child, const string &edg
     res += ";\n" + child->toDot();
 }
 
-ExprNode* ExprNode::createIdentifier(const string &value) {
+ExprNode* ExprNode::createIdentifier(string *value) {
     ExprNode *node = new ExprNode();
     node->type = ID;
     node->identifier = value;
@@ -50,7 +50,7 @@ ExprNode* ExprNode::createRuneLiteral(int value) {
     return node;
 }
 
-ExprNode* ExprNode::createStringLiteral(const string &value) {
+ExprNode* ExprNode::createStringLiteral(string *value) {
     ExprNode *node = new ExprNode();
     node->type = STRING_LITERAL;
     node->stringLiteral = value;
@@ -192,7 +192,7 @@ ExprNode* ExprNode::createSlice(ExprNode *operand, ExprNode *low, ExprNode *high
     return node;
 }
 
-ExprNode* ExprNode::createFunctionCall(ExprNode *operand, list<ExprNode *> *args) {
+ExprNode* ExprNode::createFunctionCall(ExprNode *operand, ExprListNode *args) {
     ExprNode *node = new ExprNode();
     node->type = FUNCTION_CALL;
     node->operand = operand;
@@ -204,7 +204,7 @@ ExprNode::ExprType ExprNode::getType() const {
     return type;
 }
 
-string ExprNode::getIdentifier() const {
+string* ExprNode::getIdentifier() const {
     return identifier;
 }
 
@@ -220,7 +220,7 @@ int ExprNode::getRuneLiteral() const {
     return runeLiteral;
 }
 
-string ExprNode::getStringLiteral() const {
+string* ExprNode::getStringLiteral() const {
     return stringLiteral;
 }
 
@@ -244,7 +244,7 @@ ExprNode* ExprNode::getIndex() const {
     return index;
 }
 
-list<ExprNode*>* ExprNode::getArgs() const {
+ExprListNode* ExprNode::getArgs() const {
     return args;
 }
 
@@ -262,12 +262,12 @@ ExprNode* ExprNode::getMax() const {
 
 string ExprNode::getDotLabel() const {
     switch (type) {
-        case ID:                return identifier;
+        case ID:                return *identifier;
         case EXPR_IN_BRACKETS:  return "()";
         case INT_LITERAL:       return to_string(intLiteral);
         case FLOAT_LITERAL:     return to_string(floatLiteral);
         case RUNE_LITERAL:      return to_string(runeLiteral);
-        case STRING_LITERAL:    return stringLiteral;
+        case STRING_LITERAL:    return *stringLiteral;
         case BOOL_LITERAL:      return boolLiteral ? "true" : "false";
         case SUMMARY:           return "+";
         case SUBTRACTION:       return "-";
@@ -302,23 +302,18 @@ string ExprNode::toDot() const {
     appendDotEdge(result, sliceLow, "sliceLow");
     appendDotEdge(result, sliceHigh, "sliceHigh");
     appendDotEdge(result, sliceMax, "sliceMax");
-    if (args) {
-        int i = 0;
-        for (ExprNode *arg : *args) {
-            appendDotEdge(result, arg, "arg_" + to_string(i++));
-        }
-    }
+    appendDotEdge(result, args, "args");
 
     return result;
 }
 
 ExprNode::ExprNode(): AstNode() {
     type = NONE;
-    identifier = "";
+    identifier = nullptr;
     intLiteral = 0;
     floatLiteral = 0;
     runeLiteral = 0;
-    stringLiteral = "";
+    stringLiteral = nullptr;
     boolLiteral = false;
     left = nullptr;
     right = nullptr;
@@ -794,18 +789,18 @@ ResultNode::ResultNode(): AstNode() {
     type = nullptr;
 }
 
-VarSpecNode* VarSpecNode::createVarSpec(IdListNode *idList, TypeNode *type, ExprNode *exprList) {
+VarSpecNode* VarSpecNode::createVarSpec(IdListNode *idList, TypeNode *type, ExprListNode *exprList) {
     VarSpecNode *node = new VarSpecNode();
     node->idList = idList;
     node->type = type;
-    node->expr = exprList;
+    node->exprList = exprList;
     return node;
 }
 
 VarSpecNode::VarSpecNode() {
     idList = nullptr;
     type = nullptr;
-    expr = nullptr;
+    exprList = nullptr;
 }
 
 VarSpecListNode* VarSpecListNode::createVarSpecList(VarSpecNode *var) {
