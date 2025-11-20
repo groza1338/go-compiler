@@ -549,7 +549,11 @@ StmtListNode* CaseNode::getStmtList() const {
 }
 
 string CaseNode::getDotLabel() const {
-    return "CASE";
+    if (!exprList) {
+        return "DEFAULT";
+    } else {
+        return "CASE";
+    }
 }
 
 string CaseNode::toDot() const {
