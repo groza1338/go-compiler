@@ -221,6 +221,9 @@ public:
     ExprListNode* getExprList() const;
     StmtListNode* getStmtList() const;
 
+    string getDotLabel() const override;
+    string toDot() const override;
+
 protected:
     ExprListNode *exprList;
     StmtListNode *stmtList;

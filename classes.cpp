@@ -548,6 +548,20 @@ StmtListNode* CaseNode::getStmtList() const {
     return stmtList;
 }
 
+string CaseNode::getDotLabel() const {
+    return "CASE";
+}
+
+string CaseNode::toDot() const {
+    string result;
+    appendDotNode(result);
+
+    appendDotEdge(result, exprList, "expr_list");
+    appendDotEdge(result, stmtList, "stmt_list");
+
+    return result;
+}
+
 CaseNode::CaseNode() : AstNode() {
     exprList = nullptr;
     stmtList = nullptr;
