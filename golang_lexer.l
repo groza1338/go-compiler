@@ -110,7 +110,7 @@ int can_insert_semi = 0;
 "true"          {cout << "Bool literal: " << yytext << '\n'; yylval.int_lit = 1; set_semi_on(&can_insert_semi); return BOOL_LIT;}
 "false"         {cout << "Bool literal: " << yytext << '\n'; yylval.int_lit = 0; set_semi_on(&can_insert_semi); return BOOL_LIT;}
 
-{IDENTIFIER}    { cout << "Identifier: " << yytext << '\n'; yylval.str_lit = strdup(yytext); set_semi_on(&can_insert_semi); return ID;}
+{IDENTIFIER}    { cout << "Identifier: " << yytext << '\n'; yylval.str_lit = new std::string(yytext); set_semi_on(&can_insert_semi); return ID;}
 
 "&&"            { cout << "Operator: " << yytext << '\n'; set_semi_off(&can_insert_semi); return AND;}
 "||"            { cout << "Operator: " << yytext << '\n'; set_semi_off(&can_insert_semi); return OR;}
@@ -222,7 +222,7 @@ int can_insert_semi = 0;
 
 <INTER_STR>\" {
     cout << "Interpreted string: " << str_buf << '\n';
-    yylval.str_lit = strdup(str_buf);
+    yylval.str_lit = new std::string(str_buf);
     str_reset(str_buf);
     set_semi_on(&can_insert_semi);
     BEGIN(INITIAL);
@@ -232,7 +232,7 @@ int can_insert_semi = 0;
 <RUNE_LIT>\' {
     if (strlen(str_buf) <= 1) {
         cout << "Rune literal: " << str_buf << '\n';
-        yylval.str_lit = strdup(str_buf);
+        yylval.str_lit = new std::string(str_buf);
         set_semi_on(&can_insert_semi);
         str_reset(str_buf);
         BEGIN(INITIAL);
@@ -249,7 +249,7 @@ int can_insert_semi = 0;
 <RAW_STR>\r                 { ; }
 <RAW_STR>` {
     cout << "Raw string: " << str_buf << '\n';
-    yylval.str_lit = strdup(str_buf);
+    yylval.str_lit = new std::string(str_buf);
     str_reset(str_buf);
     set_semi_on(&can_insert_semi);
     BEGIN(INITIAL);
