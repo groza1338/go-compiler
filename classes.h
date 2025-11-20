@@ -269,6 +269,9 @@ public:
     ExprListNode* getLeft() const;
     ExprListNode* getRight() const;
 
+    string getDotLabel() const override;
+    string toDot() const override;
+
 protected:
     SimpleStmtType type;
     ExprNode *expr;

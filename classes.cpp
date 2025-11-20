@@ -657,6 +657,28 @@ ExprListNode* SimpleStmtNode::getRight() const {
     return right;
 }
 
+string SimpleStmtNode::getDotLabel() const {
+    switch (type) {
+        case EXPR:              return "EXPR_STMT";
+        case INC:               return "INC_STMT";
+        case DEC:               return "DEC_STMT";
+        case ASSIGN:            return "ASSIGN_STMT";
+        case SHORT_VAR_DECL:    return "SHORT_VAR_DECL";
+        default:                return "UNKNOWN";
+    }
+}
+
+string SimpleStmtNode::toDot() const {
+    string result;
+    appendDotNode(result);
+
+    appendDotEdge(result, expr, "expr");
+    appendDotEdge(result, left, "left");
+    appendDotEdge(result, right, "right");
+
+    return result;
+}
+
 SimpleStmtNode::SimpleStmtNode(): AstNode() {
     type = NONE;
     expr = nullptr;
