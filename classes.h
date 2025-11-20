@@ -28,6 +28,9 @@ protected:
     static unsigned int maxId;
     unsigned int id;
 
+    void appendDotNode(string &res) const;
+    void appendDotEdge(string &res, const AstNode *child, const string &edgeLabel) const;
+
 public:
     AstNode() {id = ++maxId;};
     virtual ~AstNode() = default;

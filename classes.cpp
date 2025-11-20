@@ -6,6 +6,22 @@
 
 unsigned int AstNode::maxId = 0;
 
+void AstNode::appendDotNode(string &res) const {
+    res += "node" + to_string(id) + " [label=\"" + getDotLabel() + "\"];\n";
+}
+
+void AstNode::appendDotEdge(string &res, const AstNode *child, const string &edgeLabel) const {
+    if (!child) return;
+
+    res += "node" + to_string(id) + " -> node" + to_string(child->getId());
+
+    if (!edgeLabel.empty()) {
+        res += " [label=\"" + edgeLabel + "\"]";
+    }
+
+    res += ";\n" + child->toDot();
+}
+
 ExprNode* ExprNode::createIdentifier(const string &value) {
     ExprNode *node = new ExprNode();
     node->type = ID;
