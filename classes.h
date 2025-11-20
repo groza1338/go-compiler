@@ -142,10 +142,12 @@ public:
 
     list<ExprNode*>* getExprList() const;
 
+    string getDotLabel() const override;
+    string toDot() const override;
+
 protected:
     ExprListNode(): AstNode() {exprs = nullptr;};
     list<ExprNode*> *exprs;
-
 };
 
 class StmtListNode : public AstNode {

@@ -305,7 +305,7 @@ string ExprNode::toDot() const {
     if (args) {
         int i = 0;
         for (ExprNode *arg : *args) {
-            appendDotEdge(result, arg, "arg" + std::to_string(i++));
+            appendDotEdge(result, arg, "arg" + to_string(i++));
         }
     }
 
@@ -343,6 +343,24 @@ ExprListNode* ExprListNode::addExprToList(ExprListNode *list, ExprNode *expr) {
 
 list<ExprNode*>* ExprListNode::getExprList() const {
     return exprs;
+}
+
+string ExprListNode::getDotLabel() const {
+    return "EXPR_LIST";
+}
+
+string ExprListNode::toDot() const {
+    string result;
+    appendDotNode(result);
+
+    if (exprs) {
+        int i = 0;
+        for (ExprNode *expr : *exprs) {
+            appendDotEdge(result, expr, "expr" + to_string(i++));
+        }
+    }
+
+    return result;
 }
 
 StmtListNode* StmtListNode::createStmtList(StmtNode *stmt) {
