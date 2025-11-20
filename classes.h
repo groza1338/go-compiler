@@ -195,6 +195,9 @@ public:
     static StmtNode* createFor(SimpleStmtNode *initStmt, ExprNode *condition, SimpleStmtNode *postStmt, StmtNode *body);
     static StmtNode* createFor(ExprListNode *exprList, ExprNode *expr, StmtNode *body);
 
+    string getDotLabel() const override;
+    string toDot() const override;
+
 protected:
     StmtType type;
     DeclNode *decl;

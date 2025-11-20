@@ -482,6 +482,42 @@ StmtNode * StmtNode::createFor(ExprListNode *exprList, ExprNode *expr, StmtNode 
     return node;
 }
 
+string StmtNode::getDotLabel() const {
+    switch (type) {
+        case DECLARATION:   return "DECLARATION";
+        case SIMPLE:        return "SIMPLE";
+        case RETURN:        return "RETURN";
+        case BREAK:         return "BREAK";
+        case CONTINUE:      return "CONTINUE";
+        case IF:            return "IF";
+        case SWITCH:        return "SWITCH";
+        case FOR:           return "FOR";
+        case FOR_PARAM:     return "FOR_PARAM";
+        case FOR_RANGE:     return "FOR_RANGE";
+        case EMPTY:         return "EMPTY";
+        default:            return "UNKNOWN";
+    }
+}
+
+string StmtNode::toDot() const {
+    string result;
+    appendDotNode(result);
+
+    appendDotEdge(result, decl, "decl");
+    appendDotEdge(result, exprList, "expr_list");
+    appendDotEdge(result, stmtList, "stmt_list");
+    appendDotEdge(result, simpleStmt, "simple_stmt");
+    appendDotEdge(result, condition, "condition");
+    appendDotEdge(result, thenBranch, "then_branch");
+    appendDotEdge(result, elseBranch, "else_branch");
+    appendDotEdge(result, body, "body");
+    appendDotEdge(result, caseList, "case_list");
+    appendDotEdge(result, initStmt, "init_stmt");
+    appendDotEdge(result, postStmt, "post_stmt");
+
+    return result;
+}
+
 StmtNode::StmtNode(): AstNode() {
     type = NONE;
     decl = nullptr;
