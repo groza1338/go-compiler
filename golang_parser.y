@@ -21,6 +21,33 @@ void yyerror(char const* s) {
 	char *str_lit;
     float float_lit;
 	bool bool_lit;
+	ExprNode *expr_node;
+	ExprListNode *expr_list_node;
+	StmtListNode *stmt_list_node;
+	StmtNode *stmt_node;
+	CaseNode *case_node;
+	CaseListNode *case_list_node;
+	SimpleStmtNode *simple_stmt_node;
+	IdListNode *id_list_node;
+	TypeNode *type_node;
+	ParamDeclNode *param_decl_node;
+	ParamDeclListNode *param_decl_list_node;
+	SignatureNode *signature_node;
+	ResultNode *result_node;
+	VarSpecNode *var_spec_node;
+	VarSpecListNode *var_spec_list_node;
+	ConstSpecNode *const_spec_node;
+	ConstSpecListNode *const_spec_list_node;
+	DeclNode *decl_node;
+	FuncDeclNode *func_decl_node;
+    TopLevelDeclNode *top_level_decl_node;
+    TopLevelDeclListNode *top_level_decl_list_node;
+    PackageClauseNode *package_clause_node;
+    ImportSpecNode *import_spec_node;
+    ImportSpecListNode *import_spec_list_node;
+    ImportDeclNode *import_decl_node;
+    ImportDeclListNode *import_decl_list_node;
+    ProgramNode *program_node;
 }
 
 %token	PACKAGE
@@ -51,6 +78,34 @@ void yyerror(char const* s) {
 %token	<identifier>	ID
 %token	<str_lit>		STRING_LIT
 %token	<rune_lit>		RUNE_LIT
+
+%type   <expr_node>                 e_expr expr
+%type   <expr_list_node>            expr_list
+%type   <stmt_list_node>            e_stmt_list stmt_list
+%type   <stmt_node>                 stmt return_stmt block if_stmt switch_stmt for_stmt
+%type   <case_node>                 expr_case_clause
+%type   <case_list_node>            e_expr_case_clause_list expr_case_clause_list
+%type   <simple_stmt_node>          e_simple_stmt simple_stmt
+%type   <id_list_node>              id_list
+%type   <type_node>                 type
+%type   <param_decl_node>           param_decl
+%type   <param_decl_list_node>      param_list
+%type   <signature_node>            signature
+%type   <result_node>               results
+%type   <var_spec_node>             var_spec
+%type   <var_spec_list_node>        var_spec_list
+%type   <const_spec_node>           const_spec
+%type   <const_spec_list_node>      const_spec_list
+%type   <decl_node>                 decl
+%type   <func_decl_node>            func_decl
+%type   <top_level_decl_node>       top_level_decl
+%type   <top_level_decl_list_node>  e_top_level_decl_list top_level_decl_list
+%type   <package_clause_node>       package_clause
+%type   <import_spec_node>          import_spec
+%type   <import_spec_list_node>     e_import_spec_list import_spec_list
+%type   <import_decl_node>          import_decl
+%type   <import_decl_list_node>     e_import_decl_list import_decl_list
+%type   <program_node>              program
 
 %right	'=' WALRUS
 %left	OR
