@@ -238,6 +238,9 @@ public:
 
     list<CaseNode*>* getCaseList() const;
 
+    string getDotLabel() const override;
+    string toDot() const override;
+
 protected:
     list<CaseNode*> *caseList;
 

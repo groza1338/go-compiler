@@ -582,6 +582,24 @@ list<CaseNode*>* CaseListNode::getCaseList() const {
     return caseList;
 }
 
+string CaseListNode::getDotLabel() const {
+    return "CASE_LIST";
+}
+
+string CaseListNode::toDot() const {
+    string result;
+    appendDotNode(result);
+
+    if (caseList) {
+        int i = 0;
+        for (CaseNode *caseElem : *caseList) {
+            appendDotEdge(result, caseElem, "branch_" + to_string(i++));
+        }
+    }
+
+    return result;
+}
+
 SimpleStmtNode* SimpleStmtNode::createExpr(ExprNode *expr) {
     SimpleStmtNode *node = new SimpleStmtNode();
     node->type = EXPR;
