@@ -378,6 +378,24 @@ list<StmtNode*>* StmtListNode::getStmtList() const {
     return stmts;
 }
 
+string StmtListNode::getDotLabel() const {
+    return "STMT_LIST";
+}
+
+string StmtListNode::toDot() const {
+    string result;
+    appendDotNode(result);
+
+    if (stmts) {
+        int i = 0;
+        for (StmtNode *stmt : *stmts) {
+            appendDotEdge(result, stmt, "stmt" + to_string(i++));
+        }
+    }
+
+    return result;
+}
+
 StmtNode* StmtNode::createDecl(DeclNode *decl) {
     StmtNode *node = new StmtNode();
     node->type = DECLARATION;

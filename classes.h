@@ -146,7 +146,7 @@ public:
     string toDot() const override;
 
 protected:
-    ExprListNode(): AstNode() {exprs = nullptr;};
+    ExprListNode(): AstNode() {exprs = nullptr;}
     list<ExprNode*> *exprs;
 };
 
@@ -157,8 +157,11 @@ public:
 
     list<StmtNode*>* getStmtList() const;
 
+    string getDotLabel() const override;
+    string toDot() const override;
+
 protected:
-    StmtListNode(): AstNode() {stmts = nullptr;};
+    StmtListNode(): AstNode() {stmts = nullptr;}
     list<StmtNode*> *stmts;
 };
 
