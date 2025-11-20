@@ -127,7 +127,7 @@ program			:	package_clause ';' e_import_decl_list ';' e_top_level_decl_list {$$=
 				
 e_import_decl_list
 				:	import_decl_list {$$=$1;}
-				|   {$$=nullptr;}
+				|   %empty {$$=nullptr;}
 				;
 				
 import_decl_list:	import_decl_list import_decl ';' {$$=ImportDeclListNode::addElemToList($1, $2);}
@@ -140,7 +140,7 @@ import_decl		:	IMPORT import_spec {$$=ImportDeclNode::createNode($2);}
 				
 e_import_spec_list
 				:	import_spec_list {$$=$1;}
-				|   {$$=nullptr;}
+				|   %empty {$$=nullptr;}
 				;
 				
 import_spec_list:	import_spec_list import_spec ';' {$$=ImportSpecListNode::addElemToList($1, $2);}
@@ -154,7 +154,7 @@ import_spec		:	STRING_LIT {$$=ImportSpecNode::createSimple($1);}
 				
 e_top_level_decl_list
 				:	top_level_decl_list {$$=$1;}
-				|   {$$=nullptr;}
+				|   %empty {$$=nullptr;}
 				;
 				
 top_level_decl_list
@@ -174,7 +174,7 @@ package_clause	:	PACKAGE ID {$$=PackageClauseNode::createNode($2);}
 				;
 
 e_stmt_list     :   stmt_list {$$=$1;}
-                |   {$$=nullptr;}
+                |   %empty {$$=nullptr;}
                 ;
 
 stmt_list		:	stmt_list stmt {$$=StmtListNode::addStmtToList($1, $2);}
@@ -195,7 +195,7 @@ stmt			:	decl ';' {$$=StmtNode::createDecl($1);}
 				;
 
 e_simple_stmt   :   simple_stmt {$$=$1;}
-                |   {$$=nullptr;}
+                |   %empty {$$=nullptr;}
                 ;
 				
 simple_stmt		:	expr {$$=SimpleStmtNode::createExpr($1);}
@@ -233,7 +233,7 @@ switch_stmt		:	SWITCH '{' e_expr_case_clause_list '}' {$$=StmtNode::createSwitch
 				;
 				
 for_stmt		:	FOR block {$$=StmtNode::createFor(nullptr, $2);}
-				|	FOR expr block {$$=StmtNode::createFor($1, $2);}
+				|	FOR expr block {$$=StmtNode::createFor($2, $3);}
 				|	FOR e_simple_stmt ';' e_expr ';' e_simple_stmt block {$$=StmtNode::createFor($2, $4, $6, $7);}
 				|	FOR RANGE expr block {$$=StmtNode::createFor(nullptr, $3, $4);}
 				|	FOR expr_list '=' RANGE expr block {$$=StmtNode::createFor($2, $5, $6);}
@@ -242,7 +242,7 @@ for_stmt		:	FOR block {$$=StmtNode::createFor(nullptr, $2);}
 
 e_expr_case_clause_list
 				:	expr_case_clause_list {$$=$1;}
-				|   {$$=nullptr;}
+				|   %empty {$$=nullptr;}
 				;
 
 expr_case_clause_list
@@ -250,11 +250,8 @@ expr_case_clause_list
 				|	expr_case_clause {$$=CaseListNode::createCaseList($1);}
 				;
 				
-expr_case_clause:	expr_switch_case ':' stmt_list {$$=CaseNode::createCase($1, $3);}
-				;
-					
-expr_switch_case:	CASE expr_list {$$=$2;}
-				|	DEFAULT {$$=nullptr;}
+expr_case_clause:	CASE expr_list ':' stmt_list {$$=CaseNode::createCase($2, $4);}
+                |	DEFAULT ':' stmt_list {$$=CaseNode::createCase(nullptr, $3);}
 				;
 				
 const_spec_list	:	const_spec_list const_spec ';' {$$=ConstSpecListNode::addConstSpecToList($1, $2);}
@@ -313,7 +310,7 @@ expr_list		:	expr_list ',' expr {$$=ExprListNode::addExprToList($1, $3);}
 				;
 
 e_expr          :   expr {$$=$1;}
-                |   {$$=nullptr;}
+                |   %empty {$$=nullptr;}
                 ;
 
 expr			:	ID {$$=ExprNode::createIdentifier($1);}

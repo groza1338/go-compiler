@@ -127,7 +127,7 @@ program			:	package_clause ';' e_import_decl_list ';' e_top_level_decl_list
 				
 e_import_decl_list
 				:	import_decl_list
-				|
+				|   %empty
 				;
 				
 import_decl_list:	import_decl_list import_decl ';'
@@ -140,7 +140,7 @@ import_decl		:	IMPORT import_spec
 				
 e_import_spec_list
 				:	import_spec_list
-				|
+				|   %empty
 				;
 				
 import_spec_list:	import_spec_list import_spec ';'
@@ -154,7 +154,7 @@ import_spec		:	STRING_LIT
 				
 e_top_level_decl_list
 				:	top_level_decl_list
-				|
+				|   %empty
 				;
 				
 top_level_decl_list
@@ -174,7 +174,7 @@ package_clause	:	PACKAGE ID
 				;
 
 e_stmt_list     :   stmt_list 
-                |   
+                |   %empty
                 ;
 
 stmt_list		:	stmt_list stmt 
@@ -195,7 +195,7 @@ stmt			:	decl ';'
 				;
 
 e_simple_stmt   :   simple_stmt
-                |
+                |   %empty
                 ;
 				
 simple_stmt		:	expr 
@@ -242,7 +242,7 @@ for_stmt		:	FOR block
 
 e_expr_case_clause_list
 				:	expr_case_clause_list 
-				|   
+				|   %empty
 				;
 
 expr_case_clause_list
@@ -250,11 +250,8 @@ expr_case_clause_list
 				|	expr_case_clause 
 				;
 				
-expr_case_clause:	expr_switch_case ':' stmt_list 
-				;
-					
-expr_switch_case:	CASE expr_list 
-				|	DEFAULT 
+expr_case_clause:	CASE expr_list ':' stmt_list
+                |	DEFAULT ':' stmt_list
 				;
 				
 const_spec_list	:	const_spec_list const_spec ';'
@@ -313,7 +310,7 @@ expr_list		:	expr_list ',' expr
 				;
 
 e_expr          :   expr
-                |
+                |   %empty
                 ;
 
 expr			:	ID 
