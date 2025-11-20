@@ -546,3 +546,26 @@ protected:
 
     ProgramNode();
 };
+
+class TypeNameNode : public AstNode {
+public:
+    enum PredefinedTypes {
+        NONE,
+        INT_64,
+        FLOAT_64,
+        BOOL,
+        STRING,
+        RUNE
+    };
+
+    static TypeNameNode* createTypeInt();
+    static TypeNameNode* createTypeFloat();
+    static TypeNameNode* createTypeBool();
+    static TypeNameNode* createTypeString();
+    static TypeNameNode* createTypeRune();
+
+protected:
+    PredefinedTypes type;
+
+    TypeNameNode();
+};

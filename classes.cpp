@@ -1045,3 +1045,37 @@ ProgramNode::ProgramNode(): AstNode() {
     importDeclList = nullptr;
     topLevelDeclList = nullptr;
 }
+
+TypeNameNode* TypeNameNode::createTypeInt() {
+    TypeNameNode *node = new TypeNameNode();
+    node->type = INT_64;
+    return node;
+}
+
+TypeNameNode* TypeNameNode::createTypeFloat() {
+    TypeNameNode *node = new TypeNameNode();
+    node->type = FLOAT_64;
+    return node;
+}
+
+TypeNameNode* TypeNameNode::createTypeBool() {
+    TypeNameNode *node = new TypeNameNode();
+    node->type = BOOL;
+    return node;
+}
+
+TypeNameNode* TypeNameNode::createTypeString() {
+    TypeNameNode *node = new TypeNameNode();
+    node->type = STRING;
+    return node;
+}
+
+TypeNameNode* TypeNameNode::createTypeRune() {
+    TypeNameNode *node = new TypeNameNode();
+    node->type = RUNE;
+    return node;
+}
+
+TypeNameNode::TypeNameNode() {
+    type = NONE;
+}
