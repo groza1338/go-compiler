@@ -1,24 +1,29 @@
-%{ // Пролог
+// Пролог
+%code requires {
 #include <iostream>
 #include <cstdlib>
 #include <cstdio>
+#include "classes.h"
 
 using namespace std;
-
-extern int yylex(void);
-
-void yyerror(char const* s) {
-    cout << s << endl;
 }
 
-%}
+%code provides {
+    extern int yylex(void);
+
+    void yyerror(char const* s) {
+        cout << s << endl;
+    }
+}
+
 // Секция объявлений
+
 
 %union {
     int int_lit;
 	int rune_lit;
-    char *identifier;
-	char *str_lit;
+    string *identifier;
+	string *str_lit;
     float float_lit;
 	bool bool_lit;
 	ExprNode *expr_node;
@@ -275,11 +280,11 @@ type			:	type_name {$$=TypeNode::createNamedType($1);}
                 |	'[' ']' type {$$=TypeNode::createSliceType($3);}
 				;
 				
-type_name		:	INT {$$=TypeNameNode::createInt();}
-				|	FLOAT {$$=TypeNameNode::createFloat();}
-				|	BOOL {$$=TypeNameNode::createBool();}
-				|	STRING {$$=TypeNameNode::createString();}
-				|	RUNE {$$=TypeNameNode::createRune();}
+type_name		:	INT {$$=TypeNameNode::createTypeInt();}
+				|	FLOAT {$$=TypeNameNode::createTypeFloat();}
+				|	BOOL {$$=TypeNameNode::createTypeBool();}
+				|	STRING {$$=TypeNameNode::createTypeString();}
+				|	RUNE {$$=TypeNameNode::createTypeRune();}
 				;
 				
 signature		:	'(' param_list ')' results {$$=SignatureNode::createSignature($2, $4);}
