@@ -1,7 +1,6 @@
 #include <iostream>
 #include <fstream>
-#include <FlexLexer.h>
-#include "golang_parser.tab.h"
+#include "golang_parser.hpp"
 
 yyFlexLexer *lexer;
 
