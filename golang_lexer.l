@@ -58,7 +58,7 @@ INTER_STR_LIT_BODY  ({UNICODE_VAL}|{BYTE_VAL})*
 #include <string>
 #include <cctype>
 
-#include "parser.tab.h"
+#include "golang_parser.hpp"
 
 using std::cout;
 
