@@ -305,7 +305,7 @@ string ExprNode::toDot() const {
     if (args) {
         int i = 0;
         for (ExprNode *arg : *args) {
-            appendDotEdge(result, arg, "arg" + to_string(i++));
+            appendDotEdge(result, arg, "arg_" + to_string(i++));
         }
     }
 
@@ -356,7 +356,7 @@ string ExprListNode::toDot() const {
     if (exprs) {
         int i = 0;
         for (ExprNode *expr : *exprs) {
-            appendDotEdge(result, expr, "expr" + to_string(i++));
+            appendDotEdge(result, expr, "expr_" + to_string(i++));
         }
     }
 
@@ -389,7 +389,7 @@ string StmtListNode::toDot() const {
     if (stmts) {
         int i = 0;
         for (StmtNode *stmt : *stmts) {
-            appendDotEdge(result, stmt, "stmt" + to_string(i++));
+            appendDotEdge(result, stmt, "stmt_" + to_string(i++));
         }
     }
 
