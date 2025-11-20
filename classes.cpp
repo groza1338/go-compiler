@@ -291,62 +291,25 @@ string ExprNode::getDotLabel() const {
 }
 
 string ExprNode::toDot() const {
-    string result = "";
+    string result;
 
-    result += "  node" + to_string(id) + " [label=\"" + getDotLabel() + "\"];\n";
+    appendDotNode(result);
 
-    if (left) {
-         result += "  node" + to_string(id) +
-               " -> node" + to_string(left->getId()) + ";\n";
-         result += left->toDot();
-    }
-
-    if (right) {
-         result += "  node" + to_string(id) +
-               " -> node" + to_string(right->getId()) + ";\n";
-         result += right->toDot();
-    }
-
-    if (operand) {
-         result += "  node" + to_string(id) +
-               " -> node" + to_string(operand->getId()) + ";\n";
-         result += operand->toDot();
-    }
-
-    if (index) {
-         result += "  node" + to_string(id) +
-               " -> node" + to_string(index->getId()) + ";\n";
-         result += index->toDot();
-    }
-
-    if (sliceLow) {
-         result += "  node" + to_string(id) +
-               " -> node" + to_string(sliceLow->getId()) + ";\n";
-         result += sliceLow->toDot();
-    }
-
-    if (sliceHigh) {
-         result += "  node" + to_string(id) +
-               " -> node" + to_string(sliceHigh->getId()) + ";\n";
-         result += sliceHigh->toDot();
-    }
-
-    if (sliceMax) {
-         result += "  node" + to_string(id) +
-               " -> node" + to_string(sliceMax->getId()) + ";\n";
-         result += sliceMax->toDot();
-    }
-
+    appendDotEdge(result, left, "left");
+    appendDotEdge(result, right, "right");
+    appendDotEdge(result, operand, "operand");
+    appendDotEdge(result, index, "index");
+    appendDotEdge(result, sliceLow, "sliceLow");
+    appendDotEdge(result, sliceHigh, "sliceHigh");
+    appendDotEdge(result, sliceMax, "sliceMax");
     if (args) {
-        for (ExprNode* arg : *args) {
-            if (!arg) continue;
-             result += "  node" + to_string(id) +
-                   " -> node" + to_string(arg->getId()) + ";\n";
-             result += arg->toDot();
+        int i = 0;
+        for (ExprNode *arg : *args) {
+            appendDotEdge(result, arg, "arg" + std::to_string(i++));
         }
     }
 
-    return  result;
+    return result;
 }
 
 ExprNode::ExprNode(): AstNode() {
