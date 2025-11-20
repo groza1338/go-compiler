@@ -48,6 +48,7 @@ void yyerror(char const* s) {
     ImportDeclNode *import_decl_node;
     ImportDeclListNode *import_decl_list_node;
     ProgramNode *program_node;
+    TypeNameNode *type_name_node;
 }
 
 %token	PACKAGE
@@ -106,6 +107,7 @@ void yyerror(char const* s) {
 %type   <import_decl_node>          import_decl
 %type   <import_decl_list_node>     e_import_decl_list import_decl_list
 %type   <program_node>              program
+%type   <type_name_node>            type_name
 
 %right	'=' WALRUS
 %left	OR
@@ -273,11 +275,11 @@ type			:	type_name {$$=TypeNode::createNamedType($1);}
                 |	'[' ']' type {$$=TypeNode::createSliceType($3);}
 				;
 				
-type_name		:	INT {$$=$1;}
-				|	FLOAT {$$=$1;}
-				|	BOOL {$$=$1;}
-				|	STRING {$$=$1;}
-				|	RUNE {$$=$1;}
+type_name		:	INT {$$=TypeNameNode::createInt();}
+				|	FLOAT {$$=TypeNameNode::createFloat();}
+				|	BOOL {$$=TypeNameNode::createBool();}
+				|	STRING {$$=TypeNameNode::createString();}
+				|	RUNE {$$=TypeNameNode::createRune();}
 				;
 				
 signature		:	'(' param_list ')' results {$$=SignatureNode::createSignature($2, $4);}

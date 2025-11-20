@@ -701,7 +701,7 @@ list<string*>* IdListNode::getIdList() const {
     return ids;
 }
 
-TypeNode* TypeNode::createNamedType(string *name) {
+TypeNode* TypeNode::createNamedType(TypeNameNode *name) {
     TypeNode *node = new TypeNode();
     node->kind = NAMED;
     node->name = name;

@@ -22,6 +22,7 @@ class SignatureNode;
 class VarSpecNode;
 class ConstSpecNode;
 class DeclNode;
+class TypeNameNode;
 
 class AstNode {
 protected:
@@ -304,14 +305,14 @@ public:
         FUNC
     };
 
-    static TypeNode* createNamedType(string *name);
+    static TypeNode* createNamedType(TypeNameNode *name);
     static TypeNode* createArrayType(ExprNode *len, TypeNode *elemType);
     static TypeNode* createFuncType(SignatureNode *signature);
     static TypeNode* createSliceType(TypeNode *elemType);
 
 private:
     Kind kind;
-    string *name;
+    TypeNameNode *name;
     ExprNode *arrayLen;
     TypeNode *elemType;
     SignatureNode *signature;
