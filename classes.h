@@ -24,6 +24,7 @@ class ConstSpecNode;
 class DeclNode;
 class TypeNameNode;
 class ExprListNode;
+class ValueNode;
 
 class AstNode {
 protected:
@@ -49,11 +50,7 @@ public:
         NONE,
         ID,
         EXPR_IN_BRACKETS,
-        INT_LITERAL,
-        FLOAT_LITERAL,
-        RUNE_LITERAL,
-        STRING_LITERAL,
-        BOOL_LITERAL,
+        LIT_VAL,
         SUMMARY,
         SUBTRACTION,
         MULTIPLICATION,
@@ -73,12 +70,8 @@ public:
         FUNCTION_CALL
     };
 
-    static ExprNode* createIdentifier(string *value);
-    static ExprNode* createIntLiteral(int value);
-    static ExprNode* createFloatLiteral(float value);
-    static ExprNode* createRuneLiteral(int value);
-    static ExprNode* createStringLiteral(string *value);
-    static ExprNode* createBoolLiteral(bool value);
+    static ExprNode* createIdentifier(ValueNode *value);
+    static ExprNode* createLiteralVal(ValueNode *value);
     static ExprNode* createSummary(ExprNode *left, ExprNode *right);
     static ExprNode* createSubtraction(ExprNode *left, ExprNode *right);
     static ExprNode* createMultiplication(ExprNode *left, ExprNode *right);
@@ -98,12 +91,8 @@ public:
     static ExprNode* createFunctionCall(ExprNode *operand, ExprListNode *args);
 
     ExprType getType() const;
-    string* getIdentifier() const;
-    int getIntLiteral() const;
-    float getFloatLiteral() const;
-    int getRuneLiteral() const;
-    string* getStringLiteral() const;
-    bool getBoolLiteral() const;
+    ValueNode* getIdentifier() const;
+    ValueNode* getLiteral() const;
     ExprNode* getLeft() const;
     ExprNode* getRight() const;
     ExprNode* getOperand() const;
@@ -118,12 +107,8 @@ public:
 
 protected:
     ExprType type;
-    string *identifier;
-    int intLiteral;
-    float floatLiteral;
-    int runeLiteral;
-    string *stringLiteral;
-    bool boolLiteral;
+    ValueNode *identifier;
+    ValueNode *value;
 
     ExprNode *left;
     ExprNode *right;
@@ -285,13 +270,13 @@ protected:
 
 class IdListNode : public AstNode {
 public:
-    static IdListNode* createIdList(string *id);
-    static IdListNode* addIdToList(IdListNode *list, string *id);
+    static IdListNode* createIdList(ValueNode *id);
+    static IdListNode* addIdToList(IdListNode *list, ValueNode *id);
 
-    list<string*>* getIdList() const;
+    list<ValueNode*>* getIdList() const;
 
 protected:
-    list<string*> *ids;
+    list<ValueNode*> *ids;
 
     IdListNode(): AstNode() {ids = nullptr;};
 };
@@ -434,10 +419,10 @@ protected:
 
 class FuncDeclNode : public AstNode {
 public:
-    static FuncDeclNode* createFuncDecl(string *id, SignatureNode *signature, StmtNode *body);
+    static FuncDeclNode* createFuncDecl(ValueNode *id, SignatureNode *signature, StmtNode *body);
 
 protected:
-    string *id;
+    ValueNode *id;
     SignatureNode *signature;
     StmtNode *body;
 
@@ -471,10 +456,10 @@ protected:
 
 class PackageClauseNode : public AstNode {
 public:
-    static PackageClauseNode* createNode(string *id);
+    static PackageClauseNode* createNode(ValueNode *id);
 
 protected:
-    string *id;
+    ValueNode *id;
 
     PackageClauseNode();
 };
@@ -488,14 +473,14 @@ public:
         NAMED
     };
 
-    static ImportSpecNode* createSimple(string *import);
-    static ImportSpecNode* createPoint(string *import);
-    static ImportSpecNode* createNamed(string *alias, string *import);
+    static ImportSpecNode* createSimple(ValueNode *import);
+    static ImportSpecNode* createPoint(ValueNode *import);
+    static ImportSpecNode* createNamed(ValueNode *alias, ValueNode *import);
 
 protected:
     ImportType importType;
-    string *import;
-    string *alias;
+    ValueNode *import;
+    ValueNode *alias;
 
     ImportSpecNode();
 };
@@ -570,4 +555,41 @@ protected:
     PredefinedTypes type;
 
     TypeNameNode();
+};
+
+class ValueNode : public AstNode {
+public:
+    enum ValueType {
+        NONE,
+        LIT_INT,
+        LIT_FLOAT,
+        LIT_BOOL,
+        LIT_STRING,
+        LIT_RUNE,
+    };
+
+    static ValueNode* createInt(int value);
+    static ValueNode* createFloat(float value);
+    static ValueNode* createBool(bool value);
+    static ValueNode* createString(string *value);
+    static ValueNode* createRune(int value);
+
+    ValueType getValueType() const;
+    int getInt() const;
+    float getFloat() const;
+    bool getBool() const;
+    string* getString() const;
+    int getRune() const;
+
+    string getDotLabel() const override;
+    string toDot() const override;
+
+protected:
+    ValueType valueType;
+    int intValue;
+    float floatValue;
+    bool boolValue;
+    string *stringValue;
+
+    ValueNode();
 };

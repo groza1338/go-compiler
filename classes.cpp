@@ -4,6 +4,8 @@
 
 #include "classes.h"
 
+#include <golang_parser.hpp>
+
 unsigned int AstNode::maxId = 0;
 
 void AstNode::appendDotNode(string &res) const {
@@ -22,45 +24,17 @@ void AstNode::appendDotEdge(string &res, const AstNode *child, const string &edg
     res += ";\n" + child->toDot();
 }
 
-ExprNode* ExprNode::createIdentifier(string *value) {
+ExprNode* ExprNode::createIdentifier(ValueNode *value) {
     ExprNode *node = new ExprNode();
     node->type = ID;
     node->identifier = value;
     return node;
 }
 
-ExprNode* ExprNode::createIntLiteral(int value) {
+ExprNode* ExprNode::createLiteralVal(ValueNode *value) {
     ExprNode *node = new ExprNode();
-    node->type = INT_LITERAL;
-    node->intLiteral = value;
-    return node;
-}
-
-ExprNode* ExprNode::createFloatLiteral(float value) {
-    ExprNode *node = new ExprNode();
-    node->type = FLOAT_LITERAL;
-    node->floatLiteral = value;
-    return node;
-}
-
-ExprNode* ExprNode::createRuneLiteral(int value) {
-    ExprNode *node = new ExprNode();
-    node->type = RUNE_LITERAL;
-    node->runeLiteral = value;
-    return node;
-}
-
-ExprNode* ExprNode::createStringLiteral(string *value) {
-    ExprNode *node = new ExprNode();
-    node->type = STRING_LITERAL;
-    node->stringLiteral = value;
-    return node;
-}
-
-ExprNode* ExprNode::createBoolLiteral(bool value) {
-    ExprNode *node = new ExprNode();
-    node->type = BOOL_LITERAL;
-    node->boolLiteral = value;
+    node->type = LIT_VAL;
+    node->value = value;
     return node;
 }
 
@@ -204,28 +178,12 @@ ExprNode::ExprType ExprNode::getType() const {
     return type;
 }
 
-string* ExprNode::getIdentifier() const {
+ValueNode* ExprNode::getIdentifier() const {
     return identifier;
 }
 
-int ExprNode::getIntLiteral() const {
-    return intLiteral;
-}
-
-float ExprNode::getFloatLiteral() const {
-    return floatLiteral;
-}
-
-int ExprNode::getRuneLiteral() const {
-    return runeLiteral;
-}
-
-string* ExprNode::getStringLiteral() const {
-    return stringLiteral;
-}
-
-bool ExprNode::getBoolLiteral() const {
-    return boolLiteral;
+ValueNode* ExprNode::getLiteral() const {
+    return value;
 }
 
 ExprNode* ExprNode::getLeft() const {
@@ -262,13 +220,9 @@ ExprNode* ExprNode::getMax() const {
 
 string ExprNode::getDotLabel() const {
     switch (type) {
-        case ID:                return *identifier;
+        case ID:                return "IDENTIFIER";
         case EXPR_IN_BRACKETS:  return "()";
-        case INT_LITERAL:       return to_string(intLiteral);
-        case FLOAT_LITERAL:     return to_string(floatLiteral);
-        case RUNE_LITERAL:      return to_string(runeLiteral);
-        case STRING_LITERAL:    return *stringLiteral;
-        case BOOL_LITERAL:      return boolLiteral ? "true" : "false";
+        case LIT_VAL:           return "LIT_VAL";
         case SUMMARY:           return "+";
         case SUBTRACTION:       return "-";
         case MULTIPLICATION:    return "*";
@@ -310,11 +264,7 @@ string ExprNode::toDot() const {
 ExprNode::ExprNode(): AstNode() {
     type = NONE;
     identifier = nullptr;
-    intLiteral = 0;
-    floatLiteral = 0;
-    runeLiteral = 0;
-    stringLiteral = nullptr;
-    boolLiteral = false;
+    value = nullptr;
     left = nullptr;
     right = nullptr;
     operand = nullptr;
@@ -681,18 +631,18 @@ SimpleStmtNode::SimpleStmtNode(): AstNode() {
     right = nullptr;
 }
 
-IdListNode* IdListNode::createIdList(string *id) {
+IdListNode* IdListNode::createIdList(ValueNode *id) {
     IdListNode *node = new IdListNode();
-    node->ids = new list<string*>{id};
+    node->ids = new list<ValueNode*>{id};
     return node;
 }
 
-IdListNode* IdListNode::addIdToList(IdListNode *list, string *id) {
+IdListNode* IdListNode::addIdToList(IdListNode *list, ValueNode *id) {
     list->ids->push_back(id);
     return list;
 }
 
-list<string*>* IdListNode::getIdList() const {
+list<ValueNode*>* IdListNode::getIdList() const {
     return ids;
 }
 
@@ -884,7 +834,7 @@ DeclNode::DeclNode(): AstNode() {
     varSpecList = nullptr;
 }
 
-FuncDeclNode* FuncDeclNode::createFuncDecl(string *id, SignatureNode *signature, StmtNode *body) {
+FuncDeclNode* FuncDeclNode::createFuncDecl(ValueNode *id, SignatureNode *signature, StmtNode *body) {
     FuncDeclNode *node = new FuncDeclNode();
     node->id = id;
     node->signature = signature;
@@ -934,7 +884,7 @@ TopLevelDeclListNode::TopLevelDeclListNode(): AstNode() {
     elemList = nullptr;
 }
 
-PackageClauseNode* PackageClauseNode::createNode(string *id) {
+PackageClauseNode* PackageClauseNode::createNode(ValueNode *id) {
     PackageClauseNode *node = new PackageClauseNode();
     node->id = id;
     return node;
@@ -944,21 +894,21 @@ PackageClauseNode::PackageClauseNode(): AstNode() {
     id = nullptr;
 }
 
-ImportSpecNode* ImportSpecNode::createSimple(string *import) {
+ImportSpecNode* ImportSpecNode::createSimple(ValueNode *import) {
     ImportSpecNode *node = new ImportSpecNode();
     node->importType = SIMPLE;
     node->import = import;
     return node;
 }
 
-ImportSpecNode* ImportSpecNode::createPoint(string *import) {
+ImportSpecNode* ImportSpecNode::createPoint(ValueNode *import) {
     ImportSpecNode *node = new ImportSpecNode();
     node->importType = POINT;
     node->import = import;
     return node;
 }
 
-ImportSpecNode* ImportSpecNode::createNamed(string *alias, string *import) {
+ImportSpecNode* ImportSpecNode::createNamed(ValueNode *alias, ValueNode *import) {
     ImportSpecNode *node = new ImportSpecNode();
     node->importType = NAMED;
     node->alias = alias;
@@ -1073,4 +1023,88 @@ TypeNameNode* TypeNameNode::createTypeRune() {
 
 TypeNameNode::TypeNameNode() {
     type = NONE;
+}
+
+ValueNode* ValueNode::createInt(int value) {
+    ValueNode *node = new ValueNode();
+    node->valueType = LIT_INT;
+    node->intValue = value;
+    return node;
+}
+
+ValueNode* ValueNode::createFloat(float value) {
+    ValueNode *node = new ValueNode();
+    node->valueType = LIT_FLOAT;
+    node->floatValue = value;
+    return node;
+}
+
+ValueNode* ValueNode::createBool(bool value) {
+    ValueNode *node = new ValueNode();
+    node->valueType = LIT_BOOL;
+    node->boolValue = value;
+    return node;
+}
+
+ValueNode* ValueNode::createString(string *value) {
+    ValueNode *node = new ValueNode();
+    node->valueType = LIT_STRING;
+    node->stringValue = value;
+    return node;
+}
+
+ValueNode* ValueNode::createRune(int value) {
+    ValueNode *node = new ValueNode();
+    node->valueType = LIT_RUNE;
+    node->intValue = value;
+    return node;
+}
+
+ValueNode::ValueType ValueNode::getValueType() const {
+    return valueType;
+}
+
+int ValueNode::getInt() const {
+    return intValue;
+}
+
+float ValueNode::getFloat() const {
+    return floatValue;
+}
+
+bool ValueNode::getBool() const {
+    return boolValue;
+}
+
+string* ValueNode::getString() const {
+    return stringValue;
+}
+
+int ValueNode::getRune() const {
+    return intValue;
+}
+
+string ValueNode::getDotLabel() const {
+    switch (valueType) {
+        case LIT_INT:       return to_string(intValue);
+        case LIT_FLOAT:     return to_string(floatValue);
+        case LIT_RUNE:      return to_string(intValue);
+        case LIT_STRING:    return *stringValue;
+        case LIT_BOOL:      return boolValue ? "true" : "false";
+        default:            return "UNKNOWN";
+    }
+}
+
+string ValueNode::toDot() const {
+    string result;
+    appendDotNode(result);
+    return result;
+}
+
+ValueNode::ValueNode(): AstNode() {
+    valueType = NONE;
+    intValue = 0;
+    floatValue = 0;
+    boolValue = false;
+    stringValue = nullptr;
 }

@@ -54,6 +54,7 @@ using namespace std;
     ImportDeclListNode *import_decl_list_node;
     ProgramNode *program_node;
     TypeNameNode *type_name_node;
+    ValueNode *value_node;
 }
 
 %token	PACKAGE
@@ -113,6 +114,7 @@ using namespace std;
 %type   <import_decl_list_node>     e_import_decl_list import_decl_list
 %type   <program_node>              program
 %type   <type_name_node>            type_name
+%type   <value_node>                literal_val
 
 %right	'=' WALRUS
 %left	OR
@@ -154,9 +156,9 @@ import_spec_list:	import_spec_list import_spec ';' {$$=ImportSpecListNode::addEl
 				|	import_spec ';' {$$=ImportSpecListNode::createList($1);}
 				;
 				
-import_spec		:	STRING_LIT {$$=ImportSpecNode::createSimple($1);}
-				|	'.' STRING_LIT {$$=ImportSpecNode::createPoint($2);}
-				|	ID STRING_LIT {$$=ImportSpecNode::createNamed($1, $2);}
+import_spec		:	STRING_LIT {$$=ImportSpecNode::createSimple(ValueNode::createString($1));}
+				|	'.' STRING_LIT {$$=ImportSpecNode::createPoint(ValueNode::createString($2));}
+				|	ID STRING_LIT {$$=ImportSpecNode::createNamed(ValueNode::createString($1), ValueNode::createString($2));}
 				;
 				
 e_top_level_decl_list
@@ -173,11 +175,11 @@ top_level_decl	:	decl {$$=TopLevelDeclNode::createTopLevelDecl($1);}
 				|	func_decl {$$=TopLevelDeclNode::createTopLevelDecl($1);}
 				;
 				
-func_decl		:	FUNC ID signature {$$=FuncDeclNode::createFuncDecl($2, $3, nullptr);}
-				|	FUNC ID signature block {$$=FuncDeclNode::createFuncDecl($2, $3, $4);}
+func_decl		:	FUNC ID signature {$$=FuncDeclNode::createFuncDecl(ValueNode::createString($2), $3, nullptr);}
+				|	FUNC ID signature block {$$=FuncDeclNode::createFuncDecl(ValueNode::createString($2), $3, $4);}
 				;
 
-package_clause	:	PACKAGE ID {$$=PackageClauseNode::createNode($2);}
+package_clause	:	PACKAGE ID {$$=PackageClauseNode::createNode(ValueNode::createString($2));}
 				;
 
 e_stmt_list     :   stmt_list {$$=$1;}
@@ -270,8 +272,8 @@ const_spec		:	id_list {$$=ConstSpecNode::createConstSpec($1, nullptr, nullptr);}
 				|	id_list type '=' expr_list {$$=ConstSpecNode::createConstSpec($1, $2, $4);}
 				;
 				
-id_list			:	id_list ',' ID {$$=IdListNode::addIdToList($1, $3);}
-				|	ID {$$=IdListNode::createIdList($1);}
+id_list			:	id_list ',' ID {$$=IdListNode::addIdToList($1, ValueNode::createString($3));}
+				|	ID {$$=IdListNode::createIdList(ValueNode::createString($1));}
 				;
 				
 type			:	type_name {$$=TypeNode::createNamedType($1);}
@@ -320,13 +322,9 @@ e_expr          :   expr {$$=$1;}
                 |   %empty {$$=nullptr;}
                 ;
 
-expr			:	ID {$$=ExprNode::createIdentifier($1);}
+expr			:	ID {$$=ExprNode::createIdentifier(ValueNode::createString($1));}
 				|	'(' expr ')' {$$=$2;}
-				|	INT_LIT {$$=ExprNode::createIntLiteral($1);}
-				|	FLOAT_LIT {$$=ExprNode::createFloatLiteral($1);}
-				|	RUNE_LIT {$$=ExprNode::createRuneLiteral($1);}
-				|	STRING_LIT {$$=ExprNode::createStringLiteral($1);}
-				|	BOOL_LIT {$$=ExprNode::createBoolLiteral($1);}
+				|	literal_val {$$=ExprNode::createLiteralVal($1);}
 				|	expr '+' expr {$$=ExprNode::createSummary($1, $3);}
 				|	expr '-' expr {$$=ExprNode::createSubtraction($1, $3);}
 				|	expr '*' expr {$$=ExprNode::createMultiplication($1, $3);}
@@ -351,6 +349,13 @@ expr			:	ID {$$=ExprNode::createIdentifier($1);}
 				|	expr '(' ')' {$$=ExprNode::createFunctionCall($1, nullptr);}
 				|	expr '(' expr_list ')' {$$=ExprNode::createFunctionCall($1, $3);}
 				;
+
+literal_val     :   INT_LIT {$$=ValueNode::createInt($1);}
+                |   FLOAT_LIT {$$=ValueNode::createFloat($1);}
+                |	RUNE_LIT {$$=ValueNode::createRune($1);}
+                |	STRING_LIT {$$=ValueNode::createString($1);}
+                |	BOOL_LIT {$$=ValueNode::createBool($1);}
+                ;
 
 %%
 // Секция пользовательского кода
