@@ -1,12 +1,15 @@
 #include <iostream>
 #include <fstream>
+#include <filesystem>
 #include "golang_parser.hpp"
 
-yyFlexLexer *lexer;
+namespace fs = std::filesystem;
 
-int yylex() {
-    return lexer->yylex();
-}
+extern FILE *yyin;
+
+extern int yyparse();
+
+ProgramNode *root;
 
 int main(int argc, char* argv[])
 {
@@ -16,16 +19,27 @@ int main(int argc, char* argv[])
         return 1;
     }
 
-    std::ifstream file(argv[1]);
-    if (!file.is_open())
-    {
-        std::cerr << "Error opening file: " << argv[1] << std::endl;
+    std::string inputFile = argv[1];
+
+    yyin = fopen(inputFile.c_str(), "r");
+    if (!yyin) {
+        cout << ("Could not open input file: '" + inputFile + "'");
         return 1;
     }
 
-    lexer = new yyFlexLexer();      // создаём объект лексера
-    lexer->switch_streams(&file, &std::cout);  // Передаем файл для анализа
-    yyparse();
+    int parse_result = yyparse();
+
+    if (parse_result != 0) {
+        cout << ("Parsing failed with code: '" + std::to_string(parse_result) + "'");
+        return 1;
+    }
+
+    if (!root) {
+        cout << ("No parse tree generated");
+        return 1;
+    }
+
+    cout << root->toDot();
 
     return 0;
 }
