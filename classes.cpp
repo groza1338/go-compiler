@@ -1181,6 +1181,22 @@ list<ImportSpecNode*>* ImportSpecListNode::getList() const {
     return elemList;
 }
 
+string ImportSpecListNode::getDotLabel() const {
+    return "IMPORT_SPEC_LIST";
+}
+
+string ImportSpecListNode::toDot() const {
+    string res;
+    appendDotNode(res);
+    if (elemList) {
+        int i = 0;
+        for (auto *e : *elemList) {
+            appendDotEdge(res, e, "spec_" + to_string(i++));
+        }
+    }
+    return res;
+}
+
 ImportSpecListNode::ImportSpecListNode(): AstNode() {
     elemList = nullptr;
 }

@@ -540,6 +540,9 @@ public:
 
     list<ImportSpecNode*>* getList() const;
 
+    string getDotLabel() const override;
+    string toDot() const override;
+
 protected:
     list<ImportSpecNode*> *elemList;
 
