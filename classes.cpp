@@ -1143,6 +1143,23 @@ ImportSpecNode* ImportSpecNode::createNamed(ValueNode *alias, ValueNode *import)
     return node;
 }
 
+string ImportSpecNode::getDotLabel() const {
+    switch (importType) {
+    case SIMPLE: return "IMPORT";
+    case POINT:  return "IMPORT_POINT";
+    case NAMED:  return "IMPORT_NAMED";
+    default:     return "IMPORT_SPEC";
+    }
+}
+
+string ImportSpecNode::toDot() const {
+    string res;
+    appendDotNode(res);
+    appendDotEdge(res, import, "path");
+    appendDotEdge(res, alias, "alias");
+    return res;
+}
+
 ImportSpecNode::ImportSpecNode(): AstNode() {
     importType = NONE;
     import = nullptr;

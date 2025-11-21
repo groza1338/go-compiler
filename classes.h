@@ -522,6 +522,9 @@ public:
     static ImportSpecNode* createPoint(ValueNode *import);
     static ImportSpecNode* createNamed(ValueNode *alias, ValueNode *import);
 
+    string getDotLabel() const override;
+    string toDot() const override;
+
 protected:
     ImportType importType;
     ValueNode *import;
