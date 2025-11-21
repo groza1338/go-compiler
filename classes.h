@@ -346,6 +346,9 @@ class SignatureNode : public AstNode {
 public:
     static SignatureNode* createSignature(ParamDeclListNode *paramList, ResultNode *result);
 
+    string getDotLabel() const override;
+    string toDot() const override;
+
 protected:
     ParamDeclListNode *paramList;
     ResultNode *result;

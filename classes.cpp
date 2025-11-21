@@ -796,6 +796,18 @@ SignatureNode* SignatureNode::createSignature(ParamDeclListNode *paramList, Resu
     return node;
 }
 
+string SignatureNode::getDotLabel() const {
+    return "SIGNATURE";
+}
+
+string SignatureNode::toDot() const {
+    string res;
+    appendDotNode(res);
+    appendDotEdge(res, paramList, "params");
+    appendDotEdge(res, result, "result");
+    return res;
+}
+
 SignatureNode::SignatureNode(): AstNode() {
     paramList = nullptr;
     result = nullptr;
