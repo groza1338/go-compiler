@@ -1213,6 +1213,17 @@ ImportDeclNode* ImportDeclNode::createNode(ImportSpecListNode *importList) {
     return node;
 }
 
+string ImportDeclNode::getDotLabel() const {
+    return "IMPORT_DECL";
+}
+
+string ImportDeclNode::toDot() const {
+    string res;
+    appendDotNode(res);
+    appendDotEdge(res, importList, "specs");
+    return res;
+}
+
 ImportDeclNode::ImportDeclNode(): AstNode() {
     importList = nullptr;
 }

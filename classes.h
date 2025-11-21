@@ -554,6 +554,9 @@ public:
     static ImportDeclNode* createNode(ImportSpecNode *import);
     static ImportDeclNode* createNode(ImportSpecListNode *importList);
 
+    string getDotLabel() const override;
+    string toDot() const override;
+
 protected:
     ImportSpecListNode *importList;
 
