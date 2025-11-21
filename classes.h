@@ -583,6 +583,9 @@ class ProgramNode : public AstNode {
 public:
     static ProgramNode* createNode(PackageClauseNode *packageClause, ImportDeclListNode *importDeclList, TopLevelDeclListNode *topLevelDeclList);
 
+    string getDotLabel() const override;
+    string toDot() const override;
+
 protected:
     PackageClauseNode *packageClause;
     ImportDeclListNode *importDeclList;

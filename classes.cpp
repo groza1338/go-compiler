@@ -1272,6 +1272,19 @@ ProgramNode* ProgramNode::createNode(PackageClauseNode *packageClause, ImportDec
     return node;
 }
 
+string ProgramNode::getDotLabel() const {
+    return "PROGRAM";
+}
+
+string ProgramNode::toDot() const {
+    string res;
+    appendDotNode(res);
+    appendDotEdge(res, packageClause, "package");
+    appendDotEdge(res, importDeclList, "imports");
+    appendDotEdge(res, topLevelDeclList, "decls");
+    return res;
+}
+
 ProgramNode::ProgramNode(): AstNode() {
     packageClause = nullptr;
     importDeclList = nullptr;
