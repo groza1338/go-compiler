@@ -611,6 +611,9 @@ public:
     static TypeNameNode* createTypeString();
     static TypeNameNode* createTypeRune();
 
+    string getDotLabel() const override;
+    string toDot() const override;
+
 protected:
     PredefinedTypes type;
 

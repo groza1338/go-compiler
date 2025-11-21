@@ -1321,6 +1321,23 @@ TypeNameNode* TypeNameNode::createTypeRune() {
     return node;
 }
 
+string TypeNameNode::getDotLabel() const {
+    switch (type) {
+    case INT_64:  return "int";
+    case FLOAT_64:return "float64";
+    case BOOL:    return "bool";
+    case STRING:  return "string";
+    case RUNE:    return "rune";
+    default:      return "TYPE_NAME";
+    }
+}
+
+string TypeNameNode::toDot() const {
+    string res;
+    appendDotNode(res);
+    return res;
+}
+
 TypeNameNode::TypeNameNode() {
     type = NONE;
 }
