@@ -885,6 +885,22 @@ list<VarSpecNode*>* VarSpecListNode::getList() const {
     return varList;
 }
 
+string VarSpecListNode::getDotLabel() const {
+    return "VAR_SPEC_LIST";
+}
+
+string VarSpecListNode::toDot() const {
+    string res;
+    appendDotNode(res);
+    if (varList) {
+        int i = 0;
+        for (auto *v : *varList) {
+            appendDotEdge(res, v, "spec_" + to_string(i++));
+        }
+    }
+    return res;
+}
+
 VarSpecListNode::VarSpecListNode(): AstNode() {
     varList = nullptr;
 }
