@@ -487,6 +487,9 @@ public:
 
     list<TopLevelDeclNode*>* getList() const;
 
+    string getDotLabel() const override;
+    string toDot() const override;
+
 protected:
     list<TopLevelDeclNode*> *elemList;
 

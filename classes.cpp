@@ -1080,6 +1080,22 @@ list<TopLevelDeclNode*>* TopLevelDeclListNode::getList() const {
     return elemList;
 }
 
+string TopLevelDeclListNode::getDotLabel() const {
+    return "TOP_LEVEL_DECL_LIST";
+}
+
+string TopLevelDeclListNode::toDot() const {
+    string res;
+    appendDotNode(res);
+    if (elemList) {
+        int i = 0;
+        for (auto *e : *elemList) {
+            appendDotEdge(res, e, "decl_" + to_string(i++));
+        }
+    }
+    return res;
+}
+
 TopLevelDeclListNode::TopLevelDeclListNode(): AstNode() {
     elemList = nullptr;
 }
