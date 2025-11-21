@@ -470,6 +470,9 @@ public:
     static TopLevelDeclNode* createTopLevelDecl(DeclNode *decl);
     static TopLevelDeclNode* createTopLevelDecl(FuncDeclNode *funcDecl);
 
+    string getDotLabel() const override;
+    string toDot() const override;
+
 protected:
     DeclNode *decl;
     FuncDeclNode *funcDecl;

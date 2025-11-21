@@ -1048,6 +1048,18 @@ TopLevelDeclNode* TopLevelDeclNode::createTopLevelDecl(FuncDeclNode *funcDecl) {
     return node;
 }
 
+string TopLevelDeclNode::getDotLabel() const {
+    return "TOP_LEVEL_DECL";
+}
+
+string TopLevelDeclNode::toDot() const {
+    string res;
+    appendDotNode(res);
+    appendDotEdge(res, decl, "decl");
+    appendDotEdge(res, funcDecl, "func");
+    return res;
+}
+
 TopLevelDeclNode::TopLevelDeclNode(): AstNode() {
     decl = nullptr;
     funcDecl = nullptr;
