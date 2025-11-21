@@ -424,6 +424,9 @@ public:
 
     list<ConstSpecNode*>* getList() const;
 
+    string getDotLabel() const override;
+    string toDot() const override;
+
 protected:
     list<ConstSpecNode*> *specList;
 

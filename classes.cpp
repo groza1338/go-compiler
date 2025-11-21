@@ -947,6 +947,22 @@ list<ConstSpecNode*>* ConstSpecListNode::getList() const {
     return specList;
 }
 
+string ConstSpecListNode::getDotLabel() const {
+    return "CONST_SPEC_LIST";
+}
+
+string ConstSpecListNode::toDot() const {
+    string res;
+    appendDotNode(res);
+    if (specList) {
+        int i = 0;
+        for (auto *s : *specList) {
+            appendDotEdge(res, s, "spec_" + to_string(i++));
+        }
+    }
+    return res;
+}
+
 ConstSpecListNode::ConstSpecListNode(): AstNode() {
     specList = nullptr;
 }
