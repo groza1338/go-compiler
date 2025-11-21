@@ -375,6 +375,9 @@ class VarSpecNode : public AstNode {
 public:
     static VarSpecNode* createVarSpec(IdListNode *idList, TypeNode *type, ExprListNode *exprList);
 
+    string getDotLabel() const override;
+    string toDot() const override;
+
 protected:
     IdListNode *idList;
     TypeNode *type;

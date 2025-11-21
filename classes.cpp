@@ -851,6 +851,19 @@ VarSpecNode* VarSpecNode::createVarSpec(IdListNode *idList, TypeNode *type, Expr
     return node;
 }
 
+string VarSpecNode::getDotLabel() const {
+    return "VAR_SPEC";
+}
+
+string VarSpecNode::toDot() const {
+    string res;
+    appendDotNode(res);
+    appendDotEdge(res, idList, "ids");
+    appendDotEdge(res, type, "type");
+    appendDotEdge(res, exprList, "values");
+    return res;
+}
+
 VarSpecNode::VarSpecNode() {
     idList = nullptr;
     type = nullptr;
