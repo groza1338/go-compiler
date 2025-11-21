@@ -333,6 +333,9 @@ public:
 
     list<ParamDeclNode*>* getParamList() const;
 
+    string getDotLabel() const override;
+    string toDot() const override;
+
 protected:
     list<ParamDeclNode*> *paramList;
 

@@ -773,6 +773,22 @@ list<ParamDeclNode*>* ParamDeclListNode::getParamList() const {
     return paramList;
 }
 
+string ParamDeclListNode::getDotLabel() const {
+    return "PARAM_DECL_LIST";
+}
+
+string ParamDeclListNode::toDot() const {
+    string res;
+    appendDotNode(res);
+    if (paramList) {
+        int i = 0;
+        for (auto *p : *paramList) {
+            appendDotEdge(res, p, "param_" + to_string(i++));
+        }
+    }
+    return res;
+}
+
 SignatureNode* SignatureNode::createSignature(ParamDeclListNode *paramList, ResultNode *result) {
     SignatureNode *node = new SignatureNode();
     node->paramList = paramList;
