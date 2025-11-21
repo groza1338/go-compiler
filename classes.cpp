@@ -675,6 +675,41 @@ TypeNode* TypeNode::createSliceType(TypeNode *elemType) {
     return node;
 }
 
+string TypeNode::getDotLabel() const {
+    switch (kind) {
+        case NAMED: return "TYPE_NAMED";
+        case ARRAY: return "TYPE_ARRAY";
+        case SLICE: return "TYPE_SLICE";
+        case FUNC: return "TYPE_FUNC";
+        default: return "TYPE";
+    }
+}
+
+string TypeNode::toDot() const {
+    string res;
+    appendDotNode(res);
+
+    switch (kind) {
+    case NAMED:
+        appendDotEdge(res, name, "name");
+        break;
+    case ARRAY:
+        appendDotEdge(res, arrayLen, "len");
+        appendDotEdge(res, elemType, "elem");
+        break;
+    case SLICE:
+        appendDotEdge(res, elemType, "elem");
+        break;
+    case FUNC:
+        appendDotEdge(res, signature, "signature");
+        break;
+    default:
+        break;
+    }
+
+    return res;
+}
+
 TypeNode::TypeNode(): AstNode() {
     kind = NONE;
     name = nullptr;

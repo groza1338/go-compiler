@@ -296,6 +296,9 @@ public:
     static TypeNode* createFuncType(SignatureNode *signature);
     static TypeNode* createSliceType(TypeNode *elemType);
 
+    string getDotLabel() const override;
+    string toDot() const override;
+
 private:
     Kind kind;
     TypeNameNode *name;
