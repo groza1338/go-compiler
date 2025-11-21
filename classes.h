@@ -316,6 +316,9 @@ class ParamDeclNode : public AstNode {
 public:
     static ParamDeclNode* createParamDecl(IdListNode *ids, TypeNode* type);
 
+    string getDotLabel() const override;
+    string toDot() const override;
+
 protected:
     IdListNode *idList;
     TypeNode* type;

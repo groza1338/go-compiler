@@ -741,6 +741,18 @@ ParamDeclNode* ParamDeclNode::createParamDecl(IdListNode *ids, TypeNode *type) {
     return node;
 }
 
+string ParamDeclNode::getDotLabel() const {
+    return "PARAM_DECL";
+}
+
+string ParamDeclNode::toDot() const {
+    string res;
+    appendDotNode(res);
+    appendDotEdge(res, idList, "ids");
+    appendDotEdge(res, type, "type");
+    return res;
+}
+
 ParamDeclNode::ParamDeclNode() {
     idList = nullptr;
     type = nullptr;
