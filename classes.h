@@ -570,6 +570,9 @@ public:
 
     list<ImportDeclNode*>* getList() const;
 
+    string getDotLabel() const override;
+    string toDot() const override;
+
 protected:
     list<ImportDeclNode*> *elemList;
 

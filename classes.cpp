@@ -1243,6 +1243,22 @@ list<ImportDeclNode*>* ImportDeclListNode::getList() const {
     return elemList;
 }
 
+string ImportDeclListNode::getDotLabel() const {
+    return "IMPORT_DECL_LIST";
+}
+
+string ImportDeclListNode::toDot() const {
+    string res;
+    appendDotNode(res);
+    if (elemList) {
+        int i = 0;
+        for (auto *e : *elemList) {
+            appendDotEdge(res, e, "import_" + to_string(i++));
+        }
+    }
+    return res;
+}
+
 ImportDeclListNode::ImportDeclListNode(): AstNode() {
     elemList = nullptr;
 }
