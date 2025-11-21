@@ -1106,6 +1106,17 @@ PackageClauseNode* PackageClauseNode::createNode(ValueNode *id) {
     return node;
 }
 
+string PackageClauseNode::getDotLabel() const {
+    return "PACKAGE";
+}
+
+string PackageClauseNode::toDot() const {
+    string res;
+    appendDotNode(res);
+    appendDotEdge(res, id, "id");
+    return res;
+}
+
 PackageClauseNode::PackageClauseNode(): AstNode() {
     id = nullptr;
 }

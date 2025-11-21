@@ -500,6 +500,9 @@ class PackageClauseNode : public AstNode {
 public:
     static PackageClauseNode* createNode(ValueNode *id);
 
+    string getDotLabel() const override;
+    string toDot() const override;
+
 protected:
     ValueNode *id;
 
