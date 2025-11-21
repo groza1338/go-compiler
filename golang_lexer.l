@@ -58,8 +58,6 @@ INTER_STR_LIT_BODY  ({UNICODE_VAL}|{BYTE_VAL})*
 #include <string>
 #include <cctype>
 
-#include "golang_parser.hpp"
-
 using std::cout;
 
 #define MAX_STRING_LENGTH 2048
@@ -87,70 +85,70 @@ char str_buf[MAX_STRING_LENGTH];
 int can_insert_semi = 0;
 %}
 
-"break"         {cout << "Keyword: " << yytext << '\n'; set_semi_on(&can_insert_semi); return BREAK;}
-"case"          {cout << "Keyword: " << yytext << '\n'; set_semi_off(&can_insert_semi); return CASE;}
-"const"         {cout << "Keyword: " << yytext << '\n'; set_semi_off(&can_insert_semi); return CONST;}
-"continue"      {cout << "Keyword: " << yytext << '\n'; set_semi_on(&can_insert_semi); return CONTINUE;}
-"default"       {cout << "Keyword: " << yytext << '\n'; set_semi_off(&can_insert_semi); return DEFAULT;}
-"else"          {cout << "Keyword: " << yytext << '\n'; set_semi_off(&can_insert_semi); return ELSE;}
-"for"           {cout << "Keyword: " << yytext << '\n'; set_semi_off(&can_insert_semi); return FOR;}
-"func"          {cout << "Keyword: " << yytext << '\n'; set_semi_off(&can_insert_semi); return FUNC;}
-"if"            {cout << "Keyword: " << yytext << '\n'; set_semi_off(&can_insert_semi); return IF;}
-"import"        {cout << "Keyword: " << yytext << '\n'; set_semi_off(&can_insert_semi); return IMPORT;}
-"package"       {cout << "Keyword: " << yytext << '\n'; set_semi_off(&can_insert_semi); return PACKAGE;}
-"range"         {cout << "Keyword: " << yytext << '\n'; set_semi_off(&can_insert_semi); return RANGE;}
-"return"        {cout << "Keyword: " << yytext << '\n'; set_semi_on(&can_insert_semi); return RETURN;}
-"switch"        {cout << "Keyword: " << yytext << '\n'; set_semi_off(&can_insert_semi); return SWITCH;}
-"var"           {cout << "Keyword: " << yytext << '\n'; set_semi_off(&can_insert_semi); return VAR;}
-"int64"         {cout << "Type: " << yytext << '\n'; set_semi_off(&can_insert_semi); return INT;}
-"float64"       {cout << "Type: " << yytext << '\n'; set_semi_off(&can_insert_semi); return FLOAT;}
-"bool"          {cout << "Type: " << yytext << '\n'; set_semi_off(&can_insert_semi); return BOOL;}
-"string"        {cout << "Type: " << yytext << '\n'; set_semi_off(&can_insert_semi); return STRING;}
-"rune"          {cout << "Type: " << yytext << '\n'; set_semi_off(&can_insert_semi); return RUNE;}
-"true"          {cout << "Bool literal: " << yytext << '\n'; yylval.int_lit = 1; set_semi_on(&can_insert_semi); return BOOL_LIT;}
-"false"         {cout << "Bool literal: " << yytext << '\n'; yylval.int_lit = 0; set_semi_on(&can_insert_semi); return BOOL_LIT;}
+"break"         {cout << "Keyword: " << yytext << '\n'; set_semi_on(&can_insert_semi); }
+"case"          {cout << "Keyword: " << yytext << '\n'; set_semi_off(&can_insert_semi); }
+"const"         {cout << "Keyword: " << yytext << '\n'; set_semi_off(&can_insert_semi); }
+"continue"      {cout << "Keyword: " << yytext << '\n'; set_semi_on(&can_insert_semi); }
+"default"       {cout << "Keyword: " << yytext << '\n'; set_semi_off(&can_insert_semi); }
+"else"          {cout << "Keyword: " << yytext << '\n'; set_semi_off(&can_insert_semi); }
+"for"           {cout << "Keyword: " << yytext << '\n'; set_semi_off(&can_insert_semi); }
+"func"          {cout << "Keyword: " << yytext << '\n'; set_semi_off(&can_insert_semi); }
+"if"            {cout << "Keyword: " << yytext << '\n'; set_semi_off(&can_insert_semi); }
+"import"        {cout << "Keyword: " << yytext << '\n'; set_semi_off(&can_insert_semi); }
+"package"       {cout << "Keyword: " << yytext << '\n'; set_semi_off(&can_insert_semi); }
+"range"         {cout << "Keyword: " << yytext << '\n'; set_semi_off(&can_insert_semi); }
+"return"        {cout << "Keyword: " << yytext << '\n'; set_semi_on(&can_insert_semi); }
+"switch"        {cout << "Keyword: " << yytext << '\n'; set_semi_off(&can_insert_semi); }
+"var"           {cout << "Keyword: " << yytext << '\n'; set_semi_off(&can_insert_semi); }
+"int64"         {cout << "Type: " << yytext << '\n'; set_semi_off(&can_insert_semi); }
+"float64"       {cout << "Type: " << yytext << '\n'; set_semi_off(&can_insert_semi); }
+"bool"          {cout << "Type: " << yytext << '\n'; set_semi_off(&can_insert_semi); }
+"string"        {cout << "Type: " << yytext << '\n'; set_semi_off(&can_insert_semi); }
+"rune"          {cout << "Type: " << yytext << '\n'; set_semi_off(&can_insert_semi); }
+"true"          {cout << "Bool literal: " << yytext << '\n';  set_semi_on(&can_insert_semi); }
+"false"         {cout << "Bool literal: " << yytext << '\n';  set_semi_on(&can_insert_semi); }
 
-{IDENTIFIER}    { cout << "Identifier: " << yytext << '\n'; yylval.str_lit = new std::string(yytext); set_semi_on(&can_insert_semi); return ID;}
+{IDENTIFIER}    { cout << "Identifier: " << yytext << '\n';  set_semi_on(&can_insert_semi); }
 
-"&&"            { cout << "Operator: " << yytext << '\n'; set_semi_off(&can_insert_semi); return AND;}
-"||"            { cout << "Operator: " << yytext << '\n'; set_semi_off(&can_insert_semi); return OR;}
-"++"            { cout << "Operator: " << yytext << '\n'; set_semi_on(&can_insert_semi); return INC;}
-"--"            { cout << "Operator: " << yytext << '\n'; set_semi_on(&can_insert_semi); return DEC;}
-"=="            { cout << "Operator: " << yytext << '\n'; set_semi_off(&can_insert_semi); return EQUAL;}
+"&&"            { cout << "Operator: " << yytext << '\n'; set_semi_off(&can_insert_semi); }
+"||"            { cout << "Operator: " << yytext << '\n'; set_semi_off(&can_insert_semi); }
+"++"            { cout << "Operator: " << yytext << '\n'; set_semi_on(&can_insert_semi); }
+"--"            { cout << "Operator: " << yytext << '\n'; set_semi_on(&can_insert_semi); }
+"=="            { cout << "Operator: " << yytext << '\n'; set_semi_off(&can_insert_semi); }
 
 "+="            { cout << "Operator: " << yytext << '\n'; set_semi_off(&can_insert_semi);}
 "-="            { cout << "Operator: " << yytext << '\n'; set_semi_off(&can_insert_semi);}
 "*="            { cout << "Operator: " << yytext << '\n'; set_semi_off(&can_insert_semi);}
 "/="            { cout << "Operator: " << yytext << '\n'; set_semi_off(&can_insert_semi);}
 "%="            { cout << "Operator: " << yytext << '\n'; set_semi_off(&can_insert_semi);}
-"!="            { cout << "Operator: " << yytext << '\n'; set_semi_off(&can_insert_semi); return NEQUAL;}
-">="            { cout << "Operator: " << yytext << '\n'; set_semi_off(&can_insert_semi); return GREATER_EQUAL;}
-"<="            { cout << "Operator: " << yytext << '\n'; set_semi_off(&can_insert_semi); return LESS_EQUAL;}
-":="            { cout << "Operator: " << yytext << '\n'; set_semi_off(&can_insert_semi); return WALRUS;}
+"!="            { cout << "Operator: " << yytext << '\n'; set_semi_off(&can_insert_semi); }
+">="            { cout << "Operator: " << yytext << '\n'; set_semi_off(&can_insert_semi); }
+"<="            { cout << "Operator: " << yytext << '\n'; set_semi_off(&can_insert_semi); }
+":="            { cout << "Operator: " << yytext << '\n'; set_semi_off(&can_insert_semi); }
 
-"+"             { cout << "Operator: " << yytext << '\n'; set_semi_off(&can_insert_semi); return '+';}
-"-"             { cout << "Operator: " << yytext << '\n'; set_semi_off(&can_insert_semi); return '-';}
-"*"             { cout << "Operator: " << yytext << '\n'; set_semi_off(&can_insert_semi); return '*';}
-"/"             { cout << "Operator: " << yytext << '\n'; set_semi_off(&can_insert_semi); return '/';}
-"<"             { cout << "Operator: " << yytext << '\n'; set_semi_off(&can_insert_semi); return '<';}
-">"             { cout << "Operator: " << yytext << '\n'; set_semi_off(&can_insert_semi); return '>';}
-"="             { cout << "Operator: " << yytext << '\n'; set_semi_off(&can_insert_semi); return '=';}
-"!"             { cout << "Operator: " << yytext << '\n'; set_semi_off(&can_insert_semi); return '!';}
+"+"             { cout << "Operator: " << yytext << '\n'; set_semi_off(&can_insert_semi); }
+"-"             { cout << "Operator: " << yytext << '\n'; set_semi_off(&can_insert_semi); }
+"*"             { cout << "Operator: " << yytext << '\n'; set_semi_off(&can_insert_semi); }
+"/"             { cout << "Operator: " << yytext << '\n'; set_semi_off(&can_insert_semi); }
+"<"             { cout << "Operator: " << yytext << '\n'; set_semi_off(&can_insert_semi); }
+">"             { cout << "Operator: " << yytext << '\n'; set_semi_off(&can_insert_semi); }
+"="             { cout << "Operator: " << yytext << '\n'; set_semi_off(&can_insert_semi); }
+"!"             { cout << "Operator: " << yytext << '\n'; set_semi_off(&can_insert_semi); }
 
-"("             { cout << "OParen: " << yytext << '\n'; set_semi_off(&can_insert_semi); return '(';}
-")"             { cout << "CParen: " << yytext << '\n'; set_semi_on(&can_insert_semi); return ')';}
-"["             { cout << "OBracket: "<< yytext << '\n'; set_semi_off(&can_insert_semi); return '[';}
-"]"             { cout << "CBracket: "<< yytext << '\n'; set_semi_on(&can_insert_semi); return ']';}
-"{"             { cout << "OBrace: " << yytext << '\n'; set_semi_off(&can_insert_semi); return '{';}
-"}"             { cout << "CBrace: " << yytext << '\n'; set_semi_on(&can_insert_semi); return '}';}
+"("             { cout << "OParen: " << yytext << '\n'; set_semi_off(&can_insert_semi); }
+")"             { cout << "CParen: " << yytext << '\n'; set_semi_on(&can_insert_semi); }
+"["             { cout << "OBracket: "<< yytext << '\n'; set_semi_off(&can_insert_semi); }
+"]"             { cout << "CBracket: "<< yytext << '\n'; set_semi_on(&can_insert_semi); }
+"{"             { cout << "OBrace: " << yytext << '\n'; set_semi_off(&can_insert_semi); }
+"}"             { cout << "CBrace: " << yytext << '\n'; set_semi_on(&can_insert_semi); }
 
 {DEC_LIT} {
     std::string s = strip_underscores(yytext);
     unsigned long long v = parse_u64(s.c_str(), 10);
     cout << "Decimal integer: " << v << '\n';
-    yylval.int_lit = v;
+    
     set_semi_on(&can_insert_semi);
-    return INT_LIT;
+
 }
 {OCT_LIT} {
     std::string s = strip_underscores(yytext);
@@ -159,26 +157,26 @@ int can_insert_semi = 0;
         p += 2;
     unsigned long long v = parse_u64(p, 8);
     cout << "Octal integer: " << v << '\n';
-    yylval.int_lit = v;
+    
     set_semi_on(&can_insert_semi);
-    return INT_LIT;
+
 }
 {HEX_LIT} {
     std::string s = strip_underscores(yytext);
     const char* p = s.c_str() + 2;
     unsigned long long v = parse_u64(p, 16);
     cout << "Hexadecimal integer: " << v << '\n';
-    yylval.int_lit = v;
+    
     set_semi_on(&can_insert_semi);
-    return INT_LIT;
+
 }
 {DEC_FLOAT_LIT} {
     std::string s = strip_underscores(yytext);
     double d = std::stod(s);
     cout << "Decimal float: " << d << '\n';
-    yylval.float_lit = d;
+    
     set_semi_on(&can_insert_semi);
-    return FLOAT_LIT;
+
 }
 
 "//"                                    { BEGIN(SCOMM); }
@@ -222,21 +220,21 @@ int can_insert_semi = 0;
 
 <INTER_STR>\" {
     cout << "Interpreted string: " << str_buf << '\n';
-    yylval.str_lit = new std::string(str_buf);
+    
     str_reset(str_buf);
     set_semi_on(&can_insert_semi);
     BEGIN(INITIAL);
-    return STRING_LIT;
+
 }
 
 <RUNE_LIT>\' {
     if (strlen(str_buf) <= 1) {
         cout << "Rune literal: " << str_buf << '\n';
-        yylval.str_lit = new std::string(str_buf);
+        
         set_semi_on(&can_insert_semi);
         str_reset(str_buf);
         BEGIN(INITIAL);
-        return RUNE_LIT;
+
     } else {
         cout << "ERROR: more then one char in rune literal: " << str_buf << "\n";
         str_reset(str_buf);
@@ -249,11 +247,11 @@ int can_insert_semi = 0;
 <RAW_STR>\r                 { ; }
 <RAW_STR>` {
     cout << "Raw string: " << str_buf << '\n';
-    yylval.str_lit = new std::string(str_buf);
+    
     str_reset(str_buf);
     set_semi_on(&can_insert_semi);
     BEGIN(INITIAL);
-    return STRING_LIT;
+
 }
 
 <RAW_STR><<EOF>> {
@@ -336,14 +334,14 @@ void octal_escape(char *dest_str, const char *oct) {
 std::string strip_underscores(const char* y) {
     std::string s(y);
     s.erase(std::remove(s.begin(), s.end(), '_'), s.end());
-    return s;
+
 }
 
 unsigned long long parse_u64(const char* p, int base) {
     errno = 0;
     char* end = nullptr;
     unsigned long long v = std::strtoull(p, &end, base);
-    return v;
+
 }
 
 void set_semi_on(int *flag) {
