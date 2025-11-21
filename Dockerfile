@@ -8,7 +8,8 @@ RUN apt-get update && \
     flex \
     bison \
     cmake \
-    git \
+    graphviz \
+    gdb \
     && rm -rf /var/lib/apt/lists/*
 
 # Copy project to working directory
