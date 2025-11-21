@@ -406,6 +406,9 @@ class ConstSpecNode : public AstNode {
 public:
     static ConstSpecNode* createConstSpec(IdListNode *idList, TypeNode *type, ExprListNode *exprList);
 
+    string getDotLabel() const override;
+    string toDot() const override;
+
 protected:
     IdListNode *idList;
     TypeNode *type;

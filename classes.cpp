@@ -913,6 +913,19 @@ ConstSpecNode* ConstSpecNode::createConstSpec(IdListNode *idList, TypeNode *type
     return node;
 }
 
+string ConstSpecNode::getDotLabel() const {
+    return "CONST_SPEC";
+}
+
+string ConstSpecNode::toDot() const {
+    string res;
+    appendDotNode(res);
+    appendDotEdge(res, idList, "ids");
+    appendDotEdge(res, type, "type");
+    appendDotEdge(res, exprList, "values");
+    return res;
+}
+
 ConstSpecNode::ConstSpecNode(): AstNode() {
     idList = nullptr;
     type = nullptr;
