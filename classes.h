@@ -275,6 +275,9 @@ public:
 
     list<ValueNode*>* getIdList() const;
 
+    string getDotLabel() const override;
+    string toDot() const override;
+
 protected:
     list<ValueNode*> *ids;
 

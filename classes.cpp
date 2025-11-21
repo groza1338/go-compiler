@@ -646,6 +646,22 @@ list<ValueNode*>* IdListNode::getIdList() const {
     return ids;
 }
 
+string IdListNode::getDotLabel() const {
+    return "ID_LIST";
+}
+
+string IdListNode::toDot() const {
+    string res;
+    appendDotNode(res);
+    if (ids) {
+        int i = 0;
+        for (auto *v : *ids) {
+            appendDotEdge(res, v, "id_" + to_string(i++));
+        }
+    }
+    return res;
+}
+
 TypeNode* TypeNode::createNamedType(TypeNameNode *name) {
     TypeNode *node = new TypeNode();
     node->kind = NAMED;
