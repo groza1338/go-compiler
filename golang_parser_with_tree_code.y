@@ -10,10 +10,7 @@ using namespace std;
 
 %code provides {
     extern int yylex(void);
-
-    void yyerror(char const* s) {
-        cout << s << endl;
-    }
+    void yyerror(const char* s);
 }
 
 // Секция объявлений
@@ -358,5 +355,9 @@ literal_val     :   INT_LIT {$$=ValueNode::createInt($1);}
                 ;
 
 %%
+
+void yyerror(const char* s) {
+    cout << s << endl;
+}
 // Секция пользовательского кода
 
