@@ -454,6 +454,9 @@ class FuncDeclNode : public AstNode {
 public:
     static FuncDeclNode* createFuncDecl(ValueNode *id, SignatureNode *signature, StmtNode *body);
 
+    string getDotLabel() const override;
+    string toDot() const override;
+
 protected:
     ValueNode *id;
     SignatureNode *signature;

@@ -1017,6 +1017,19 @@ FuncDeclNode* FuncDeclNode::createFuncDecl(ValueNode *id, SignatureNode *signatu
     return node;
 }
 
+string FuncDeclNode::getDotLabel() const {
+    return "FUNC_DECL";
+}
+
+string FuncDeclNode::toDot() const {
+    string res;
+    appendDotNode(res);
+    appendDotEdge(res, id, "id");
+    appendDotEdge(res, signature, "signature");
+    appendDotEdge(res, body, "body");
+    return res;
+}
+
 FuncDeclNode::FuncDeclNode(): AstNode() {
     id = nullptr;
     signature = nullptr;
