@@ -825,6 +825,19 @@ ResultNode* ResultNode::createResult(TypeNode *type) {
     return node;
 }
 
+string ResultNode::getDotLabel() const {
+    return "RESULT";
+}
+
+string ResultNode::toDot() const {
+    string res;
+    appendDotNode(res);
+    appendDotEdge(res, paramList, "params");
+    appendDotEdge(res, type, "type");
+    return res;
+
+}
+
 ResultNode::ResultNode(): AstNode() {
     paramList = nullptr;
     type = nullptr;

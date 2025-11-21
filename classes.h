@@ -361,6 +361,9 @@ public:
     static ResultNode* createResult(ParamDeclListNode *paramList);
     static ResultNode* createResult(TypeNode *type);
 
+    string getDotLabel() const override;
+    string toDot() const override;
+
 protected:
     ParamDeclListNode *paramList;
     TypeNode *type;
