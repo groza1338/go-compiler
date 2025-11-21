@@ -991,6 +991,19 @@ DeclNode* DeclNode::createDecl(VarSpecListNode *varSpecList) {
     return node;
 }
 
+string DeclNode::getDotLabel() const {
+    return "DECL";
+}
+
+string DeclNode::toDot() const {
+    string res;
+    appendDotNode(res);
+    appendDotEdge(res, constSpecList, "consts");
+    appendDotEdge(res, varSpecList, "vars");
+    return res;
+
+}
+
 DeclNode::DeclNode(): AstNode() {
     constSpecList = nullptr;
     varSpecList = nullptr;

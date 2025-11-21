@@ -440,6 +440,9 @@ public:
     static DeclNode* createDecl(VarSpecNode *varSpec);
     static DeclNode* createDecl(VarSpecListNode *varSpecList);
 
+    string getDotLabel() const override;
+    string toDot() const override;
+
 protected:
     ConstSpecListNode *constSpecList;
     VarSpecListNode *varSpecList;
