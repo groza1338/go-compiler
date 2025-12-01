@@ -122,7 +122,7 @@ void yyerror(char const* s) {
 %%
 // Секция правил грамматики
 
-program			:	package_clause ';' e_import_decl_list e_top_level_decl_list
+program			:	package_clause e_import_decl_list e_top_level_decl_list
 				;
 				
 e_import_decl_list
@@ -170,7 +170,7 @@ func_decl		:	FUNC ID signature
 				|	FUNC ID signature block
 				;
 
-package_clause	:	PACKAGE ID
+package_clause	:	PACKAGE ID ';'
 				;
 
 e_stmt_list     :   stmt_list 
