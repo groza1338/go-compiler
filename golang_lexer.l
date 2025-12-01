@@ -84,7 +84,7 @@ void set_semi_off(int *flag);
 char comment_buf[MAX_STRING_LENGTH];
 int comment_start_line = -1;
 char str_buf[MAX_STRING_LENGTH];
-int can_insert_semi = 0;
+static int can_insert_semi = 0;
 %}
 
 "break"         {cout << "Keyword: " << yytext << '\n'; set_semi_on(&can_insert_semi); return BREAK;}
@@ -258,6 +258,7 @@ int can_insert_semi = 0;
     if (can_insert_semi) {
         cout << "Semicolon: ; (inserted)\n";
         can_insert_semi = 0;
+        return ';';
     }
 }
 
@@ -266,8 +267,6 @@ int can_insert_semi = 0;
 <<EOF>> {
     if (can_insert_semi) {
         cout << "Semicolon: ; (inserted before EOF)\n";
-    } else {
-        cout << "Just NL without inserted semicolon.\n";
     }
     return 0;
 }
