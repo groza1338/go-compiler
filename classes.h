@@ -7,8 +7,6 @@
 #include <string>
 #include <list>
 
-#include "classes.h"
-
 using namespace std;
 
 class StmtNode;
