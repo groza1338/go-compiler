@@ -4,8 +4,6 @@
 
 #include "classes.h"
 
-#include <golang_parser.hpp>
-
 unsigned int AstNode::maxId = 0;
 
 void AstNode::appendDotNode(string &res) const {
