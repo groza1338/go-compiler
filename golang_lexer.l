@@ -266,6 +266,8 @@ int can_insert_semi = 0;
 <<EOF>> {
     if (can_insert_semi) {
         cout << "Semicolon: ; (inserted before EOF)\n";
+    } else {
+        cout << "Just NL without inserted semicolon.\n";
     }
     return 0;
 }
