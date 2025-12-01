@@ -39,7 +39,9 @@ int main(int argc, char* argv[])
         return 1;
     }
 
+    cout << "digraph AST {\n";
     cout << root->toDot();
+    cout << "}\n";
 
     return 0;
 }
