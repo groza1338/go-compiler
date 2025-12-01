@@ -186,6 +186,7 @@ static int can_insert_semi = 0;
 <SCOMM><<EOF>>                          { BEGIN(INITIAL); }
 
 "/*"                                    { comment_start_line = yylineno; BEGIN(MCOMM); }
+<MCOMM>{NL}                             { ; }
 <MCOMM>[^*\r\n]*                        { str_add_chars(comment_buf, yytext, yyleng); }
 <MCOMM>"*"+[^*/\r\n]*                   { str_add_chars(comment_buf, yytext, yyleng); }
 <MCOMM>"*"+"/"                          { cout << "Multi-line comment: " << comment_buf << '\n'; comm_reset(comment_buf, &comment_start_line); BEGIN(INITIAL); }
