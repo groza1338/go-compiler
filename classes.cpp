@@ -247,6 +247,9 @@ string ExprNode::toDot() const {
 
     appendDotNode(result);
 
+    appendDotEdge(result, identifier, "id");
+    appendDotEdge(result, value, "value");
+
     appendDotEdge(result, left, "left");
     appendDotEdge(result, right, "right");
     appendDotEdge(result, operand, "operand");
