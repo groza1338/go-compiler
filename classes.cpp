@@ -4,8 +4,6 @@
 
 #include "classes.h"
 
-#include <golang_parser.hpp>
-
 unsigned int AstNode::maxId = 0;
 
 void AstNode::appendDotNode(string &res) const {
@@ -248,6 +246,9 @@ string ExprNode::toDot() const {
     string result;
 
     appendDotNode(result);
+
+    appendDotEdge(result, identifier, "id");
+    appendDotEdge(result, value, "value");
 
     appendDotEdge(result, left, "left");
     appendDotEdge(result, right, "right");
