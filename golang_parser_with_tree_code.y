@@ -128,7 +128,7 @@ using namespace std;
 %%
 // Секция правил грамматики
 
-program			:	package_clause e_import_decl_list e_top_level_decl_list {$$=ProgramNode::createNode($1, $3, $5);}
+program			:	package_clause e_import_decl_list e_top_level_decl_list {$$=ProgramNode::createNode($1, $2, $3);}
 				;
 				
 e_import_decl_list
