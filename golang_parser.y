@@ -89,7 +89,7 @@ void yyerror(char const* s) {
 %type   <id_list_node>              id_list
 %type   <type_node>                 type
 %type   <param_decl_node>           param_decl
-%type   <param_decl_list_node>      param_list
+%type   <param_decl_list_node>      e_param_list param_list
 %type   <signature_node>            signature
 %type   <result_node>               results
 %type   <var_spec_node>             var_spec
@@ -280,13 +280,17 @@ type_name		:	INT
 				|	RUNE
 				;
 				
-signature		:	'(' param_list ')' results
-				|	'(' param_list ')'
+signature		:	'(' e_param_list ')' results
+				|	'(' e_param_list ')'
 				;
 				
 results			:	'(' param_list ')'
 				|	type
 				;
+
+e_param_list    :   param_list
+                |   %empty
+                ;
 				
 param_list		:	param_list ',' param_decl
 				|	param_decl
