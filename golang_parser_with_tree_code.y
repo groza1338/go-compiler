@@ -93,7 +93,7 @@ using namespace std;
 %type   <id_list_node>              id_list
 %type   <type_node>                 type
 %type   <param_decl_node>           param_decl
-%type   <param_decl_list_node>      param_list
+%type   <param_decl_list_node>      e_param_list param_list
 %type   <signature_node>            signature
 %type   <result_node>               results
 %type   <var_spec_node>             var_spec
@@ -128,11 +128,11 @@ using namespace std;
 %%
 // Секция правил грамматики
 
-program			:	package_clause ';' e_import_decl_list ';' e_top_level_decl_list {$$=ProgramNode::createNode($1, $3, $5);}
+program			:	package_clause e_import_decl_list e_top_level_decl_list {$$=ProgramNode::createNode($1, $3, $5);}
 				;
 				
 e_import_decl_list
-				:	import_decl_list {$$=$1;}
+				:	import_decl_list ';' {$$=$1;}
 				|   %empty {$$=nullptr;}
 				;
 				
@@ -176,7 +176,7 @@ func_decl		:	FUNC ID signature {$$=FuncDeclNode::createFuncDecl(ValueNode::creat
 				|	FUNC ID signature block {$$=FuncDeclNode::createFuncDecl(ValueNode::createString($2), $3, $4);}
 				;
 
-package_clause	:	PACKAGE ID {$$=PackageClauseNode::createNode(ValueNode::createString($2));}
+package_clause	:	PACKAGE ID ';' {$$=PackageClauseNode::createNode(ValueNode::createString($2));}
 				;
 
 e_stmt_list     :   stmt_list {$$=$1;}
@@ -286,13 +286,17 @@ type_name		:	INT {$$=TypeNameNode::createTypeInt();}
 				|	RUNE {$$=TypeNameNode::createTypeRune();}
 				;
 				
-signature		:	'(' param_list ')' results {$$=SignatureNode::createSignature($2, $4);}
-				|	'(' param_list ')' {$$=SignatureNode::createSignature($2, nullptr);}
+signature		:	'(' e_param_list ')' results {$$=SignatureNode::createSignature($2, $4);}
+				|	'(' e_param_list ')' {$$=SignatureNode::createSignature($2, nullptr);}
 				;
 				
 results			:	'(' param_list ')' {$$=ResultNode::createResult($2);}
 				|	type {$$=ResultNode::createResult($1);}
 				;
+
+e_param_list    :   param_list {$$=$1;}
+                |   %empty {$$=nullptr;}
+                ;
 				
 param_list		:	param_list ',' param_decl {$$=ParamDeclListNode::addParamDeclToList($1, $3);}
 				|	param_decl {$$=ParamDeclListNode::createParamDeclList($1);}
