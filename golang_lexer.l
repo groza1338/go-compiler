@@ -255,6 +255,17 @@ static int can_insert_semi = 0;
     BEGIN(INITIAL);
 }
 
+;   {
+    if (can_insert_semi) {
+        cout << "Semicolon: ;\n";
+        can_insert_semi = 0;
+        return ';';
+    } else {
+        cout << "ERROR: Semicolon can`t placed there.";
+        return 1;
+    }
+}
+
 {NL} {
     if (can_insert_semi) {
         cout << "Semicolon: ; (inserted)\n";
