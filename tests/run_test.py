@@ -82,11 +82,13 @@ def kill_docker_container(container_name):
 
 def run_command_inside_container(command: list[str], container_name: str, stdout_file: Path = None):
     # Создание команды
+    exec_prefix = ["docker", "exec", "-i", container_name]
+
     if stdout_file is not None:
         # Команда с сохранением информации в файл
-        run_command = ["docker", "exec", "-it", container_name] + command + [">>", str(stdout_file)]
+        run_command = exec_prefix + command + [">>", str(stdout_file)]
     else:
-        run_command = ["docker", "exec", "-it", container_name] + command
+        run_command = exec_prefix + command
 
     # Вывести команду в терминал
     if DEBUG: print(f"Run command inside container {container_name}:\n", " ".join(run_command))
