@@ -116,8 +116,7 @@ if __name__ == "__main__":
     clear_test_results_dir(BASE_RUN_DIRECTORY)
     try:
         for file in files:
-            result_dir = Path(TEST_RESULT_DIRECTORY) / Path(file).with_name(Path(file).stem)
-            output_path = result_dir / "output.txt"
+            output_path = (Path(TEST_RESULT_DIRECTORY) / Path(file)).with_suffix(".txt")
             output_path.parent.mkdir(parents=True, exist_ok=True)
             command = [EXECUTABLE_TARGET, Path(file).as_posix()]
             run_command_inside_container(command, container_name, output_path)
