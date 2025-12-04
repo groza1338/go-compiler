@@ -1,0 +1,9 @@
+package main
+
+func main() {
+	total := 0
+	for i := 0; i < 3; i = i + 1 {
+		total = total + i
+	}
+	_ = total
+}
