@@ -102,11 +102,11 @@ static int can_insert_semi = 0;
 "return"        {cout << "Keyword: " << yytext << '\n'; set_semi_on(&can_insert_semi); return RETURN;}
 "switch"        {cout << "Keyword: " << yytext << '\n'; set_semi_off(&can_insert_semi); return SWITCH;}
 "var"           {cout << "Keyword: " << yytext << '\n'; set_semi_off(&can_insert_semi); return VAR;}
-"int64"         {cout << "Type: " << yytext << '\n'; set_semi_off(&can_insert_semi); return INT;}
-"float64"       {cout << "Type: " << yytext << '\n'; set_semi_off(&can_insert_semi); return FLOAT;}
-"bool"          {cout << "Type: " << yytext << '\n'; set_semi_off(&can_insert_semi); return BOOL;}
-"string"        {cout << "Type: " << yytext << '\n'; set_semi_off(&can_insert_semi); return STRING;}
-"rune"          {cout << "Type: " << yytext << '\n'; set_semi_off(&can_insert_semi); return RUNE;}
+"int64"         {cout << "Type: " << yytext << '\n'; set_semi_on(&can_insert_semi); return INT;}
+"float64"       {cout << "Type: " << yytext << '\n'; set_semi_on(&can_insert_semi); return FLOAT;}
+"bool"          {cout << "Type: " << yytext << '\n'; set_semi_on(&can_insert_semi); return BOOL;}
+"string"        {cout << "Type: " << yytext << '\n'; set_semi_on(&can_insert_semi); return STRING;}
+"rune"          {cout << "Type: " << yytext << '\n'; set_semi_on(&can_insert_semi); return RUNE;}
 "true"          {cout << "Bool literal: " << yytext << '\n'; yylval.int_lit = 1; set_semi_on(&can_insert_semi); return BOOL_LIT;}
 "false"         {cout << "Bool literal: " << yytext << '\n'; yylval.int_lit = 0; set_semi_on(&can_insert_semi); return BOOL_LIT;}
 
@@ -136,6 +136,7 @@ static int can_insert_semi = 0;
 ">"             { cout << "Operator: " << yytext << '\n'; set_semi_off(&can_insert_semi); return '>';}
 "="             { cout << "Operator: " << yytext << '\n'; set_semi_off(&can_insert_semi); return '=';}
 "!"             { cout << "Operator: " << yytext << '\n'; set_semi_off(&can_insert_semi); return '!';}
+":"             { cout << "Colon: " << yytext << '\n'; set_semi_off(&can_insert_semi); return ':';}
 
 "("             { cout << "OParen: " << yytext << '\n'; set_semi_off(&can_insert_semi); return '(';}
 ")"             { cout << "CParen: " << yytext << '\n'; set_semi_on(&can_insert_semi); return ')';}
