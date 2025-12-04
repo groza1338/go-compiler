@@ -242,6 +242,10 @@ public:
         INC,
         DEC,
         ASSIGN,
+        ADD_ASSIGN,
+        SUB_ASSIGN,
+        MUL_ASSIGN,
+        DIV_ASSIGN,
         SHORT_VAR_DECL
     };
 
@@ -249,6 +253,10 @@ public:
     static SimpleStmtNode* createInc(ExprNode *expr);
     static SimpleStmtNode* createDec(ExprNode *expr);
     static SimpleStmtNode* createAssign(ExprListNode *left, ExprListNode *right);
+    static SimpleStmtNode* createAddAssign(ExprListNode *left, ExprListNode *right);
+    static SimpleStmtNode* createSubAssign(ExprListNode *left, ExprListNode *right);
+    static SimpleStmtNode* createMulAssign(ExprListNode *left, ExprListNode *right);
+    static SimpleStmtNode* createDivAssign(ExprListNode *left, ExprListNode *right);
     static SimpleStmtNode* createShortVarDecl(ExprListNode *left, ExprListNode *right);
 
     SimpleStmtType getType() const;

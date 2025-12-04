@@ -586,6 +586,38 @@ SimpleStmtNode* SimpleStmtNode::createAssign(ExprListNode *left, ExprListNode *r
     return node;
 }
 
+SimpleStmtNode* SimpleStmtNode::createAddAssign(ExprListNode *left, ExprListNode *right) {
+    SimpleStmtNode *node = new SimpleStmtNode();
+    node->type = ADD_ASSIGN;
+    node->left = left;
+    node->right = right;
+    return node;
+}
+
+SimpleStmtNode* SimpleStmtNode::createSubAssign(ExprListNode *left, ExprListNode *right) {
+    SimpleStmtNode *node = new SimpleStmtNode();
+    node->type = SUB_ASSIGN;
+    node->left = left;
+    node->right = right;
+    return node;
+}
+
+SimpleStmtNode* SimpleStmtNode::createMulAssign(ExprListNode *left, ExprListNode *right) {
+    SimpleStmtNode *node = new SimpleStmtNode();
+    node->type = MUL_ASSIGN;
+    node->left = left;
+    node->right = right;
+    return node;
+}
+
+SimpleStmtNode* SimpleStmtNode::createDivAssign(ExprListNode *left, ExprListNode *right) {
+    SimpleStmtNode *node = new SimpleStmtNode();
+    node->type = DIV_ASSIGN;
+    node->left = left;
+    node->right = right;
+    return node;
+}
+
 SimpleStmtNode* SimpleStmtNode::createShortVarDecl(ExprListNode *left, ExprListNode *right) {
     SimpleStmtNode *node = new SimpleStmtNode();
     node->type = SHORT_VAR_DECL;
@@ -616,6 +648,10 @@ string SimpleStmtNode::getDotLabel() const {
         case INC:               return "INC_STMT";
         case DEC:               return "DEC_STMT";
         case ASSIGN:            return "ASSIGN_STMT";
+        case ADD_ASSIGN:        return "+=_STMT";
+        case SUB_ASSIGN:        return "-=_STMT";
+        case MUL_ASSIGN:        return "*=_STMT";
+        case DIV_ASSIGN:        return "/=_STMT";
         case SHORT_VAR_DECL:    return "SHORT_VAR_DECL";
         default:                return "UNKNOWN";
     }

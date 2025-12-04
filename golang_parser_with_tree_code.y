@@ -70,6 +70,11 @@ using namespace std;
 %token	FOR
 %token 	RANGE
 
+%token  ADD_ASSIGN
+%token  SUB_ASSIGN
+%token  MUL_ASSIGN
+%token  DIV_ASSIGN
+
 %token  IOTA
 
 %token	INT
@@ -210,6 +215,10 @@ simple_stmt		:	expr {$$=SimpleStmtNode::createExpr($1);}
 				|	expr INC {$$=SimpleStmtNode::createInc($1);}
 				|	expr DEC {$$=SimpleStmtNode::createDec($1);}
 				|	expr_list '=' expr_list {$$=SimpleStmtNode::createAssign($1, $3);}
+				|	expr_list ADD_ASSIGN expr_list {$$=SimpleStmtNode::createAddAssign($1, $3);}
+				|	expr_list SUB_ASSIGN expr_list {$$=SimpleStmtNode::createSubAssign($1, $3);}
+				|	expr_list MUL_ASSIGN expr_list {$$=SimpleStmtNode::createMulAssign($1, $3);}
+				|	expr_list DIV_ASSIGN expr_list {$$=SimpleStmtNode::createDivAssign($1, $3);}
 				|	expr_list WALRUS expr_list {$$=SimpleStmtNode::createShortVarDecl($1, $3);}
 				;
 				

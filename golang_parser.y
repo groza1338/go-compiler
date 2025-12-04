@@ -66,6 +66,11 @@ void yyerror(char const* s) {
 %token	FOR
 %token 	RANGE
 
+%token  ADD_ASSIGN
+%token  SUB_ASSIGN
+%token  MUL_ASSIGN
+%token  DIV_ASSIGN
+
 %token  IOTA
 
 %token	INT
@@ -204,7 +209,11 @@ simple_stmt		:	expr
 				|	expr INC 
 				|	expr DEC 
 				|	expr_list '=' expr_list 
-				|	expr_list WALRUS expr_list 
+				|	expr_list ADD_ASSIGN expr_list 
+				|	expr_list SUB_ASSIGN expr_list 
+				|	expr_list MUL_ASSIGN expr_list 
+				|	expr_list DIV_ASSIGN expr_list 
+				|	expr_list WALRUS expr_list
 				;
 				
 return_stmt		:	RETURN 
