@@ -6,6 +6,8 @@
 #include "classes.h"
 
 using namespace std;
+
+extern ProgramNode *root;
 }
 
 %code provides {
@@ -120,6 +122,7 @@ using namespace std;
 %type   <type_name_node>            type_name
 %type   <value_node>                literal_val
 
+// TODO: добавить ассоциативность для новых токенов
 %right	'=' WALRUS
 %left	OR
 %left	AND
@@ -135,16 +138,17 @@ using namespace std;
 %%
 // Секция правил грамматики
 
-program			:	package_clause e_import_decl_list e_top_level_decl_list {$$=ProgramNode::createNode($1, $2, $3);}
+program			:	package_clause e_import_decl_list e_top_level_decl_list {$$=ProgramNode::createNode($1, $2, $3); root = $$;}
 				;
 				
 e_import_decl_list
-				:	import_decl_list ';' {$$=$1;}
+				:	import_decl_list {$$=$1;}
 				|   %empty {$$=nullptr;}
 				;
 				
-import_decl_list:	import_decl_list import_decl ';' {$$=ImportDeclListNode::addElemToList($1, $2);}
-				|	import_decl ';' {$$=ImportDeclListNode::createList($1);}
+import_decl_list:	import_decl {$$=ImportDeclListNode::createList($1);}
+				|	import_decl_list ';' import_decl {$$=ImportDeclListNode::addElemToList($1, $3);}
+				|	import_decl_list ';' {$$=$1;} /* allow trailing semicolon */
 				;
 				
 import_decl		:	IMPORT import_spec {$$=ImportDeclNode::createNode($2);}
@@ -352,6 +356,8 @@ expr			:	ID {$$=ExprNode::createIdentifier(ValueNode::createString($1));}
 				|	expr OR expr {$$=ExprNode::createOr($1, $3);}
 				|	'!' expr {$$=ExprNode::createNot($2);}
 				|	'-' expr	%prec UMINUS {$$=ExprNode::createUnaryMinus($2);}
+				|	'&' expr {$$=ExprNode::createAddressOf($2);}
+				|	expr '.' ID {$$=ExprNode::createSelector($1, ValueNode::createString($3));}
 				|	expr '[' expr ']' {$$=ExprNode::createElementAccess($1, $3);}
 				|	expr '[' ':' ']' {$$=ExprNode::createSlice($1, nullptr, nullptr, nullptr);}
 				|	expr '[' expr ':' ']' {$$=ExprNode::createSlice($1, $3, nullptr, nullptr);}

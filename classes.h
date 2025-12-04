@@ -64,7 +64,9 @@ public:
         OR,
         NOT,
         UNARY_MINUS,
+        ADDRESS_OF,
         ELEMENT_ACCESS,
+        SELECTOR,
         SLICE,
         FUNCTION_CALL
     };
@@ -86,7 +88,9 @@ public:
     static ExprNode* createOr(ExprNode *left, ExprNode *right);
     static ExprNode* createNot(ExprNode *operand);
     static ExprNode* createUnaryMinus(ExprNode *operand);
+    static ExprNode* createAddressOf(ExprNode *operand);
     static ExprNode* createElementAccess(ExprNode *operand, ExprNode *index);
+    static ExprNode* createSelector(ExprNode *operand, ValueNode *field);
     static ExprNode* createSlice(ExprNode *operand, ExprNode *low, ExprNode *high, ExprNode *max);
     static ExprNode* createFunctionCall(ExprNode *operand, ExprListNode *args);
 

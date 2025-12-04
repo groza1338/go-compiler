@@ -152,11 +152,26 @@ ExprNode* ExprNode::createUnaryMinus(ExprNode *operand) {
     return node;
 }
 
+ExprNode* ExprNode::createAddressOf(ExprNode *operand) {
+    ExprNode *node = new ExprNode();
+    node->type = ADDRESS_OF;
+    node->operand = operand;
+    return node;
+}
+
 ExprNode* ExprNode::createElementAccess(ExprNode *operand, ExprNode *index) {
     ExprNode *node = new ExprNode();
     node->type = ELEMENT_ACCESS;
     node->operand = operand;
     node->index = index;
+    return node;
+}
+
+ExprNode* ExprNode::createSelector(ExprNode *operand, ValueNode *field) {
+    ExprNode *node = new ExprNode();
+    node->type = SELECTOR;
+    node->operand = operand;
+    node->identifier = field;
     return node;
 }
 
@@ -242,7 +257,9 @@ string ExprNode::getDotLabel() const {
         case OR:                return "||";
         case NOT:               return "!";
         case UNARY_MINUS:       return "-";
+        case ADDRESS_OF:        return "&";
         case ELEMENT_ACCESS:    return "[i]";
+        case SELECTOR:          return ".";
         case SLICE:             return "[]";
         case FUNCTION_CALL:     return "func()";
         default:                return "UNKNOWN";
@@ -1446,11 +1463,26 @@ int ValueNode::getRune() const {
 }
 
 string ValueNode::getDotLabel() const {
+    auto escapeString = [](const string &src) {
+        string out;
+        out.reserve(src.size());
+        for (char c : src) {
+            switch (c) {
+                case '\\': out += "\\\\"; break;
+                case '\"': out += "\\\""; break;
+                case '\n': out += "\\n"; break;
+                case '\t': out += "\\t"; break;
+                default: out.push_back(c); break;
+            }
+        }
+        return out;
+    };
+
     switch (valueType) {
         case LIT_INT:       return to_string(intValue);
         case LIT_FLOAT:     return to_string(floatValue);
         case LIT_RUNE:      return to_string(intValue);
-        case LIT_STRING:    return *stringValue;
+        case LIT_STRING:    return escapeString(*stringValue);
         case LIT_BOOL:      return boolValue ? "true" : "false";
         default:            return "UNKNOWN";
     }

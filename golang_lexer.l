@@ -102,6 +102,7 @@ static int can_insert_semi = 0;
 "return"        {cout << "Keyword: " << yytext << '\n'; set_semi_on(&can_insert_semi); return RETURN;}
 "switch"        {cout << "Keyword: " << yytext << '\n'; set_semi_off(&can_insert_semi); return SWITCH;}
 "var"           {cout << "Keyword: " << yytext << '\n'; set_semi_off(&can_insert_semi); return VAR;}
+"int"           {cout << "Type: " << yytext << '\n'; set_semi_on(&can_insert_semi); return INT;}
 "int64"         {cout << "Type: " << yytext << '\n'; set_semi_on(&can_insert_semi); return INT;}
 "float64"       {cout << "Type: " << yytext << '\n'; set_semi_on(&can_insert_semi); return FLOAT;}
 "bool"          {cout << "Type: " << yytext << '\n'; set_semi_on(&can_insert_semi); return BOOL;}
@@ -137,6 +138,9 @@ static int can_insert_semi = 0;
 "="             { cout << "Operator: " << yytext << '\n'; set_semi_off(&can_insert_semi); return '=';}
 "!"             { cout << "Operator: " << yytext << '\n'; set_semi_off(&can_insert_semi); return '!';}
 ":"             { cout << "Colon: " << yytext << '\n'; set_semi_off(&can_insert_semi); return ':';}
+"."             { cout << "Dot: " << yytext << '\n'; set_semi_off(&can_insert_semi); return '.';}
+","             { cout << "Comma: " << yytext << '\n'; set_semi_off(&can_insert_semi); return ',';}
+"&"             { cout << "Operator: " << yytext << '\n'; set_semi_off(&can_insert_semi); return '&';}
 
 "("             { cout << "OParen: " << yytext << '\n'; set_semi_off(&can_insert_semi); return '(';}
 ")"             { cout << "CParen: " << yytext << '\n'; set_semi_on(&can_insert_semi); return ')';}
