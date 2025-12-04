@@ -1480,11 +1480,11 @@ string ValueNode::getDotLabel() const {
     };
 
     switch (valueType) {
-        case LIT_INT:       return to_string(intValue);
-        case LIT_FLOAT:     return to_string(floatValue);
-        case LIT_RUNE:      return to_string(intValue);
-        case LIT_STRING:    return escapeString(*stringValue);
-        case LIT_BOOL:      return boolValue ? "true" : "false";
+        case LIT_INT:       return "int64: " + to_string(intValue);
+        case LIT_FLOAT:     return "float64: " + to_string(floatValue);
+        case LIT_RUNE:      return "rune: " + to_string(intValue);
+        case LIT_STRING:    return "string: " + escapeString(*stringValue);
+        case LIT_BOOL:      return string("bool: ") + (boolValue ? "true" : "false");
         default:            return "UNKNOWN";
     }
 }
