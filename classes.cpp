@@ -478,13 +478,13 @@ string StmtNode::toDot() const {
     appendDotEdge(result, exprList, "expr_list");
     appendDotEdge(result, stmtList, "stmt_list");
     appendDotEdge(result, simpleStmt, "simple_stmt");
+    appendDotEdge(result, initStmt, "init_stmt");
     appendDotEdge(result, condition, "condition");
+    appendDotEdge(result, postStmt, "post_stmt");
     appendDotEdge(result, thenBranch, "then_branch");
     appendDotEdge(result, elseBranch, "else_branch");
     appendDotEdge(result, body, "body");
     appendDotEdge(result, caseList, "case_list");
-    appendDotEdge(result, initStmt, "init_stmt");
-    appendDotEdge(result, postStmt, "post_stmt");
 
     return result;
 }
