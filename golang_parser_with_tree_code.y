@@ -70,6 +70,8 @@ using namespace std;
 %token	FOR
 %token 	RANGE
 
+%token  IOTA
+
 %token	INT
 %token	FLOAT
 %token	BOOL
@@ -324,8 +326,9 @@ e_expr          :   expr {$$=$1;}
                 ;
 
 expr			:	ID {$$=ExprNode::createIdentifier(ValueNode::createString($1));}
-				|	'(' expr ')' {$$=$2;}
-				|	literal_val {$$=ExprNode::createLiteralVal($1);}
+					|	IOTA {$$=ExprNode::createIota();}
+					|	'(' expr ')' {$$=$2;}
+					|	literal_val {$$=ExprNode::createLiteralVal($1);}
 				|	expr '+' expr {$$=ExprNode::createSummary($1, $3);}
 				|	expr '-' expr {$$=ExprNode::createSubtraction($1, $3);}
 				|	expr '*' expr {$$=ExprNode::createMultiplication($1, $3);}
@@ -364,4 +367,3 @@ void yyerror(const char* s) {
     cout << s << endl;
 }
 // Секция пользовательского кода
-

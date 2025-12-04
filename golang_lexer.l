@@ -109,6 +109,7 @@ static int can_insert_semi = 0;
 "rune"          {cout << "Type: " << yytext << '\n'; set_semi_on(&can_insert_semi); return RUNE;}
 "true"          {cout << "Bool literal: " << yytext << '\n'; yylval.int_lit = 1; set_semi_on(&can_insert_semi); return BOOL_LIT;}
 "false"         {cout << "Bool literal: " << yytext << '\n'; yylval.int_lit = 0; set_semi_on(&can_insert_semi); return BOOL_LIT;}
+"iota"         {cout << "Iota: " << yytext << '\n'; set_semi_on(&can_insert_semi); return IOTA;}
 
 {IDENTIFIER}    { cout << "Identifier: " << yytext << '\n'; yylval.str_lit = new std::string(yytext); set_semi_on(&can_insert_semi); return ID;}
 

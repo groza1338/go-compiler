@@ -66,6 +66,8 @@ void yyerror(char const* s) {
 %token	FOR
 %token 	RANGE
 
+%token  IOTA
+
 %token	INT
 %token	FLOAT
 %token	BOOL
@@ -318,8 +320,9 @@ e_expr          :   expr
                 ;
 
 expr			:	ID 
-				|	'(' expr ')' 
-				|	INT_LIT 
+					|	IOTA 
+					|	'(' expr ')' 
+					|	INT_LIT 
 				|	FLOAT_LIT 
 				|	RUNE_LIT 
 				|	STRING_LIT 
@@ -351,4 +354,3 @@ expr			:	ID
 
 %%
 // Секция пользовательского кода
-
