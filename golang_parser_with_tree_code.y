@@ -123,14 +123,14 @@ using namespace std;
 %type   <program_node>              program
 %type   <type_name_node>            type_name
 %type   <value_node>                literal_val
-
 %right	'=' WALRUS
 %left	OR
 %left	AND
 %left 	EQUAL NEQUAL '<' LESS_EQUAL '>' GREATER_EQUAL
 %left	'+' '-'
 %left	'*' '/'
-%right	INC DEC '!' UMINUS
+%right	INC DEC '!' UMINUS '&'
+%left   '.'
 %nonassoc	'(' ')' '[' ']' '{' '}'
 
 
