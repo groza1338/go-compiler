@@ -2,7 +2,7 @@ import os
 import glob
 import shutil
 import subprocess
-from pathlib import Path
+from pathlib import Path, PurePosixPath
 
 DEBUG = True
 
@@ -144,9 +144,10 @@ if __name__ == "__main__":
 
             dot_output.write_text(dot_content)
 
-            relative_result_path = dot_output.relative_to(TEST_RESULT_DIRECTORY)
-            container_dot_path = Path(DOCKER_RESULT_DIRECTORY) / relative_result_path
-            container_png_path = Path(DOCKER_RESULT_DIRECTORY) / png_output.relative_to(TEST_RESULT_DIRECTORY)
+            relative_dot = dot_output.relative_to(TEST_RESULT_DIRECTORY).as_posix()
+            relative_png = png_output.relative_to(TEST_RESULT_DIRECTORY).as_posix()
+            container_dot_path = PurePosixPath(DOCKER_RESULT_DIRECTORY) / relative_dot
+            container_png_path = PurePosixPath(DOCKER_RESULT_DIRECTORY) / relative_png
 
             dot_result = run_command_inside_container(
                 ["dot", "-Tpng", container_dot_path.as_posix(), "-o", container_png_path.as_posix()],
