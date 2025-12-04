@@ -47,6 +47,7 @@ public:
     enum ExprType {
         NONE,
         ID,
+        IOTA,
         EXPR_IN_BRACKETS,
         LIT_VAL,
         SUMMARY,
@@ -69,6 +70,7 @@ public:
     };
 
     static ExprNode* createIdentifier(ValueNode *value);
+    static ExprNode* createIota();
     static ExprNode* createLiteralVal(ValueNode *value);
     static ExprNode* createSummary(ExprNode *left, ExprNode *right);
     static ExprNode* createSubtraction(ExprNode *left, ExprNode *right);

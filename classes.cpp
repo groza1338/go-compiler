@@ -29,6 +29,12 @@ ExprNode* ExprNode::createIdentifier(ValueNode *value) {
     return node;
 }
 
+ExprNode* ExprNode::createIota() {
+    ExprNode *node = new ExprNode();
+    node->type = IOTA;
+    return node;
+}
+
 ExprNode* ExprNode::createLiteralVal(ValueNode *value) {
     ExprNode *node = new ExprNode();
     node->type = LIT_VAL;
@@ -219,6 +225,7 @@ ExprNode* ExprNode::getMax() const {
 string ExprNode::getDotLabel() const {
     switch (type) {
         case ID:                return "IDENTIFIER";
+        case IOTA:              return "iota";
         case EXPR_IN_BRACKETS:  return "()";
         case LIT_VAL:           return "LIT_VAL";
         case SUMMARY:           return "+";
