@@ -9,7 +9,7 @@
 %x MCOMM
 
 /* Rune lit */
-%x RUNE_LIT
+%x RUNE_STATE
 
 /* Raw string */
 %x RAW_STR
@@ -81,9 +81,9 @@ void set_semi_off(int *flag);
 %%
 
 %{
-char comment_buf[MAX_STRING_LENGTH];
+char comment_buf[MAX_STRING_LENGTH] = {0};
 int comment_start_line = -1;
-char str_buf[MAX_STRING_LENGTH];
+char str_buf[MAX_STRING_LENGTH] = {0};
 static int can_insert_semi = 0;
 %}
 
@@ -192,27 +192,27 @@ static int can_insert_semi = 0;
 <MCOMM>"*"+"/"                          { cout << "Multi-line comment: " << comment_buf << '\n'; comm_reset(comment_buf, &comment_start_line); BEGIN(INITIAL); }
 <MCOMM><<EOF>>                          { cout << "ERROR: unterminated multiline comment (opened at line " << comment_start_line << ")\n"; comm_reset(comment_buf, &comment_start_line); BEGIN(INITIAL); }
 
-\"                                      { BEGIN(INTER_STR); }
-\'							            { BEGIN(RUNE_LIT); }
+\"                                      { str_reset(str_buf); BEGIN(INTER_STR); }
+\'							            { str_reset(str_buf); BEGIN(RUNE_STATE); }
 
 <INTER_STR>[^\\\"\n]+       			{ str_add_chars(str_buf, yytext, yyleng); }
-<RUNE_LIT>[^\\\'\n]+       				{ str_add_chars(str_buf, yytext, yyleng); }
-<INTER_STR,RUNE_LIT>\\a              	{ str_add_char(str_buf, '\a'); }
-<INTER_STR,RUNE_LIT>\\b              	{ str_add_char(str_buf, '\b'); }
-<INTER_STR,RUNE_LIT>\\f              	{ str_add_char(str_buf, '\f'); }
-<INTER_STR,RUNE_LIT>\\n              	{ str_add_char(str_buf, '\n'); }
-<INTER_STR,RUNE_LIT>\\r              	{ str_add_char(str_buf, '\r'); }
-<INTER_STR,RUNE_LIT>\\t              	{ str_add_char(str_buf, '\t'); }
-<INTER_STR,RUNE_LIT>\\v                 { str_add_char(str_buf, '\v'); }
-<INTER_STR,RUNE_LIT>\\\\                { str_add_char(str_buf, '\\'); }
-<INTER_STR,RUNE_LIT>\\\"                { str_add_char(str_buf, '"'); }
-<INTER_STR,RUNE_LIT>\\\'                { str_add_char(str_buf, '\''); }
-<INTER_STR,RUNE_LIT>{OCT_BYTE_VAL}      { octal_escape(str_buf, yytext + 1); }
-<INTER_STR,RUNE_LIT>{HEX_BYTE_VAL}      { hex_escape(str_buf, yytext + 2); }
-<INTER_STR,RUNE_LIT>{LITTLE_U_VAL}      { from_unicode_to_utf8(str_buf, yytext + 2); }
-<INTER_STR,RUNE_LIT>{BIG_U_VAL}         { from_unicode_to_utf8(str_buf, yytext + 2); }
-<INTER_STR,RUNE_LIT>\n                  { cout << "ERROR: newline in interpreted string literal\n"; str_reset(str_buf); BEGIN(INITIAL); }
-<INTER_STR,RUNE_LIT><<EOF>>             { cout << "ERROR: unterminated string (\") before EOF\n"; BEGIN(INITIAL); }
+<RUNE_STATE>[^\\\'\n]+       				{ str_add_chars(str_buf, yytext, yyleng); }
+<INTER_STR,RUNE_STATE>\\a              	{ str_add_char(str_buf, '\a'); }
+<INTER_STR,RUNE_STATE>\\b              	{ str_add_char(str_buf, '\b'); }
+<INTER_STR,RUNE_STATE>\\f              	{ str_add_char(str_buf, '\f'); }
+<INTER_STR,RUNE_STATE>\\n              	{ str_add_char(str_buf, '\n'); }
+<INTER_STR,RUNE_STATE>\\r              	{ str_add_char(str_buf, '\r'); }
+<INTER_STR,RUNE_STATE>\\t              	{ str_add_char(str_buf, '\t'); }
+<INTER_STR,RUNE_STATE>\\v                 { str_add_char(str_buf, '\v'); }
+<INTER_STR,RUNE_STATE>\\\\                { str_add_char(str_buf, '\\'); }
+<INTER_STR,RUNE_STATE>\\\"                { str_add_char(str_buf, '"'); }
+<INTER_STR,RUNE_STATE>\\\'                { str_add_char(str_buf, '\''); }
+<INTER_STR,RUNE_STATE>{OCT_BYTE_VAL}      { octal_escape(str_buf, yytext + 1); }
+<INTER_STR,RUNE_STATE>{HEX_BYTE_VAL}      { hex_escape(str_buf, yytext + 2); }
+<INTER_STR,RUNE_STATE>{LITTLE_U_VAL}      { from_unicode_to_utf8(str_buf, yytext + 2); }
+<INTER_STR,RUNE_STATE>{BIG_U_VAL}         { from_unicode_to_utf8(str_buf, yytext + 2); }
+<INTER_STR,RUNE_STATE>\n                  { cout << "ERROR: newline in interpreted string literal\n"; str_reset(str_buf); BEGIN(INITIAL); }
+<INTER_STR,RUNE_STATE><<EOF>>             { cout << "ERROR: unterminated string (\") before EOF\n"; BEGIN(INITIAL); }
 
 <INTER_STR>\" {
     cout << "Interpreted string: " << str_buf << '\n';
@@ -223,7 +223,7 @@ static int can_insert_semi = 0;
     return STRING_LIT;
 }
 
-<RUNE_LIT>\' {
+<RUNE_STATE>\' {
     if (strlen(str_buf) <= 1) {
         cout << "Rune literal: " << str_buf << '\n';
         yylval.str_lit = new std::string(str_buf);
@@ -238,7 +238,7 @@ static int can_insert_semi = 0;
     }
 }
 
-`                           { BEGIN(RAW_STR); }
+`                           { str_reset(str_buf); BEGIN(RAW_STR); }
 <RAW_STR>[^`\r]+            { str_add_chars(str_buf, yytext, yyleng); }
 <RAW_STR>\r                 { ; }
 <RAW_STR>` {
@@ -286,10 +286,12 @@ static int can_insert_semi = 0;
 
 %%
 void str_add_char(char *dest_str, unsigned char c) {
-	int dest_len = strlen(dest_str); 
+	int dest_len = strlen(dest_str);
     if (dest_len < MAX_STRING_LENGTH - 1) {
-        char tmp = static_cast<char>(c);
-        strcat(dest_str, &tmp);
+        char tmp_buf[2];
+        tmp_buf[0] = static_cast<char>(c);
+        tmp_buf[1] = '\0';
+        strcat(dest_str, tmp_buf);
     }
 }
 
