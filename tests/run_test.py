@@ -132,7 +132,7 @@ if __name__ == "__main__":
             result = run_command_inside_container(command, container_name)
 
             safe_stdout = result.stdout if result.stdout is not None else ""
-            txt_output.write_text(safe_stdout)
+            txt_output.write_text(safe_stdout, encoding="utf-8", errors="replace")
 
             digraph_start = safe_stdout.find("digraph AST")
             if digraph_start != -1:
@@ -142,7 +142,7 @@ if __name__ == "__main__":
                 if DEBUG:
                     print(f"No AST produced for {file_path}, writing placeholder graph.")
 
-            dot_output.write_text(dot_content)
+            dot_output.write_text(dot_content, encoding="utf-8", errors="replace")
 
             relative_dot = dot_output.relative_to(TEST_RESULT_DIRECTORY).as_posix()
             relative_png = png_output.relative_to(TEST_RESULT_DIRECTORY).as_posix()
