@@ -74,33 +74,27 @@ def kill_docker_container(container_name):
 
     # Проверка, успешно ли выполнена команда
     if result.returncode == 0:
-        print(f"Container '{image_name}' kill successfully.")
+        print(f"Container '{container_name}' kill successfully.")
         return result.stdout.replace('\n', '')
     else:
         raise Exception(f"Kill container failed:\n {result.stderr}")
 
 
-def run_command_inside_container(command: list[str], container_name: str, stdout_file: Path = None):
-    # Создание команды
+def run_command_inside_container(command: list[str], container_name: str):
     exec_prefix = ["docker", "exec", "-i", container_name]
+    run_command = exec_prefix + command
 
-    if stdout_file is not None:
-        # Команда с сохранением информации в файл
-        run_command = exec_prefix + command + [">>", str(stdout_file)]
-    else:
-        run_command = exec_prefix + command
-
-    # Вывести команду в терминал
     if DEBUG: print(f"Run command inside container {container_name}:\n", " ".join(run_command))
 
-    # Выполнение команды
-    result = subprocess.run(" ".join(run_command), text=True, capture_output=True, shell=True)
+    result = subprocess.run(run_command, text=True, capture_output=True)
 
-    # Проверка, успешно ли выполнена команда
     if result.returncode == 0:
         print(f"SUCCESS: Exec command {" ".join(command)} successfully.")
     else:
-        print(f"FAILED: Exec command {" ".join(command)} failed:\n {result.stderr}")
+        print(f"FAILED: Exec command {" ".join(command)} failed with code {result.returncode}:\n {result.stderr}")
+
+    return result
+
 
 def clear_test_results_dir(directory: str):
     results_dir = os.path.join(directory, TEST_RESULT_DIRECTORY)
@@ -113,14 +107,45 @@ def clear_test_results_dir(directory: str):
 
 if __name__ == "__main__":
     files = process_golang_files(BASE_RUN_DIRECTORY)
+    clear_test_results_dir(BASE_RUN_DIRECTORY)
+    Path(TEST_RESULT_DIRECTORY).mkdir(parents=True, exist_ok=True)
     image_name = build_docker_image()
     container_name = run_docker_container(image_name=image_name)
-    clear_test_results_dir(BASE_RUN_DIRECTORY)
     try:
         for file in files:
-            output_path = (Path(TEST_RESULT_DIRECTORY) / Path(file)).with_suffix(".txt")
-            output_path.parent.mkdir(parents=True, exist_ok=True)
-            command = [EXECUTABLE_TARGET, Path(file).as_posix()]
-            run_command_inside_container(command, container_name, output_path)
+            file_path = Path(file)
+            test_dir = (Path(TEST_RESULT_DIRECTORY) / file_path).with_suffix("")
+            test_dir.mkdir(parents=True, exist_ok=True)
+
+            base_name = file_path.stem
+            txt_output = test_dir / f"{base_name}.txt"
+            dot_output = test_dir / f"{base_name}.dot"
+            png_output = test_dir / f"{base_name}.png"
+
+            command = [EXECUTABLE_TARGET, file_path.as_posix()]
+            result = run_command_inside_container(command, container_name)
+
+            txt_output.write_text(result.stdout)
+
+            digraph_start = result.stdout.find("digraph AST")
+            if digraph_start != -1:
+                dot_content = result.stdout[digraph_start:]
+            else:
+                dot_content = 'digraph AST {\n  info[label="No AST produced"];\n}\n'
+                if DEBUG:
+                    print(f"No AST produced for {file_path}, writing placeholder graph.")
+
+            dot_output.write_text(dot_content)
+
+            relative_result_path = dot_output.relative_to(TEST_RESULT_DIRECTORY)
+            container_dot_path = Path(DOCKER_RESULT_DIRECTORY) / relative_result_path
+            container_png_path = Path(DOCKER_RESULT_DIRECTORY) / png_output.relative_to(TEST_RESULT_DIRECTORY)
+
+            dot_result = run_command_inside_container(
+                ["dot", "-Tpng", container_dot_path.as_posix(), "-o", container_png_path.as_posix()],
+                container_name
+            )
+            if dot_result.returncode != 0 and DEBUG:
+                print(f"Failed to render PNG for {file_path}: {dot_result.stderr}")
     finally:
         kill_docker_container(container_name)
