@@ -6,8 +6,6 @@
 #include "classes.h"
 
 using namespace std;
-
-extern ProgramNode *root;
 }
 
 %code provides {
@@ -17,6 +15,10 @@ extern ProgramNode *root;
 
 // Секция объявлений
 
+%{
+    #include "golang_parser.hpp"
+    ProgramNode* root = nullptr;
+%}
 
 %union {
     int int_lit;
@@ -122,7 +124,6 @@ extern ProgramNode *root;
 %type   <type_name_node>            type_name
 %type   <value_node>                literal_val
 
-// TODO: добавить ассоциативность для новых токенов
 %right	'=' WALRUS
 %left	OR
 %left	AND
@@ -138,7 +139,7 @@ extern ProgramNode *root;
 %%
 // Секция правил грамматики
 
-program			:	package_clause e_import_decl_list e_top_level_decl_list {$$=ProgramNode::createNode($1, $2, $3); root = $$;}
+program			:	package_clause e_import_decl_list e_top_level_decl_list {root=ProgramNode::createNode($1, $2, $3);}
 				;
 				
 e_import_decl_list
@@ -146,9 +147,8 @@ e_import_decl_list
 				|   %empty {$$=nullptr;}
 				;
 				
-import_decl_list:	import_decl {$$=ImportDeclListNode::createList($1);}
-				|	import_decl_list ';' import_decl {$$=ImportDeclListNode::addElemToList($1, $3);}
-				|	import_decl_list ';' {$$=$1;} /* allow trailing semicolon */
+import_decl_list:	import_decl_list import_decl ';' {$$=ImportDeclListNode::addElemToList($1, $2);}
+				|	import_decl ';' {$$=ImportDeclListNode::createList($1);}
 				;
 				
 import_decl		:	IMPORT import_spec {$$=ImportDeclNode::createNode($2);}
