@@ -648,10 +648,10 @@ string SimpleStmtNode::getDotLabel() const {
         case INC:               return "INC_STMT";
         case DEC:               return "DEC_STMT";
         case ASSIGN:            return "ASSIGN_STMT";
-        case ADD_ASSIGN:        return "+=_STMT";
-        case SUB_ASSIGN:        return "-=_STMT";
-        case MUL_ASSIGN:        return "*=_STMT";
-        case DIV_ASSIGN:        return "/=_STMT";
+        case ADD_ASSIGN:        return "ADD_ASSIGN_STMT";
+        case SUB_ASSIGN:        return "SUB_ASSIGN_STMT";
+        case MUL_ASSIGN:        return "MUL_ASSIGN_STMT";
+        case DIV_ASSIGN:        return "DIV_ASSIGN_STMT";
         case SHORT_VAR_DECL:    return "SHORT_VAR_DECL";
         default:                return "UNKNOWN";
     }
