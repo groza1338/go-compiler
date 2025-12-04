@@ -86,7 +86,13 @@ def run_command_inside_container(command: list[str], container_name: str):
 
     if DEBUG: print(f"Run command inside container {container_name}:\n", " ".join(run_command))
 
-    result = subprocess.run(run_command, text=True, capture_output=True)
+    result = subprocess.run(
+        run_command,
+        text=True,
+        capture_output=True,
+        encoding="utf-8",
+        errors="replace",
+    )
 
     if result.returncode == 0:
         print(f"SUCCESS: Exec command {" ".join(command)} successfully.")
@@ -125,11 +131,12 @@ if __name__ == "__main__":
             command = [EXECUTABLE_TARGET, file_path.as_posix()]
             result = run_command_inside_container(command, container_name)
 
-            txt_output.write_text(result.stdout)
+            safe_stdout = result.stdout if result.stdout is not None else ""
+            txt_output.write_text(safe_stdout)
 
-            digraph_start = result.stdout.find("digraph AST")
+            digraph_start = safe_stdout.find("digraph AST")
             if digraph_start != -1:
-                dot_content = result.stdout[digraph_start:]
+                dot_content = safe_stdout[digraph_start:]
             else:
                 dot_content = 'digraph AST {\n  info[label="No AST produced"];\n}\n'
                 if DEBUG:
