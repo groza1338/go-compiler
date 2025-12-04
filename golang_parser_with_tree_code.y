@@ -15,6 +15,10 @@ using namespace std;
 
 // Секция объявлений
 
+%{
+    #include "golang_parser.hpp"
+    ProgramNode* root = nullptr;
+%}
 
 %union {
     int int_lit;
@@ -135,7 +139,7 @@ using namespace std;
 %%
 // Секция правил грамматики
 
-program			:	package_clause e_import_decl_list e_top_level_decl_list {$$=ProgramNode::createNode($1, $2, $3);}
+program			:	package_clause e_import_decl_list e_top_level_decl_list {root=ProgramNode::createNode($1, $2, $3);}
 				;
 				
 e_import_decl_list

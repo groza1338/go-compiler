@@ -9,7 +9,7 @@ extern FILE *yyin;
 
 extern int yyparse();
 
-ProgramNode *root;
+extern ProgramNode *root;
 
 int main(int argc, char* argv[])
 {
