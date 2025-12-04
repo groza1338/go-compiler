@@ -459,6 +459,7 @@ string StmtNode::getDotLabel() const {
         case RETURN:        return "RETURN";
         case BREAK:         return "BREAK";
         case CONTINUE:      return "CONTINUE";
+        case BLOCK:         return "BLOCK";
         case IF:            return "IF";
         case SWITCH:        return "SWITCH";
         case FOR:           return "FOR";
