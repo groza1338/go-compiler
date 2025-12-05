@@ -74,11 +74,6 @@ using namespace std;
 %token	FOR
 %token 	RANGE
 
-%token  ADD_ASSIGN
-%token  SUB_ASSIGN
-%token  MUL_ASSIGN
-%token  DIV_ASSIGN
-
 %token  IOTA
 
 %token	INT
@@ -124,7 +119,7 @@ using namespace std;
 %type   <type_name_node>            type_name
 %type   <value_node>                literal_val
 
-
+%right '=' WALRUS ADD_ASSIGN SUB_ASSIGN MUL_ASSIGN DIV_ASSIGN
 %left	OR
 %left	AND
 %left 	EQUAL NEQUAL '<' LESS_EQUAL '>' GREATER_EQUAL
