@@ -773,10 +773,10 @@ string TypeNode::toDot() const {
         break;
     case ARRAY:
         appendDotEdge(res, arrayLen, "len");
-        appendDotEdge(res, elemType, "elem");
+        appendDotEdge(res, elemType, "elem_type");
         break;
     case SLICE:
-        appendDotEdge(res, elemType, "elem");
+        appendDotEdge(res, elemType, "elem_type");
         break;
     case FUNC:
         appendDotEdge(res, signature, "signature");
