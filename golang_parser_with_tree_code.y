@@ -123,7 +123,8 @@ using namespace std;
 %type   <program_node>              program
 %type   <type_name_node>            type_name
 %type   <value_node>                literal_val
-%right	'=' WALRUS
+
+
 %left	OR
 %left	AND
 %left 	EQUAL NEQUAL '<' LESS_EQUAL '>' GREATER_EQUAL
@@ -234,7 +235,7 @@ block			:	'{' e_stmt_list '}' {$$=StmtNode::createBlock($2);}
 				;
 
 decl			:	CONST const_spec {$$=DeclNode::createDecl($2);}
-                |	CONST '(' const_spec_list ')' {$$=DeclNode::createDecl($3);}
+                |   CONST '(' const_spec_list ')' {$$=DeclNode::createDecl($3);}
 				|	VAR var_spec {$$=DeclNode::createDecl($2);}
                 |	VAR '(' var_spec_list ')' {$$=DeclNode::createDecl($3);}
 				;
@@ -339,9 +340,9 @@ e_expr          :   expr {$$=$1;}
                 ;
 
 expr			:	ID {$$=ExprNode::createIdentifier(ValueNode::createString($1));}
-					|	IOTA {$$=ExprNode::createIota();}
-					|	'(' expr ')' {$$=$2;}
-					|	literal_val {$$=ExprNode::createLiteralVal($1);}
+                |	IOTA {$$=ExprNode::createIota();}
+                |	'(' expr ')' {$$=$2;}
+                |	literal_val {$$=ExprNode::createLiteralVal($1);}
 				|	expr '+' expr {$$=ExprNode::createSummary($1, $3);}
 				|	expr '-' expr {$$=ExprNode::createSubtraction($1, $3);}
 				|	expr '*' expr {$$=ExprNode::createMultiplication($1, $3);}

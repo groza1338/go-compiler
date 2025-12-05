@@ -1,24 +1,30 @@
-%{ // Пролог
+// Пролог
+%code requires {
 #include <iostream>
 #include <cstdlib>
 #include <cstdio>
+#include "classes.h"
 
 using namespace std;
-
-extern int yylex(void);
-
-void yyerror(char const* s) {
-    cout << s << endl;
 }
 
-%}
+%code provides {
+    extern int yylex(void);
+    void yyerror(const char* s);
+}
+
 // Секция объявлений
+
+%{
+    #include "golang_parser.hpp"
+    ProgramNode* root = nullptr;
+%}
 
 %union {
     int int_lit;
 	int rune_lit;
-    char *identifier;
-	char *str_lit;
+    string *identifier;
+	string *str_lit;
     float float_lit;
 	bool bool_lit;
 	ExprNode *expr_node;
@@ -48,6 +54,8 @@ void yyerror(char const* s) {
     ImportDeclNode *import_decl_node;
     ImportDeclListNode *import_decl_list_node;
     ProgramNode *program_node;
+    TypeNameNode *type_name_node;
+    ValueNode *value_node;
 }
 
 %token	PACKAGE
@@ -113,14 +121,17 @@ void yyerror(char const* s) {
 %type   <import_decl_node>          import_decl
 %type   <import_decl_list_node>     e_import_decl_list import_decl_list
 %type   <program_node>              program
+%type   <type_name_node>            type_name
+%type   <value_node>                literal_val
 
-%right	'=' WALRUS
+
 %left	OR
 %left	AND
 %left 	EQUAL NEQUAL '<' LESS_EQUAL '>' GREATER_EQUAL
 %left	'+' '-'
 %left	'*' '/'
-%right	INC DEC '!' UMINUS
+%right	INC DEC '!' UMINUS '&'
+%left   '.'
 %nonassoc	'(' ')' '[' ']' '{' '}'
 
 
@@ -133,7 +144,7 @@ program			:	package_clause e_import_decl_list e_top_level_decl_list
 				;
 				
 e_import_decl_list
-				:	import_decl_list ';'
+				:	import_decl_list
 				|   %empty
 				;
 				
@@ -317,49 +328,58 @@ var_spec_list	:	var_spec_list ';' var_spec
 				
 var_spec		:	id_list type
 				|	id_list type '=' expr_list
-				|	id_list '=' expr_list	
+				|	id_list '=' expr_list
 				;
-				
-expr_list		:	expr_list ',' expr 
-				|	expr 
+
+expr_list		:	expr_list ',' expr
+				|	expr
 				;
 
 e_expr          :   expr
                 |   %empty
                 ;
 
-expr			:	ID 
-					|	IOTA 
-					|	'(' expr ')' 
-					|	INT_LIT 
-				|	FLOAT_LIT 
-				|	RUNE_LIT 
-				|	STRING_LIT 
-				|	BOOL_LIT 
-				|	expr '+' expr 
-				|	expr '-' expr 
-				|	expr '*' expr 
-				|	expr '/' expr 
-				|	expr EQUAL expr 
-				|	expr NEQUAL expr 
-				|	expr '<' expr 
-				|	expr '>' expr 
-				|	expr LESS_EQUAL expr 
-				|	expr GREATER_EQUAL expr 
-				|	expr AND expr 
-				|	expr OR expr 
-				|	'!' expr 
-				|	'-' expr	%prec UMINUS 
-				|	expr '[' expr ']' 
-				|	expr '[' ':' ']' 
-				|	expr '[' expr ':' ']' 
-				|	expr '[' ':' expr ']' 
-				|	expr '[' expr ':' expr ']' 
-				|	expr '[' ':' expr ':' expr ']' 
-				|	expr '[' expr ':' expr ':' expr ']' 
-				|	expr '(' ')' 
-				|	expr '(' expr_list ')' 
+expr			:	ID
+                |	IOTA
+                |	'(' expr ')'
+                |	literal_val
+				|	expr '+' expr
+				|	expr '-' expr
+				|	expr '*' expr
+				|	expr '/' expr
+				|	expr EQUAL expr
+				|	expr NEQUAL expr
+				|	expr '<' expr
+				|	expr '>' expr
+				|	expr LESS_EQUAL expr
+				|	expr GREATER_EQUAL expr
+				|	expr AND expr
+				|	expr OR expr
+				|	'!' expr
+				|	'-' expr	%prec UMINUS
+				|	'&' expr
+				|	expr '.' ID
+				|	expr '[' expr ']'
+				|	expr '[' ':' ']'
+				|	expr '[' expr ':' ']'
+				|	expr '[' ':' expr ']'
+				|	expr '[' expr ':' expr ']'
+				|	expr '[' ':' expr ':' expr ']'
+				|	expr '[' expr ':' expr ':' expr ']'
+				|	expr '(' ')'
+				|	expr '(' expr_list ')'
 				;
 
+literal_val     :   INT_LIT {$$=ValueNode::createInt($1);}
+                |   FLOAT_LIT {$$=ValueNode::createFloat($1);}
+                |	RUNE_LIT {$$=ValueNode::createRune($1);}
+                |	STRING_LIT {$$=ValueNode::createString($1);}
+                |	BOOL_LIT {$$=ValueNode::createBool($1);}
+                ;
+
 %%
+
+void yyerror(const char* s) {
+    cout << s << endl;
+}
 // Секция пользовательского кода
