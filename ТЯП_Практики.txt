@@ -189,3 +189,94 @@ static StmtNode* StmtNode::addStmtToList(StmtNode* list, StmtNode* stmt) {
 }
 
 static uint AstNode::maxId = 0;
+
+
+/****************************** Код обработки дерева ********************************/
+
+---------------------------------------------- .h ----------------------------------------------
+
+enum ExprType {
+	Int,
+	Float,
+	Id,
+	Add,
+	Subtr,
+	Assign,
+	ArrIndex,
+	ArrAssign,
+	Typecast
+};
+
+class ExprNode : public AstNode {
+	ExprType type;
+	vector <ExprNode*> children;
+	DataType dataType;
+	string str_val;
+};
+
+enum BaseType {
+	IntType,
+	FloatType
+};
+
+class VarInfo {
+	DataType type;
+	int index;
+};
+
+class DataType {
+	BaseType type;
+	int dimensions;
+};
+
+---------------------------------------------- .cpp ----------------------------------------------
+
+void ExprNode::semantics(map<string,VarInfo> locals) {
+	for (int i = 0; i < childrens.size(); ++i) {
+		childrens[i]->semantics(locals);
+	}
+
+	switch (type) {
+	case Assign:
+		if (children[0]->type != Id && children[0]->type != ArrIndex) {
+			// errorFunction();
+		}
+
+		if (childrens[0]->dataType.dimensions == childrens[1]->dataType.dimensions) {
+			// errorFunction();
+		}
+
+		if (childrens[0]->dataType.dimensions > 0 && childrens[0]->dataType.type != childrens[1]->dataType.type) { // массив int нельзя присвоить в массив float
+			// errorFunction();
+		}
+
+		if (childrens[0]->dataType.type != childrens[1]->dataType.type) {
+			ExprNode *cast = new ExprNode();
+			cast->type = Typecast;
+			cast->childrens.push_back(childrens[1]);
+			cast->dataType = childrens[0]->dataType;
+		}
+		dataType = childrens[0]->dataType;
+
+		if (children[0]== ArrIndex) {
+				type = ArrAssign;
+				ExprNode* left = children[0];
+				ExprNode* right = children[1];
+				children.clean();
+				children.push_back(left->children[0]);
+				children.push_back(left->children[1]);
+				children.push_back(right);
+				delete left;
+		}
+		break;
+
+	case Id:
+		dataType = locals[str_val].type;
+		break;
+
+	case Int:
+		dataType.type = TypeInt;
+		dataType.dimensions = 0;
+		break;
+	}
+}
