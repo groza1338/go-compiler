@@ -75,6 +75,7 @@ std::string strip_underscores(const char* y);
 unsigned long long parse_u64(const char* p, int base);
 void set_semi_on(int *flag);
 void set_semi_off(int *flag);
+bool decode_utf8_rune(const char *src, int *out_codepoint);
 
 %}
 
@@ -231,18 +232,19 @@ static int can_insert_semi = 0;
 }
 
 <RUNE_STATE>\' {
-    if (strlen(str_buf) <= 1) {
+    int rune_value = 0;
+    if (decode_utf8_rune(str_buf, &rune_value)) {
         cout << "Rune literal: " << str_buf << '\n';
-        yylval.str_lit = new std::string(str_buf);
+        yylval.rune_lit = rune_value;
         set_semi_on(&can_insert_semi);
         str_reset(str_buf);
         BEGIN(INITIAL);
         return RUNE_LIT;
-    } else {
-        cout << "ERROR: more then one char in rune literal: " << str_buf << "\n";
-        str_reset(str_buf);
-        BEGIN(INITIAL);
     }
+
+    cout << "ERROR: invalid rune literal: " << str_buf << "\n";
+    str_reset(str_buf);
+    BEGIN(INITIAL);
 }
 
 `                           { str_reset(str_buf); BEGIN(RAW_STR); }
@@ -367,4 +369,50 @@ void set_semi_on(int *flag) {
 
 void set_semi_off(int *flag) {
 	*flag = 0;
+}
+
+bool decode_utf8_rune(const char *src, int *out_codepoint) {
+    const unsigned char *p = reinterpret_cast<const unsigned char*>(src);
+    size_t len = strlen(src);
+    if (len == 0) {
+        return false;
+    }
+
+    unsigned int codepoint = 0;
+    size_t need = 0;
+
+    if (p[0] <= 0x7F) {
+        codepoint = p[0];
+        need = 1;
+    } else if ((p[0] & 0xE0) == 0xC0) {
+        codepoint = p[0] & 0x1F;
+        need = 2;
+    } else if ((p[0] & 0xF0) == 0xE0) {
+        codepoint = p[0] & 0x0F;
+        need = 3;
+    } else if ((p[0] & 0xF8) == 0xF0) {
+        codepoint = p[0] & 0x07;
+        need = 4;
+    } else {
+        return false;
+    }
+
+    if (len != need) {
+        return false;
+    }
+
+    for (size_t i = 1; i < need; i++) {
+        if ((p[i] & 0xC0) != 0x80) {
+            return false;
+        }
+        codepoint = (codepoint << 6) | (p[i] & 0x3F);
+    }
+
+    if (need == 2 && codepoint < 0x80) return false;
+    if (need == 3 && codepoint < 0x800) return false;
+    if (need == 4 && (codepoint < 0x10000 || codepoint > 0x10FFFF)) return false;
+    if (codepoint >= 0xD800 && codepoint <= 0xDFFF) return false;
+
+    *out_codepoint = static_cast<int>(codepoint);
+    return true;
 }

@@ -1496,11 +1496,39 @@ string ValueNode::getDotLabel() const {
         }
         return out;
     };
+    auto encodeRuneUtf8 = [](unsigned int codepoint) {
+        string out;
+        if (codepoint > 0x10FFFF || (codepoint >= 0xD800 && codepoint <= 0xDFFF)) {
+            return out;
+        }
+        if (codepoint <= 0x7F) {
+            out.push_back(static_cast<char>(codepoint));
+        } else if (codepoint <= 0x7FF) {
+            out.push_back(static_cast<char>(0xC0 | ((codepoint >> 6) & 0x1F)));
+            out.push_back(static_cast<char>(0x80 | (codepoint & 0x3F)));
+        } else if (codepoint <= 0xFFFF) {
+            out.push_back(static_cast<char>(0xE0 | ((codepoint >> 12) & 0x0F)));
+            out.push_back(static_cast<char>(0x80 | ((codepoint >> 6) & 0x3F)));
+            out.push_back(static_cast<char>(0x80 | (codepoint & 0x3F)));
+        } else {
+            out.push_back(static_cast<char>(0xF0 | ((codepoint >> 18) & 0x07)));
+            out.push_back(static_cast<char>(0x80 | ((codepoint >> 12) & 0x3F)));
+            out.push_back(static_cast<char>(0x80 | ((codepoint >> 6) & 0x3F)));
+            out.push_back(static_cast<char>(0x80 | (codepoint & 0x3F)));
+        }
+        return out;
+    };
 
     switch (valueType) {
         case LIT_INT:       return "int64: " + to_string(intValue);
         case LIT_FLOAT:     return "float64: " + to_string(floatValue);
-        case LIT_RUNE:      return "rune: " + to_string(intValue);
+        case LIT_RUNE: {
+            string runeStr = encodeRuneUtf8(static_cast<unsigned int>(intValue));
+            if (runeStr.empty()) {
+                return "rune: " + to_string(intValue);
+            }
+            return "rune: " + escapeString(runeStr);
+        }
         case LIT_STRING:    return "string: " + escapeString(*stringValue);
         case LIT_BOOL:      return string("bool: ") + (boolValue ? "true" : "false");
         default:            return "UNKNOWN";
