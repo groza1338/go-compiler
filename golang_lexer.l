@@ -141,6 +141,7 @@ static int can_insert_semi = 0;
 "="             { cout << "Operator: " << yytext << '\n'; set_semi_off(&can_insert_semi); return '=';}
 "!"             { cout << "Operator: " << yytext << '\n'; set_semi_off(&can_insert_semi); return '!';}
 ":"             { cout << "Colon: " << yytext << '\n'; set_semi_off(&can_insert_semi); return ':';}
+"..."           { cout << "Ellipsis: " << yytext << '\n'; set_semi_off(&can_insert_semi); return ELLIPSIS;}
 "."             { cout << "Dot: " << yytext << '\n'; set_semi_off(&can_insert_semi); return '.';}
 ","             { cout << "Comma: " << yytext << '\n'; set_semi_off(&can_insert_semi); return ',';}
 "&"             { cout << "Operator: " << yytext << '\n'; set_semi_off(&can_insert_semi); return '&';}

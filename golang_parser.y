@@ -88,8 +88,10 @@ using namespace std;
 %token	<identifier>	ID
 %token	<str_lit>		STRING_LIT
 %token	<rune_lit>		RUNE_LIT
+%token  MOD_ASSIGN
+%token  ELLIPSIS
 
-%type   <expr_node>                 e_expr expr
+%type   <expr_node>                 e_expr expr array_lit
 %type   <expr_list_node>            expr_list
 %type   <stmt_list_node>            e_stmt_list stmt_list
 %type   <stmt_node>                 stmt return_stmt block if_stmt switch_stmt for_stmt
@@ -339,6 +341,7 @@ expr			:	ID
                 |	IOTA
                 |	'(' expr ')'
                 |	literal_val
+				|	array_lit
 				|	expr '+' expr
 				|	expr '-' expr
 				|	expr '*' expr
@@ -365,6 +368,11 @@ expr			:	ID
 				|	expr '[' expr ':' expr ':' expr ']'
 				|	expr '(' ')'
 				|	expr '(' expr_list ')'
+				;
+
+array_lit		:	'[' expr ']' type '{' expr_list '}'
+				|	'[' ELLIPSIS ']' type '{' expr_list '}'
+				|	'{' expr_list '}'
 				;
 
 literal_val     :   INT_LIT {$$=ValueNode::createInt($1);}

@@ -201,6 +201,20 @@ ExprNode* ExprNode::createFunctionCall(ExprNode *operand, ExprListNode *args) {
     return node;
 }
 
+ExprNode* ExprNode::createArrayLiteral(TypeNode *elemType, ExprNode *len, ExprListNode *elems, bool lenAuto) {
+    ExprNode *node = new ExprNode();
+    node->type = ARRAY_LIT;
+    node->arrayElemType = elemType;
+    node->arrayLen = len;
+    node->arrayElems = elems;
+    node->arrayLenAuto = lenAuto;
+    if (node->arrayLen == nullptr && node->arrayElems != nullptr && node->arrayElems->getExprList() != nullptr) {
+        int elemCount = static_cast<int>(node->arrayElems->getExprList()->size());
+        node->arrayLen = ExprNode::createLiteralVal(ValueNode::createInt(elemCount));
+    }
+    return node;
+}
+
 ExprNode::ExprType ExprNode::getType() const {
     return type;
 }
@@ -245,12 +259,30 @@ ExprNode* ExprNode::getMax() const {
     return sliceMax;
 }
 
+TypeNode* ExprNode::getArrayElemType() const {
+    return arrayElemType;
+}
+
+ExprNode* ExprNode::getArrayLen() const {
+    return arrayLen;
+}
+
+ExprListNode* ExprNode::getArrayElems() const {
+    return arrayElems;
+}
+
+bool ExprNode::isArrayLenAuto() const {
+    return arrayLenAuto;
+}
+
 string ExprNode::getDotLabel() const {
     switch (type) {
         case ID:                return "IDENTIFIER";
         case IOTA:              return "iota";
         case EXPR_IN_BRACKETS:  return "()";
         case LIT_VAL:           return "LIT_VAL";
+        case ARRAY_LIT:
+            return arrayLenAuto ? "ARRAY_LIT_AUTO" : "ARRAY_LIT";
         case SUMMARY:           return "+";
         case SUBTRACTION:       return "-";
         case MULTIPLICATION:    return "*";
@@ -291,6 +323,9 @@ string ExprNode::toDot() const {
     appendDotEdge(result, sliceHigh, "sliceHigh");
     appendDotEdge(result, sliceMax, "sliceMax");
     appendDotEdge(result, args, "args");
+    appendDotEdge(result, arrayElemType, "elem_type");
+    appendDotEdge(result, arrayLen, "len");
+    appendDotEdge(result, arrayElems, "elems");
 
     return result;
 }
@@ -307,6 +342,10 @@ ExprNode::ExprNode(): AstNode() {
     sliceLow = nullptr;
     sliceHigh = nullptr;
     sliceMax = nullptr;
+    arrayElemType = nullptr;
+    arrayLen = nullptr;
+    arrayElems = nullptr;
+    arrayLenAuto = false;
 }
 
 ExprListNode* ExprListNode::createExprList(ExprNode *expr) {

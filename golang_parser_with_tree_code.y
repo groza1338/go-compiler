@@ -88,8 +88,10 @@ using namespace std;
 %token	<identifier>	ID
 %token	<str_lit>		STRING_LIT
 %token	<rune_lit>		RUNE_LIT
+%token  MOD_ASSIGN
+%token  ELLIPSIS
 
-%type   <expr_node>                 e_expr expr
+%type   <expr_node>                 e_expr expr array_lit
 %type   <expr_list_node>            expr_list
 %type   <stmt_list_node>            e_stmt_list stmt_list
 %type   <stmt_node>                 stmt return_stmt block if_stmt switch_stmt for_stmt
@@ -339,6 +341,7 @@ expr			:	ID {$$=ExprNode::createIdentifier(ValueNode::createString($1));}
                 |	IOTA {$$=ExprNode::createIota();}
                 |	'(' expr ')' {$$=$2;}
                 |	literal_val {$$=ExprNode::createLiteralVal($1);}
+                |   array_lit {$$=$1;}
 				|	expr '+' expr {$$=ExprNode::createSummary($1, $3);}
 				|	expr '-' expr {$$=ExprNode::createSubtraction($1, $3);}
 				|	expr '*' expr {$$=ExprNode::createMultiplication($1, $3);}
@@ -365,6 +368,11 @@ expr			:	ID {$$=ExprNode::createIdentifier(ValueNode::createString($1));}
 				|	expr '[' expr ':' expr ':' expr ']' {$$=ExprNode::createSlice($1, $3, $5, $7);}
 				|	expr '(' ')' {$$=ExprNode::createFunctionCall($1, nullptr);}
 				|	expr '(' expr_list ')' {$$=ExprNode::createFunctionCall($1, $3);}
+				;
+
+array_lit		:	'[' expr ']' type '{' expr_list '}' {$$=ExprNode::createArrayLiteral($4, $2, $6, false);}
+				|	'[' ELLIPSIS ']' type '{' expr_list '}' {$$=ExprNode::createArrayLiteral($4, nullptr, $6, true);}
+				|	'{' expr_list '}' {$$=ExprNode::createArrayLiteral(nullptr, nullptr, $2, true);}
 				;
 
 literal_val     :   INT_LIT {$$=ValueNode::createInt($1);}

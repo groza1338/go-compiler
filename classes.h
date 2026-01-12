@@ -21,6 +21,7 @@ class VarSpecNode;
 class ConstSpecNode;
 class DeclNode;
 class TypeNameNode;
+class TypeNode;
 class ExprListNode;
 class ValueNode;
 
@@ -50,6 +51,7 @@ public:
         IOTA,
         EXPR_IN_BRACKETS,
         LIT_VAL,
+        ARRAY_LIT,
         SUMMARY,
         SUBTRACTION,
         MULTIPLICATION,
@@ -95,6 +97,7 @@ public:
     static ExprNode* createSelector(ExprNode *operand, ValueNode *field);
     static ExprNode* createSlice(ExprNode *operand, ExprNode *low, ExprNode *high, ExprNode *max);
     static ExprNode* createFunctionCall(ExprNode *operand, ExprListNode *args);
+    static ExprNode* createArrayLiteral(TypeNode *elemType, ExprNode *len, ExprListNode *elems, bool lenAuto);
 
     ExprType getType() const;
     ValueNode* getIdentifier() const;
@@ -107,6 +110,10 @@ public:
     ExprNode* getLow() const;
     ExprNode* getHigh() const;
     ExprNode* getMax() const;
+    TypeNode* getArrayElemType() const;
+    ExprNode* getArrayLen() const;
+    ExprListNode* getArrayElems() const;
+    bool isArrayLenAuto() const;
 
     string getDotLabel() const override;
     string toDot() const override;
@@ -124,6 +131,10 @@ protected:
     ExprNode *sliceLow;
     ExprNode *sliceHigh;
     ExprNode *sliceMax;
+    TypeNode *arrayElemType;
+    ExprNode *arrayLen;
+    ExprListNode *arrayElems;
+    bool arrayLenAuto;
 
     ExprNode();
 };
