@@ -88,7 +88,6 @@ using namespace std;
 %token	<identifier>	ID
 %token	<str_lit>		STRING_LIT
 %token	<rune_lit>		RUNE_LIT
-%token  MOD_ASSIGN
 
 %type   <expr_node>                 e_expr expr
 %type   <expr_list_node>            expr_list
