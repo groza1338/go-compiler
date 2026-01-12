@@ -124,6 +124,7 @@ static int can_insert_semi = 0;
 "-="            { cout << "Operator: " << yytext << '\n'; set_semi_off(&can_insert_semi); return SUB_ASSIGN;}
 "*="            { cout << "Operator: " << yytext << '\n'; set_semi_off(&can_insert_semi); return MUL_ASSIGN;}
 "/="            { cout << "Operator: " << yytext << '\n'; set_semi_off(&can_insert_semi); return DIV_ASSIGN;}
+"%="            { cout << "Operator: " << yytext << '\n'; set_semi_off(&can_insert_semi); return MOD_ASSIGN;}
 "!="            { cout << "Operator: " << yytext << '\n'; set_semi_off(&can_insert_semi); return NEQUAL;}
 ">="            { cout << "Operator: " << yytext << '\n'; set_semi_off(&can_insert_semi); return GREATER_EQUAL;}
 "<="            { cout << "Operator: " << yytext << '\n'; set_semi_off(&can_insert_semi); return LESS_EQUAL;}
@@ -133,6 +134,7 @@ static int can_insert_semi = 0;
 "-"             { cout << "Operator: " << yytext << '\n'; set_semi_off(&can_insert_semi); return '-';}
 "*"             { cout << "Operator: " << yytext << '\n'; set_semi_off(&can_insert_semi); return '*';}
 "/"             { cout << "Operator: " << yytext << '\n'; set_semi_off(&can_insert_semi); return '/';}
+"%"             { cout << "Operator: " << yytext << '\n'; set_semi_off(&can_insert_semi); return '%';}
 "<"             { cout << "Operator: " << yytext << '\n'; set_semi_off(&can_insert_semi); return '<';}
 ">"             { cout << "Operator: " << yytext << '\n'; set_semi_off(&can_insert_semi); return '>';}
 "="             { cout << "Operator: " << yytext << '\n'; set_semi_off(&can_insert_semi); return '=';}

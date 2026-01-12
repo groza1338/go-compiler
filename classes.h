@@ -54,6 +54,7 @@ public:
         SUBTRACTION,
         MULTIPLICATION,
         DIVISION,
+        MODULO,
         EQUAL,
         NOT_EQUAL,
         LESS,
@@ -78,6 +79,7 @@ public:
     static ExprNode* createSubtraction(ExprNode *left, ExprNode *right);
     static ExprNode* createMultiplication(ExprNode *left, ExprNode *right);
     static ExprNode* createDivision(ExprNode *left, ExprNode *right);
+    static ExprNode* createModulo(ExprNode *left, ExprNode *right);
     static ExprNode* createEqual(ExprNode *left, ExprNode *right);
     static ExprNode* createNotEqual(ExprNode *left, ExprNode *right);
     static ExprNode* createLess(ExprNode *left, ExprNode *right);
@@ -250,6 +252,7 @@ public:
         SUB_ASSIGN,
         MUL_ASSIGN,
         DIV_ASSIGN,
+        MOD_ASSIGN,
         SHORT_VAR_DECL
     };
 
@@ -261,6 +264,7 @@ public:
     static SimpleStmtNode* createSubAssign(ExprListNode *left, ExprListNode *right);
     static SimpleStmtNode* createMulAssign(ExprListNode *left, ExprListNode *right);
     static SimpleStmtNode* createDivAssign(ExprListNode *left, ExprListNode *right);
+    static SimpleStmtNode* createModAssign(ExprListNode *left, ExprListNode *right);
     static SimpleStmtNode* createShortVarDecl(ExprListNode *left, ExprListNode *right);
 
     SimpleStmtType getType() const;

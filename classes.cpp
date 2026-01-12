@@ -74,6 +74,14 @@ ExprNode* ExprNode::createDivision(ExprNode *left, ExprNode *right) {
     return node;
 }
 
+ExprNode* ExprNode::createModulo(ExprNode *left, ExprNode *right) {
+    ExprNode *node = new ExprNode();
+    node->type = MODULO;
+    node->left = left;
+    node->right = right;
+    return node;
+}
+
 ExprNode* ExprNode::createEqual(ExprNode *left, ExprNode *right) {
     ExprNode *node = new ExprNode();
     node->type = EQUAL;
@@ -247,6 +255,7 @@ string ExprNode::getDotLabel() const {
         case SUBTRACTION:       return "-";
         case MULTIPLICATION:    return "*";
         case DIVISION:          return "/";
+        case MODULO:            return "%";
         case EQUAL:             return "==";
         case NOT_EQUAL:         return "!=";
         case LESS:              return "<";
@@ -636,6 +645,14 @@ SimpleStmtNode* SimpleStmtNode::createDivAssign(ExprListNode *left, ExprListNode
     return node;
 }
 
+SimpleStmtNode* SimpleStmtNode::createModAssign(ExprListNode *left, ExprListNode *right) {
+    SimpleStmtNode *node = new SimpleStmtNode();
+    node->type = MOD_ASSIGN;
+    node->left = left;
+    node->right = right;
+    return node;
+}
+
 SimpleStmtNode* SimpleStmtNode::createShortVarDecl(ExprListNode *left, ExprListNode *right) {
     SimpleStmtNode *node = new SimpleStmtNode();
     node->type = SHORT_VAR_DECL;
@@ -670,6 +687,7 @@ string SimpleStmtNode::getDotLabel() const {
         case SUB_ASSIGN:        return "SUB_ASSIGN_STMT";
         case MUL_ASSIGN:        return "MUL_ASSIGN_STMT";
         case DIV_ASSIGN:        return "DIV_ASSIGN_STMT";
+        case MOD_ASSIGN:        return "MOD_ASSIGN_STMT";
         case SHORT_VAR_DECL:    return "SHORT_VAR_DECL";
         default:                return "UNKNOWN";
     }

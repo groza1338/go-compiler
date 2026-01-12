@@ -88,6 +88,7 @@ using namespace std;
 %token	<identifier>	ID
 %token	<str_lit>		STRING_LIT
 %token	<rune_lit>		RUNE_LIT
+%token  MOD_ASSIGN
 
 %type   <expr_node>                 e_expr expr
 %type   <expr_list_node>            expr_list
@@ -119,12 +120,12 @@ using namespace std;
 %type   <type_name_node>            type_name
 %type   <value_node>                literal_val
 
-%right '=' WALRUS ADD_ASSIGN SUB_ASSIGN MUL_ASSIGN DIV_ASSIGN
+%right '=' WALRUS ADD_ASSIGN SUB_ASSIGN MUL_ASSIGN DIV_ASSIGN MOD_ASSIGN
 %left	OR
 %left	AND
 %left 	EQUAL NEQUAL '<' LESS_EQUAL '>' GREATER_EQUAL
 %left	'+' '-'
-%left	'*' '/'
+%left	'*' '/' '%'
 %right	INC DEC '!' UMINUS '&'
 %left   '.'
 %nonassoc	'(' ')' '[' ']' '{' '}'
@@ -219,6 +220,7 @@ simple_stmt		:	expr {$$=SimpleStmtNode::createExpr($1);}
 				|	expr_list SUB_ASSIGN expr_list {$$=SimpleStmtNode::createSubAssign($1, $3);}
 				|	expr_list MUL_ASSIGN expr_list {$$=SimpleStmtNode::createMulAssign($1, $3);}
 				|	expr_list DIV_ASSIGN expr_list {$$=SimpleStmtNode::createDivAssign($1, $3);}
+				|	expr_list MOD_ASSIGN expr_list {$$=SimpleStmtNode::createModAssign($1, $3);}
 				|	expr_list WALRUS expr_list {$$=SimpleStmtNode::createShortVarDecl($1, $3);}
 				;
 				
@@ -342,6 +344,7 @@ expr			:	ID {$$=ExprNode::createIdentifier(ValueNode::createString($1));}
 				|	expr '-' expr {$$=ExprNode::createSubtraction($1, $3);}
 				|	expr '*' expr {$$=ExprNode::createMultiplication($1, $3);}
 				|	expr '/' expr {$$=ExprNode::createDivision($1, $3);}
+				|	expr '%' expr {$$=ExprNode::createModulo($1, $3);}
 				|	expr EQUAL expr {$$=ExprNode::createEqual($1, $3);}
 				|	expr NEQUAL expr {$$=ExprNode::createNotEqual($1, $3);}
 				|	expr '<' expr {$$=ExprNode::createLess($1, $3);}
