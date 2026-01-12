@@ -92,7 +92,7 @@ using namespace std;
 %token  ELLIPSIS
 
 %type   <expr_node>                 e_expr expr array_lit
-%type   <expr_list_node>            expr_list
+%type   <expr_list_node>            expr_list e_expr_list
 %type   <stmt_list_node>            e_stmt_list stmt_list
 %type   <stmt_node>                 stmt return_stmt block if_stmt switch_stmt for_stmt
 %type   <case_node>                 expr_case_clause
@@ -333,6 +333,10 @@ expr_list		:	expr_list ',' expr
 				|	expr
 				;
 
+e_expr_list     :   expr_list
+                |   %empty
+                ;
+
 e_expr          :   expr
                 |   %empty
                 ;
@@ -370,9 +374,8 @@ expr			:	ID
 				|	expr '(' expr_list ')'
 				;
 
-array_lit		:	'[' expr ']' type '{' expr_list '}'
-				|	'[' ELLIPSIS ']' type '{' expr_list '}'
-				|	'{' expr_list '}'
+array_lit		:	'[' expr ']' type '{' e_expr_list '}'
+				|	'[' ELLIPSIS ']' type '{' e_expr_list '}'
 				;
 
 literal_val     :   INT_LIT {$$=ValueNode::createInt($1);}
@@ -388,3 +391,4 @@ void yyerror(const char* s) {
     cout << s << endl;
 }
 // Секция пользовательского кода
+

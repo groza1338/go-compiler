@@ -5,7 +5,7 @@ func main() {
 	arr2 := [3]int{1, 2, 3}
 	arr3 := [5]int{1, 2}
 	arr4 := [...]int{1, 2, 3}
-	arr5 := {1, 2, 3}
+	arr5 := [3]int{}
 
 	_ = arr
 	_ = arr2
@@ -13,3 +13,7 @@ func main() {
 	_ = arr4
 	_ = arr5
 }
+
+
+
+

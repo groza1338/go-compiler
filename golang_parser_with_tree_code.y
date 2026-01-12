@@ -92,7 +92,7 @@ using namespace std;
 %token  ELLIPSIS
 
 %type   <expr_node>                 e_expr expr array_lit
-%type   <expr_list_node>            expr_list
+%type   <expr_list_node>            expr_list e_expr_list
 %type   <stmt_list_node>            e_stmt_list stmt_list
 %type   <stmt_node>                 stmt return_stmt block if_stmt switch_stmt for_stmt
 %type   <case_node>                 expr_case_clause
@@ -333,6 +333,10 @@ expr_list		:	expr_list ',' expr {$$=ExprListNode::addExprToList($1, $3);}
 				|	expr {$$=ExprListNode::createExprList($1);}
 				;
 
+e_expr_list     :   expr_list {$$=$1;}
+                |   %empty {$$=nullptr;}
+                ;
+
 e_expr          :   expr {$$=$1;}
                 |   %empty {$$=nullptr;}
                 ;
@@ -370,9 +374,8 @@ expr			:	ID {$$=ExprNode::createIdentifier(ValueNode::createString($1));}
 				|	expr '(' expr_list ')' {$$=ExprNode::createFunctionCall($1, $3);}
 				;
 
-array_lit		:	'[' expr ']' type '{' expr_list '}' {$$=ExprNode::createArrayLiteral($4, $2, $6, false);}
-				|	'[' ELLIPSIS ']' type '{' expr_list '}' {$$=ExprNode::createArrayLiteral($4, nullptr, $6, true);}
-				|	'{' expr_list '}' {$$=ExprNode::createArrayLiteral(nullptr, nullptr, $2, true);}
+array_lit		:	'[' expr ']' type '{' e_expr_list '}' {$$=ExprNode::createArrayLiteral($4, $2, $6, false);}
+				|	'[' ELLIPSIS ']' type '{' e_expr_list '}' {$$=ExprNode::createArrayLiteral($4, nullptr, $6, true);}
 				;
 
 literal_val     :   INT_LIT {$$=ValueNode::createInt($1);}
