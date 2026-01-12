@@ -258,7 +258,7 @@ void ExprNode::semantics(map<string,VarInfo> locals) {
 		}
 		dataType = childrens[0]->dataType;
 
-		if (children[0]== ArrIndex) {
+		if (children[0] == ArrIndex) {
 				type = ArrAssign;
 				ExprNode* left = children[0];
 				ExprNode* right = children[1];
@@ -278,5 +278,10 @@ void ExprNode::semantics(map<string,VarInfo> locals) {
 		dataType.type = TypeInt;
 		dataType.dimensions = 0;
 		break;
-	}
+
+    case Add:
+        if (left->type == INT && right->type == FLOAT) {
+            // Error
+	    }
+    }
 }
