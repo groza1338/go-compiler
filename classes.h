@@ -52,6 +52,7 @@ public:
         EXPR_IN_BRACKETS,
         LIT_VAL,
         ARRAY_LIT,
+        SLICE_LIT,
         SUMMARY,
         SUBTRACTION,
         MULTIPLICATION,
@@ -98,6 +99,7 @@ public:
     static ExprNode* createSlice(ExprNode *operand, ExprNode *low, ExprNode *high, ExprNode *max);
     static ExprNode* createFunctionCall(ExprNode *operand, ExprListNode *args);
     static ExprNode* createArrayLiteral(TypeNode *elemType, ExprNode *len, ExprListNode *elems, bool lenAuto);
+    static ExprNode* createSliceLiteral(TypeNode *elemType, ExprListNode *elems);
 
     ExprType getType() const;
     ValueNode* getIdentifier() const;

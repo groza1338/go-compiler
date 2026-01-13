@@ -376,6 +376,7 @@ expr			:	ID {$$=ExprNode::createIdentifier(ValueNode::createString($1));}
 
 array_lit		:	'[' expr ']' type '{' e_expr_list '}' {$$=ExprNode::createArrayLiteral($4, $2, $6, false);}
 				|	'[' ELLIPSIS ']' type '{' e_expr_list '}' {$$=ExprNode::createArrayLiteral($4, nullptr, $6, true);}
+				|	'[' ']' type '{' e_expr_list '}' {$$=ExprNode::createSliceLiteral($3, $5);}
 				;
 
 literal_val     :   INT_LIT {$$=ValueNode::createInt($1);}

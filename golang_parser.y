@@ -376,6 +376,7 @@ expr			:	ID
 
 array_lit		:	'[' expr ']' type '{' e_expr_list '}'
 				|	'[' ELLIPSIS ']' type '{' e_expr_list '}'
+				|	'[' ']' type '{' e_expr_list '}'
 				;
 
 literal_val     :   INT_LIT {$$=ValueNode::createInt($1);}

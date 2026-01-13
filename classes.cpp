@@ -215,6 +215,14 @@ ExprNode* ExprNode::createArrayLiteral(TypeNode *elemType, ExprNode *len, ExprLi
     return node;
 }
 
+ExprNode* ExprNode::createSliceLiteral(TypeNode *elemType, ExprListNode *elems) {
+    ExprNode *node = new ExprNode();
+    node->type = SLICE_LIT;
+    node->arrayElemType = elemType;
+    node->arrayElems = elems;
+    return node;
+}
+
 ExprNode::ExprType ExprNode::getType() const {
     return type;
 }
@@ -283,6 +291,7 @@ string ExprNode::getDotLabel() const {
         case LIT_VAL:           return "LIT_VAL";
         case ARRAY_LIT:
             return arrayLenAuto ? "ARRAY_LIT_AUTO" : "ARRAY_LIT";
+        case SLICE_LIT:         return "SLICE_LIT";
         case SUMMARY:           return "+";
         case SUBTRACTION:       return "-";
         case MULTIPLICATION:    return "*";
