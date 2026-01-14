@@ -48,7 +48,7 @@ static bool isIdentifierExpr(ExprNode *expr, string *outName) {
     return true;
 }
 
-static bool isAddressableExpr(ExprNode *expr) {
+static bool isAddressableExpr(ExprNode *expr, SemanticContext &ctx) {
     if (!expr) {
         return false;
     }
@@ -56,9 +56,15 @@ static bool isAddressableExpr(ExprNode *expr) {
         case ExprNode::ID:
             return true;
         case ExprNode::ELEMENT_ACCESS:
+            if (ExprNode *operand = expr->getOperand()) {
+                SemanticType operandType = operand->semantics(ctx);
+                if (operandType.isString() && operandType.isScalar()) {
+                    return false;
+                }
+            }
             return true;
         case ExprNode::EXPR_IN_BRACKETS:
-            return isAddressableExpr(expr->getOperand());
+            return isAddressableExpr(expr->getOperand(), ctx);
         default:
             return false;
     }
@@ -92,7 +98,7 @@ static void checkRangeTarget(ExprNode *leftExpr, const SemanticType &expectedTyp
     if (isId && idName == "_") {
         return;
     }
-    if (!isAddressableExpr(leftExpr)) {
+    if (!isAddressableExpr(leftExpr, ctx)) {
         leftExpr->semantics(ctx);
         ctx.report("Range assignment requires addressable identifiers.");
         return;
@@ -582,6 +588,8 @@ SemanticType ExprNode::semantics(SemanticContext &ctx) {
             } else if (operandType.sliceDims > 0) {
                 semType = operandType;
                 semType.sliceDims -= 1;
+            } else if (operandType.isString() && operandType.isScalar()) {
+                semType = SemanticType::makeBase(SemanticType::INT);
             } else {
                 ctx.report("Indexing requires array or slice operand.");
                 semType = SemanticType::makeBase(SemanticType::UNKNOWN);
@@ -1285,7 +1293,7 @@ void SimpleStmtNode::semantics(SemanticContext &ctx) {
                 ctx.report("Increment/decrement cannot use blank identifier.");
                 break;
             }
-            if (!isAddressableExpr(expr)) {
+            if (!isAddressableExpr(expr, ctx)) {
                 ctx.report("Increment/decrement requires addressable operand.");
                 break;
             }
@@ -1340,7 +1348,7 @@ void SimpleStmtNode::semantics(SemanticContext &ctx) {
                     continue;
                 }
 
-                if (!isAddressableExpr(leftExpr)) {
+                if (!isAddressableExpr(leftExpr, ctx)) {
                     if (leftExpr) {
                         leftExpr->semantics(ctx);
                     }
