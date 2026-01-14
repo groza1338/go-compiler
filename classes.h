@@ -100,8 +100,14 @@ struct SemanticType {
 };
 
 struct SemanticContext {
+    struct FunctionReturnInfo {
+        vector<SemanticType> types;
+        bool allowBareReturn = false;
+    };
+
     vector<unordered_map<string, SemanticType>> scopes;
     vector<string> errors;
+    vector<FunctionReturnInfo> returnStack;
 
     SemanticContext() {
         scopes.emplace_back();
@@ -136,6 +142,23 @@ struct SemanticContext {
         if (!scopes.empty()) {
             scopes.back()[name] = type;
         }
+    }
+
+    void enterFunction(const FunctionReturnInfo &info) {
+        returnStack.push_back(info);
+    }
+
+    void exitFunction() {
+        if (!returnStack.empty()) {
+            returnStack.pop_back();
+        }
+    }
+
+    const FunctionReturnInfo* currentReturn() const {
+        if (returnStack.empty()) {
+            return nullptr;
+        }
+        return &returnStack.back();
     }
 
     void report(const string &message) {
@@ -453,6 +476,9 @@ class ParamDeclNode : public AstNode {
 public:
     static ParamDeclNode* createParamDecl(IdListNode *ids, TypeNode* type);
 
+    IdListNode* getIdList() const;
+    TypeNode* getType() const;
+
     string getDotLabel() const override;
     string toDot() const override;
     void semantics(SemanticContext &ctx);
@@ -485,6 +511,8 @@ class SignatureNode : public AstNode {
 public:
     static SignatureNode* createSignature(ParamDeclListNode *paramList, ResultNode *result);
 
+    ResultNode* getResult() const;
+
     string getDotLabel() const override;
     string toDot() const override;
     void semantics(SemanticContext &ctx);
@@ -500,6 +528,9 @@ class ResultNode : public AstNode {
 public:
     static ResultNode* createResult(ParamDeclListNode *paramList);
     static ResultNode* createResult(TypeNode *type);
+
+    ParamDeclListNode* getParamList() const;
+    TypeNode* getType() const;
 
     string getDotLabel() const override;
     string toDot() const override;

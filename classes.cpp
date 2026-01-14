@@ -64,6 +64,44 @@ static bool isAddressableExpr(ExprNode *expr) {
     }
 }
 
+static vector<SemanticType> collectResultTypes(ResultNode *result, bool &allowBareReturn) {
+    vector<SemanticType> types;
+    allowBareReturn = false;
+    if (!result) {
+        return types;
+    }
+    if (TypeNode *typeNode = result->getType()) {
+        types.push_back(typeNode->getSemanticType());
+        return types;
+    }
+    ParamDeclListNode *paramList = result->getParamList();
+    if (!paramList || !paramList->getParamList()) {
+        return types;
+    }
+    for (ParamDeclNode *param : *paramList->getParamList()) {
+        if (!param) {
+            continue;
+        }
+        TypeNode *paramTypeNode = param->getType();
+        if (!paramTypeNode) {
+            continue;
+        }
+        SemanticType paramType = paramTypeNode->getSemanticType();
+        IdListNode *ids = param->getIdList();
+        if (ids && ids->getIdList() && !ids->getIdList()->empty()) {
+            allowBareReturn = true;
+            for (ValueNode *id : *ids->getIdList()) {
+                if (id) {
+                    types.push_back(paramType);
+                }
+            }
+        } else {
+            types.push_back(paramType);
+        }
+    }
+    return types;
+}
+
 void AstNode::appendDotNode(string &res) const {
     res += "node" + to_string(id) + " [label=\"" + getDotLabel() + "\"];\n";
 }
@@ -808,7 +846,37 @@ void StmtNode::semantics(SemanticContext &ctx) {
             if (simpleStmt) simpleStmt->semantics(ctx);
             break;
         case RETURN:
-            if (exprList) exprList->semantics(ctx);
+            if (const auto *retInfo = ctx.currentReturn()) {
+                list<ExprNode*> *exprs = exprList ? exprList->getExprList() : nullptr;
+                vector<SemanticType> exprTypes;
+                if (exprs) {
+                    for (ExprNode *expr : *exprs) {
+                        exprTypes.push_back(expr ? expr->semantics(ctx) : SemanticType::makeBase(SemanticType::UNKNOWN));
+                    }
+                }
+                size_t exprCount = exprTypes.size();
+                size_t retCount = retInfo->types.size();
+                if (retCount == 0) {
+                    if (exprCount > 0) {
+                        ctx.report("Return values not allowed in function with no return type.");
+                    }
+                } else if (exprCount == 0) {
+                    if (!retInfo->allowBareReturn) {
+                        ctx.report("Return values required.");
+                    }
+                } else {
+                    if (exprCount != retCount) {
+                        ctx.report("Return value count mismatch.");
+                    }
+                    for (size_t i = 0; i < exprCount && i < retCount; ++i) {
+                        if (!isAssignable(retInfo->types[i], exprTypes[i])) {
+                            ctx.report("Return type mismatch.");
+                        }
+                    }
+                }
+            } else {
+                if (exprList) exprList->semantics(ctx);
+            }
             break;
         case BLOCK:
             ctx.enterScope();
@@ -1405,6 +1473,14 @@ void ParamDeclNode::semantics(SemanticContext &ctx) {
     }
 }
 
+IdListNode* ParamDeclNode::getIdList() const {
+    return idList;
+}
+
+TypeNode* ParamDeclNode::getType() const {
+    return type;
+}
+
 ParamDeclNode::ParamDeclNode() {
     idList = nullptr;
     type = nullptr;
@@ -1474,6 +1550,10 @@ void SignatureNode::semantics(SemanticContext &ctx) {
     if (result) result->semantics(ctx);
 }
 
+ResultNode* SignatureNode::getResult() const {
+    return result;
+}
+
 SignatureNode::SignatureNode(): AstNode() {
     paramList = nullptr;
     result = nullptr;
@@ -1507,6 +1587,14 @@ string ResultNode::toDot() const {
 void ResultNode::semantics(SemanticContext &ctx) {
     if (paramList) paramList->semantics(ctx);
     if (type) type->getSemanticType();
+}
+
+ParamDeclListNode* ResultNode::getParamList() const {
+    return paramList;
+}
+
+TypeNode* ResultNode::getType() const {
+    return type;
 }
 
 ResultNode::ResultNode(): AstNode() {
@@ -1816,7 +1904,13 @@ void FuncDeclNode::semantics(SemanticContext &ctx) {
     SemanticContext local = ctx;
     local.enterScope();
     if (signature) signature->semantics(local);
+    SemanticContext::FunctionReturnInfo retInfo;
+    if (signature) {
+        retInfo.types = collectResultTypes(signature->getResult(), retInfo.allowBareReturn);
+    }
+    local.enterFunction(retInfo);
     if (body) body->semantics(local);
+    local.exitFunction();
     ctx.errors.insert(ctx.errors.end(), local.errors.begin(), local.errors.end());
 }
 
