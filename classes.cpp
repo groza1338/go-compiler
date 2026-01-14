@@ -64,6 +64,55 @@ static bool isAddressableExpr(ExprNode *expr) {
     }
 }
 
+static bool getRangeTypes(const SemanticType &rangeType, SemanticType &indexType, SemanticType &valueType) {
+    indexType = SemanticType::makeBase(SemanticType::INT);
+    if (rangeType.base == SemanticType::STRING && rangeType.isScalar()) {
+        valueType = SemanticType::makeBase(SemanticType::RUNE);
+        return true;
+    }
+    if (rangeType.arrayDims > 0) {
+        valueType = rangeType;
+        valueType.arrayDims -= 1;
+        return true;
+    }
+    if (rangeType.sliceDims > 0) {
+        valueType = rangeType;
+        valueType.sliceDims -= 1;
+        return true;
+    }
+    return false;
+}
+
+static void checkRangeTarget(ExprNode *leftExpr, const SemanticType &expectedType, SemanticContext &ctx) {
+    if (!leftExpr || expectedType.base == SemanticType::UNKNOWN) {
+        return;
+    }
+    string idName;
+    bool isId = isIdentifierExpr(leftExpr, &idName);
+    if (isId && idName == "_") {
+        return;
+    }
+    if (!isAddressableExpr(leftExpr)) {
+        leftExpr->semantics(ctx);
+        ctx.report("Range assignment requires addressable identifiers.");
+        return;
+    }
+    SemanticType leftType = SemanticType::makeBase(SemanticType::UNKNOWN);
+    if (isId) {
+        SemanticType found;
+        if (!ctx.lookup(idName, found)) {
+            ctx.declare(idName, expectedType);
+            return;
+        }
+        leftType = found;
+    } else {
+        leftType = leftExpr->semantics(ctx);
+    }
+    if (!isAssignable(leftType, expectedType)) {
+        ctx.report("Range assignment type mismatch.");
+    }
+}
+
 static vector<SemanticType> collectResultTypes(ResultNode *result, bool &allowBareReturn) {
     vector<SemanticType> types;
     allowBareReturn = false;
@@ -955,8 +1004,29 @@ void StmtNode::semantics(SemanticContext &ctx) {
         case FOR_RANGE:
             ctx.enterScope();
             ctx.enterLoop();
-            if (exprList) exprList->semantics(ctx);
-            if (condition) condition->semantics(ctx);
+            {
+                SemanticType rangeType = condition ? condition->semantics(ctx) : SemanticType::makeBase(SemanticType::UNKNOWN);
+                SemanticType indexType = SemanticType::makeBase(SemanticType::UNKNOWN);
+                SemanticType valueType = SemanticType::makeBase(SemanticType::UNKNOWN);
+                if (!getRangeTypes(rangeType, indexType, valueType)) {
+                    ctx.report("Range requires array, slice, or string.");
+                }
+                if (exprList && exprList->getExprList()) {
+                    auto &targets = *exprList->getExprList();
+                    size_t count = targets.size();
+                    if (count > 2) {
+                        ctx.report("Range assignment requires at most two variables.");
+                    }
+                    auto it = targets.begin();
+                    if (count >= 1 && it != targets.end()) {
+                        checkRangeTarget(*it, indexType, ctx);
+                        ++it;
+                    }
+                    if (count >= 2 && it != targets.end()) {
+                        checkRangeTarget(*it, valueType, ctx);
+                    }
+                }
+            }
             if (body) body->semantics(ctx);
             ctx.exitLoop();
             ctx.exitScope();
