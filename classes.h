@@ -108,6 +108,7 @@ struct SemanticContext {
     vector<unordered_map<string, SemanticType>> scopes;
     vector<string> errors;
     vector<FunctionReturnInfo> returnStack;
+    vector<SemanticType> switchStack;
 
     SemanticContext() {
         scopes.emplace_back();
@@ -159,6 +160,23 @@ struct SemanticContext {
             return nullptr;
         }
         return &returnStack.back();
+    }
+
+    void enterSwitch(const SemanticType &type) {
+        switchStack.push_back(type);
+    }
+
+    void exitSwitch() {
+        if (!switchStack.empty()) {
+            switchStack.pop_back();
+        }
+    }
+
+    const SemanticType* currentSwitchType() const {
+        if (switchStack.empty()) {
+            return nullptr;
+        }
+        return &switchStack.back();
     }
 
     void report(const string &message) {

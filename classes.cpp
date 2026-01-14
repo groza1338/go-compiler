@@ -901,11 +901,18 @@ void StmtNode::semantics(SemanticContext &ctx) {
             ctx.exitScope();
             break;
         case SWITCH:
-            ctx.enterScope();
-            if (simpleStmt) simpleStmt->semantics(ctx);
-            if (condition) condition->semantics(ctx);
-            if (caseList) caseList->semantics(ctx);
-            ctx.exitScope();
+            {
+                ctx.enterScope();
+                if (simpleStmt) simpleStmt->semantics(ctx);
+                SemanticType switchType = SemanticType::makeBase(SemanticType::BOOL);
+                if (condition) {
+                    switchType = condition->semantics(ctx);
+                }
+                ctx.enterSwitch(switchType);
+                if (caseList) caseList->semantics(ctx);
+                ctx.exitSwitch();
+                ctx.exitScope();
+            }
             break;
         case FOR:
             ctx.enterScope();
@@ -993,7 +1000,18 @@ string CaseNode::toDot() const {
 
 void CaseNode::semantics(SemanticContext &ctx) {
     if (exprList) {
-        exprList->semantics(ctx);
+        if (const SemanticType *switchType = ctx.currentSwitchType()) {
+            if (exprList->getExprList()) {
+                for (ExprNode *expr : *exprList->getExprList()) {
+                    SemanticType exprType = expr ? expr->semantics(ctx) : SemanticType::makeBase(SemanticType::UNKNOWN);
+                    if (switchType->base != SemanticType::UNKNOWN && !isAssignable(*switchType, exprType)) {
+                        ctx.report("Case type does not match switch expression type.");
+                    }
+                }
+            }
+        } else {
+            exprList->semantics(ctx);
+        }
     }
     if (stmtList && stmtList->getStmtList()) {
         for (StmtNode *stmt : *stmtList->getStmtList()) {
