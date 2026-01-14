@@ -334,6 +334,7 @@ SemanticType ExprNode::semantics(SemanticContext &ctx) {
             }
             const string &name = *identifier->getString();
             if (name == "_") {
+                ctx.report("Blank identifier can only be used on the left side of assignment.");
                 semType = SemanticType::makeBase(SemanticType::UNKNOWN);
                 break;
             }
@@ -1079,6 +1080,11 @@ void SimpleStmtNode::semantics(SemanticContext &ctx) {
             break;
         case INC:
         case DEC: {
+            string idName;
+            if (isIdentifierExpr(expr, &idName) && idName == "_") {
+                ctx.report("Increment/decrement cannot use blank identifier.");
+                break;
+            }
             SemanticType exprType = expr ? expr->semantics(ctx) : SemanticType::makeBase(SemanticType::UNKNOWN);
             if (!exprType.isNumeric()) {
                 ctx.report("Increment/decrement requires numeric expression.");
@@ -1126,23 +1132,45 @@ void SimpleStmtNode::semantics(SemanticContext &ctx) {
                     continue;
                 }
 
-                if (isId && idName != "_") {
+                if (isId && idName == "_") {
+                    if (type != ASSIGN) {
+                        ctx.report("Blank identifier cannot be used in compound assignment.");
+                    }
+                    continue;
+                }
+
+                SemanticType leftType = SemanticType::makeBase(SemanticType::UNKNOWN);
+                if (isId) {
                     auto it = ctx.locals.find(idName);
                     if (it == ctx.locals.end()) {
                         ctx.report("Assignment to undeclared identifier: " + idName);
-                    } else if (!isAssignable(it->second, rightType)) {
-                        ctx.report("Type mismatch in assignment to " + idName);
+                    } else {
+                        leftType = it->second;
                     }
                 } else if (leftExpr) {
-                    SemanticType leftType = leftExpr->semantics(ctx);
-                    if (!isAssignable(leftType, rightType)) {
-                        ctx.report("Type mismatch in assignment.");
-                    }
+                    leftType = leftExpr->semantics(ctx);
                 }
 
-                if (type != ASSIGN && type != SHORT_VAR_DECL) {
-                    if (!rightType.isNumeric()) {
-                        ctx.report("Compound assignment requires numeric operand.");
+                if (type == ASSIGN) {
+                    if (leftType.base != SemanticType::UNKNOWN && !isAssignable(leftType, rightType)) {
+                        if (isId) {
+                            ctx.report("Type mismatch in assignment to " + idName);
+                        } else {
+                            ctx.report("Type mismatch in assignment.");
+                        }
+                    }
+                    continue;
+                }
+
+                if (type == ADD_ASSIGN) {
+                    bool okString = leftType.isString() && rightType.isString();
+                    bool okNumeric = leftType.isNumeric() && rightType.isNumeric() && leftType.sameKind(rightType);
+                    if (!okString && !okNumeric) {
+                        ctx.report("Add assignment requires matching string or numeric operands.");
+                    }
+                } else {
+                    if (!leftType.isNumeric() || !rightType.isNumeric() || !leftType.sameKind(rightType)) {
+                        ctx.report("Compound assignment requires matching numeric operands.");
                     }
                 }
             }
