@@ -100,8 +100,43 @@ struct SemanticType {
 };
 
 struct SemanticContext {
-    unordered_map<string, SemanticType> locals;
+    vector<unordered_map<string, SemanticType>> scopes;
     vector<string> errors;
+
+    SemanticContext() {
+        scopes.emplace_back();
+    }
+
+    void enterScope() {
+        scopes.emplace_back();
+    }
+
+    void exitScope() {
+        if (scopes.size() > 1) {
+            scopes.pop_back();
+        }
+    }
+
+    bool isDeclaredInCurrent(const string &name) const {
+        return !scopes.empty() && scopes.back().count(name) != 0;
+    }
+
+    bool lookup(const string &name, SemanticType &out) const {
+        for (auto it = scopes.rbegin(); it != scopes.rend(); ++it) {
+            auto found = it->find(name);
+            if (found != it->end()) {
+                out = found->second;
+                return true;
+            }
+        }
+        return false;
+    }
+
+    void declare(const string &name, const SemanticType &type) {
+        if (!scopes.empty()) {
+            scopes.back()[name] = type;
+        }
+    }
 
     void report(const string &message) {
         errors.push_back(message);

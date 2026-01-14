@@ -338,12 +338,12 @@ SemanticType ExprNode::semantics(SemanticContext &ctx) {
                 semType = SemanticType::makeBase(SemanticType::UNKNOWN);
                 break;
             }
-            auto it = ctx.locals.find(name);
-            if (it == ctx.locals.end()) {
+            SemanticType foundType;
+            if (!ctx.lookup(name, foundType)) {
                 ctx.report("Unknown identifier: " + name);
                 semType = SemanticType::makeBase(SemanticType::UNKNOWN);
             } else {
-                semType = it->second;
+                semType = foundType;
             }
             break;
         }
@@ -795,13 +795,16 @@ void StmtNode::semantics(SemanticContext &ctx) {
             if (exprList) exprList->semantics(ctx);
             break;
         case BLOCK:
+            ctx.enterScope();
             if (stmtList && stmtList->getStmtList()) {
                 for (StmtNode *stmt : *stmtList->getStmtList()) {
                     if (stmt) stmt->semantics(ctx);
                 }
             }
+            ctx.exitScope();
             break;
         case IF:
+            ctx.enterScope();
             if (simpleStmt) simpleStmt->semantics(ctx);
             if (condition) {
                 SemanticType condType = condition->semantics(ctx);
@@ -811,13 +814,17 @@ void StmtNode::semantics(SemanticContext &ctx) {
             }
             if (thenBranch) thenBranch->semantics(ctx);
             if (elseBranch) elseBranch->semantics(ctx);
+            ctx.exitScope();
             break;
         case SWITCH:
+            ctx.enterScope();
             if (simpleStmt) simpleStmt->semantics(ctx);
             if (condition) condition->semantics(ctx);
             if (caseList) caseList->semantics(ctx);
+            ctx.exitScope();
             break;
         case FOR:
+            ctx.enterScope();
             if (condition) {
                 SemanticType condType = condition->semantics(ctx);
                 if (!condType.isBool()) {
@@ -825,8 +832,10 @@ void StmtNode::semantics(SemanticContext &ctx) {
                 }
             }
             if (body) body->semantics(ctx);
+            ctx.exitScope();
             break;
         case FOR_PARAM:
+            ctx.enterScope();
             if (initStmt) initStmt->semantics(ctx);
             if (condition) {
                 SemanticType condType = condition->semantics(ctx);
@@ -836,11 +845,14 @@ void StmtNode::semantics(SemanticContext &ctx) {
             }
             if (postStmt) postStmt->semantics(ctx);
             if (body) body->semantics(ctx);
+            ctx.exitScope();
             break;
         case FOR_RANGE:
+            ctx.enterScope();
             if (exprList) exprList->semantics(ctx);
             if (condition) condition->semantics(ctx);
             if (body) body->semantics(ctx);
+            ctx.exitScope();
             break;
         default:
             break;
@@ -1108,6 +1120,7 @@ void SimpleStmtNode::semantics(SemanticContext &ctx) {
             }
             auto itLeft = leftExprs.begin();
             auto itRight = rightExprs.begin();
+            int newCount = 0;
             for (; itLeft != leftExprs.end() && itRight != rightExprs.end(); ++itLeft, ++itRight) {
                 ExprNode *leftExpr = *itLeft;
                 ExprNode *rightExpr = *itRight;
@@ -1123,11 +1136,14 @@ void SimpleStmtNode::semantics(SemanticContext &ctx) {
                     if (idName == "_") {
                         continue;
                     }
-                    auto it = ctx.locals.find(idName);
-                    if (it == ctx.locals.end()) {
-                        ctx.locals[idName] = rightType;
-                    } else if (!isAssignable(it->second, rightType)) {
-                        ctx.report("Cannot assign to " + idName + " from " + rightType.toString());
+                    if (!ctx.isDeclaredInCurrent(idName)) {
+                        ctx.declare(idName, rightType);
+                        newCount++;
+                    } else {
+                        SemanticType existing;
+                        if (ctx.lookup(idName, existing) && !isAssignable(existing, rightType)) {
+                            ctx.report("Cannot assign to " + idName + " from " + rightType.toString());
+                        }
                     }
                     continue;
                 }
@@ -1141,11 +1157,11 @@ void SimpleStmtNode::semantics(SemanticContext &ctx) {
 
                 SemanticType leftType = SemanticType::makeBase(SemanticType::UNKNOWN);
                 if (isId) {
-                    auto it = ctx.locals.find(idName);
-                    if (it == ctx.locals.end()) {
+                    SemanticType found;
+                    if (!ctx.lookup(idName, found)) {
                         ctx.report("Assignment to undeclared identifier: " + idName);
                     } else {
-                        leftType = it->second;
+                        leftType = found;
                     }
                 } else if (leftExpr) {
                     leftType = leftExpr->semantics(ctx);
@@ -1173,6 +1189,9 @@ void SimpleStmtNode::semantics(SemanticContext &ctx) {
                         ctx.report("Compound assignment requires matching numeric operands.");
                     }
                 }
+            }
+            if (type == SHORT_VAR_DECL && newCount == 0) {
+                ctx.report("Short variable declaration requires at least one new variable.");
             }
             break;
         }
@@ -1353,7 +1372,7 @@ void ParamDeclNode::semantics(SemanticContext &ctx) {
             continue;
         }
         if (id && id->getString()) {
-            ctx.locals[*id->getString()] = paramType;
+            ctx.declare(*id->getString(), paramType);
         }
     }
 }
@@ -1525,7 +1544,7 @@ void VarSpecNode::semantics(SemanticContext &ctx) {
             initType = SemanticType::makeBase(SemanticType::UNKNOWN);
         }
         if (id && id->getString()) {
-            ctx.locals[*id->getString()] = initType;
+            ctx.declare(*id->getString(), initType);
         }
     }
 }
@@ -1638,7 +1657,7 @@ void ConstSpecNode::semantics(SemanticContext &ctx) {
             initType = SemanticType::makeBase(SemanticType::UNKNOWN);
         }
         if (id && id->getString()) {
-            ctx.locals[*id->getString()] = initType;
+            ctx.declare(*id->getString(), initType);
         }
     }
 }
@@ -1767,6 +1786,7 @@ string FuncDeclNode::toDot() const {
 
 void FuncDeclNode::semantics(SemanticContext &ctx) {
     SemanticContext local = ctx;
+    local.enterScope();
     if (signature) signature->semantics(local);
     if (body) body->semantics(local);
     ctx.errors.insert(ctx.errors.end(), local.errors.begin(), local.errors.end());
