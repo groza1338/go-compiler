@@ -6,6 +6,48 @@
 
 unsigned int AstNode::maxId = 0;
 
+static bool isBlankIdentifier(const ValueNode *id) {
+    if (!id || !id->getString()) {
+        return false;
+    }
+    return *id->getString() == "_";
+}
+
+static SemanticType semanticTypeFromValue(ValueNode *value) {
+    if (!value) {
+        return SemanticType::makeBase(SemanticType::UNKNOWN);
+    }
+    switch (value->getValueType()) {
+        case ValueNode::LIT_INT: return SemanticType::makeBase(SemanticType::INT);
+        case ValueNode::LIT_FLOAT: return SemanticType::makeBase(SemanticType::FLOAT);
+        case ValueNode::LIT_BOOL: return SemanticType::makeBase(SemanticType::BOOL);
+        case ValueNode::LIT_STRING: return SemanticType::makeBase(SemanticType::STRING);
+        case ValueNode::LIT_RUNE: return SemanticType::makeBase(SemanticType::RUNE);
+        default: return SemanticType::makeBase(SemanticType::UNKNOWN);
+    }
+}
+
+static bool isAssignable(const SemanticType &left, const SemanticType &right) {
+    if (left.isError || right.isError) {
+        return true;
+    }
+    return left.sameKind(right);
+}
+
+static bool isIdentifierExpr(ExprNode *expr, string *outName) {
+    if (!expr || expr->getType() != ExprNode::ID) {
+        return false;
+    }
+    ValueNode *idVal = expr->getIdentifier();
+    if (!idVal || !idVal->getString()) {
+        return false;
+    }
+    if (outName) {
+        *outName = *idVal->getString();
+    }
+    return true;
+}
+
 void AstNode::appendDotNode(string &res) const {
     res += "node" + to_string(id) + " [label=\"" + getDotLabel() + "\"];\n";
 }
@@ -283,6 +325,188 @@ bool ExprNode::isArrayLenAuto() const {
     return arrayLenAuto;
 }
 
+SemanticType ExprNode::semantics(SemanticContext &ctx) {
+    switch (type) {
+        case ID: {
+            if (!identifier || !identifier->getString()) {
+                semType = SemanticType::makeBase(SemanticType::UNKNOWN);
+                break;
+            }
+            const string &name = *identifier->getString();
+            if (name == "_") {
+                semType = SemanticType::makeBase(SemanticType::UNKNOWN);
+                break;
+            }
+            auto it = ctx.locals.find(name);
+            if (it == ctx.locals.end()) {
+                ctx.report("Unknown identifier: " + name);
+                semType = SemanticType::makeBase(SemanticType::UNKNOWN);
+            } else {
+                semType = it->second;
+            }
+            break;
+        }
+        case IOTA:
+            semType = SemanticType::makeBase(SemanticType::INT);
+            break;
+        case LIT_VAL:
+            semType = semanticTypeFromValue(value);
+            break;
+        case ARRAY_LIT: {
+            SemanticType elemType = SemanticType::makeBase(SemanticType::UNKNOWN);
+            if (arrayElemType) {
+                elemType = arrayElemType->getSemanticType();
+            } else if (arrayElems && arrayElems->getExprList() && !arrayElems->getExprList()->empty()) {
+                auto it = arrayElems->getExprList()->begin();
+                elemType = (*it)->semantics(ctx);
+                for (; it != arrayElems->getExprList()->end(); ++it) {
+                    SemanticType t = (*it)->semantics(ctx);
+                    if (!elemType.sameKind(t)) {
+                        ctx.report("Array literal has inconsistent element types.");
+                        elemType = SemanticType::makeBase(SemanticType::UNKNOWN);
+                        break;
+                    }
+                }
+            }
+
+            if (arrayLen) {
+                SemanticType lenType = arrayLen->semantics(ctx);
+                if (!lenType.isError && lenType.base != SemanticType::INT) {
+                    ctx.report("Array length must be int.");
+                }
+                if (arrayElems && arrayElems->getExprList() && arrayLen->getType() == LIT_VAL) {
+                    ValueNode *lenVal = arrayLen->getLiteral();
+                    if (lenVal && lenVal->getValueType() == ValueNode::LIT_INT) {
+                        size_t elemCount = arrayElems->getExprList()->size();
+                        if (elemCount > static_cast<size_t>(lenVal->getInt())) {
+                            ctx.report("Array literal has more elements than its length.");
+                        }
+                    }
+                }
+            }
+
+            if (elemType.base == SemanticType::UNKNOWN) {
+                semType = SemanticType::makeBase(SemanticType::UNKNOWN);
+            } else {
+                semType = elemType;
+                semType.arrayDims += 1;
+            }
+            break;
+        }
+        case SLICE_LIT: {
+            SemanticType elemType = SemanticType::makeBase(SemanticType::UNKNOWN);
+            if (arrayElemType) {
+                elemType = arrayElemType->getSemanticType();
+            } else if (arrayElems && arrayElems->getExprList() && !arrayElems->getExprList()->empty()) {
+                elemType = arrayElems->getExprList()->front()->semantics(ctx);
+            }
+            semType = elemType;
+            semType.sliceDims += 1;
+            break;
+        }
+        case SUMMARY:
+        case SUBTRACTION:
+        case MULTIPLICATION:
+        case DIVISION:
+        case MODULO: {
+            SemanticType leftType = left ? left->semantics(ctx) : SemanticType::makeBase(SemanticType::UNKNOWN);
+            SemanticType rightType = right ? right->semantics(ctx) : SemanticType::makeBase(SemanticType::UNKNOWN);
+            if (type == SUMMARY && leftType.isString() && rightType.isString()) {
+                semType = SemanticType::makeBase(SemanticType::STRING);
+                break;
+            }
+            if (!leftType.isNumeric() || !rightType.isNumeric() || !leftType.sameKind(rightType)) {
+                ctx.report("Numeric operator requires operands of the same numeric type.");
+                semType = SemanticType::makeBase(SemanticType::UNKNOWN);
+                break;
+            }
+            semType = leftType;
+            break;
+        }
+        case EQUAL:
+        case NOT_EQUAL:
+        case LESS:
+        case GREATER:
+        case LESS_OR_EQUAL:
+        case GREATER_OR_EQUAL: {
+            SemanticType leftType = left ? left->semantics(ctx) : SemanticType::makeBase(SemanticType::UNKNOWN);
+            SemanticType rightType = right ? right->semantics(ctx) : SemanticType::makeBase(SemanticType::UNKNOWN);
+            if (!leftType.sameKind(rightType) || !leftType.isScalar()) {
+                ctx.report("Comparison requires scalar operands of the same type.");
+            }
+            semType = SemanticType::makeBase(SemanticType::BOOL);
+            break;
+        }
+        case AND:
+        case OR: {
+            SemanticType leftType = left ? left->semantics(ctx) : SemanticType::makeBase(SemanticType::UNKNOWN);
+            SemanticType rightType = right ? right->semantics(ctx) : SemanticType::makeBase(SemanticType::UNKNOWN);
+            if (!leftType.isBool() || !rightType.isBool()) {
+                ctx.report("Logical operator requires boolean operands.");
+            }
+            semType = SemanticType::makeBase(SemanticType::BOOL);
+            break;
+        }
+        case NOT: {
+            SemanticType operandType = operand ? operand->semantics(ctx) : SemanticType::makeBase(SemanticType::UNKNOWN);
+            if (!operandType.isBool()) {
+                ctx.report("Logical NOT requires boolean operand.");
+            }
+            semType = SemanticType::makeBase(SemanticType::BOOL);
+            break;
+        }
+        case UNARY_MINUS: {
+            SemanticType operandType = operand ? operand->semantics(ctx) : SemanticType::makeBase(SemanticType::UNKNOWN);
+            if (!operandType.isNumeric()) {
+                ctx.report("Unary minus requires numeric operand.");
+            }
+            semType = operandType;
+            break;
+        }
+        case ADDRESS_OF:
+            semType = operand ? operand->semantics(ctx) : SemanticType::makeBase(SemanticType::UNKNOWN);
+            break;
+        case ELEMENT_ACCESS: {
+            SemanticType operandType = operand ? operand->semantics(ctx) : SemanticType::makeBase(SemanticType::UNKNOWN);
+            SemanticType indexType = index ? index->semantics(ctx) : SemanticType::makeBase(SemanticType::UNKNOWN);
+            if (indexType.base != SemanticType::INT || !indexType.isScalar()) {
+                ctx.report("Index expression must be int.");
+            }
+            if (operandType.arrayDims > 0) {
+                semType = operandType;
+                semType.arrayDims -= 1;
+            } else if (operandType.sliceDims > 0) {
+                semType = operandType;
+                semType.sliceDims -= 1;
+            } else {
+                ctx.report("Indexing requires array or slice operand.");
+                semType = SemanticType::makeBase(SemanticType::UNKNOWN);
+            }
+            break;
+        }
+        case SLICE: {
+            SemanticType operandType = operand ? operand->semantics(ctx) : SemanticType::makeBase(SemanticType::UNKNOWN);
+            semType = operandType;
+            if (operandType.arrayDims > 0) {
+                semType.arrayDims -= 1;
+                semType.sliceDims = 1;
+            }
+            break;
+        }
+        case FUNCTION_CALL:
+        case SELECTOR:
+        case EXPR_IN_BRACKETS:
+        default:
+            semType = SemanticType::makeBase(SemanticType::UNKNOWN);
+            if (operand) {
+                operand->semantics(ctx);
+            }
+            break;
+    }
+
+    return semType;
+}
+
 string ExprNode::getDotLabel() const {
     switch (type) {
         case ID:                return "IDENTIFIER";
@@ -355,6 +579,7 @@ ExprNode::ExprNode(): AstNode() {
     arrayLen = nullptr;
     arrayElems = nullptr;
     arrayLenAuto = false;
+    semType = SemanticType::makeBase(SemanticType::UNKNOWN);
 }
 
 ExprListNode* ExprListNode::createExprList(ExprNode *expr) {
@@ -388,6 +613,17 @@ string ExprListNode::toDot() const {
     }
 
     return result;
+}
+
+void ExprListNode::semantics(SemanticContext &ctx) {
+    if (!exprs) {
+        return;
+    }
+    for (ExprNode *expr : *exprs) {
+        if (expr) {
+            expr->semantics(ctx);
+        }
+    }
 }
 
 StmtListNode* StmtListNode::createStmtList(StmtNode *stmt) {
@@ -546,6 +782,70 @@ string StmtNode::toDot() const {
     return result;
 }
 
+void StmtNode::semantics(SemanticContext &ctx) {
+    switch (type) {
+        case DECLARATION:
+            if (decl) decl->semantics(ctx);
+            break;
+        case SIMPLE:
+            if (simpleStmt) simpleStmt->semantics(ctx);
+            break;
+        case RETURN:
+            if (exprList) exprList->semantics(ctx);
+            break;
+        case BLOCK:
+            if (stmtList && stmtList->getStmtList()) {
+                for (StmtNode *stmt : *stmtList->getStmtList()) {
+                    if (stmt) stmt->semantics(ctx);
+                }
+            }
+            break;
+        case IF:
+            if (simpleStmt) simpleStmt->semantics(ctx);
+            if (condition) {
+                SemanticType condType = condition->semantics(ctx);
+                if (!condType.isBool()) {
+                    ctx.report("If condition must be bool.");
+                }
+            }
+            if (thenBranch) thenBranch->semantics(ctx);
+            if (elseBranch) elseBranch->semantics(ctx);
+            break;
+        case SWITCH:
+            if (simpleStmt) simpleStmt->semantics(ctx);
+            if (condition) condition->semantics(ctx);
+            if (caseList) caseList->semantics(ctx);
+            break;
+        case FOR:
+            if (condition) {
+                SemanticType condType = condition->semantics(ctx);
+                if (!condType.isBool()) {
+                    ctx.report("For condition must be bool.");
+                }
+            }
+            if (body) body->semantics(ctx);
+            break;
+        case FOR_PARAM:
+            if (initStmt) initStmt->semantics(ctx);
+            if (condition) {
+                SemanticType condType = condition->semantics(ctx);
+                if (!condType.isBool()) {
+                    ctx.report("For condition must be bool.");
+                }
+            }
+            if (postStmt) postStmt->semantics(ctx);
+            if (body) body->semantics(ctx);
+            break;
+        case FOR_RANGE:
+            if (exprList) exprList->semantics(ctx);
+            if (condition) condition->semantics(ctx);
+            if (body) body->semantics(ctx);
+            break;
+        default:
+            break;
+    }
+}
+
 StmtNode::StmtNode(): AstNode() {
     type = NONE;
     decl = nullptr;
@@ -594,6 +894,17 @@ string CaseNode::toDot() const {
     return result;
 }
 
+void CaseNode::semantics(SemanticContext &ctx) {
+    if (exprList) {
+        exprList->semantics(ctx);
+    }
+    if (stmtList && stmtList->getStmtList()) {
+        for (StmtNode *stmt : *stmtList->getStmtList()) {
+            if (stmt) stmt->semantics(ctx);
+        }
+    }
+}
+
 CaseNode::CaseNode() : AstNode() {
     exprList = nullptr;
     stmtList = nullptr;
@@ -630,6 +941,15 @@ string CaseListNode::toDot() const {
     }
 
     return result;
+}
+
+void CaseListNode::semantics(SemanticContext &ctx) {
+    if (!caseList) {
+        return;
+    }
+    for (CaseNode *caseElem : *caseList) {
+        if (caseElem) caseElem->semantics(ctx);
+    }
 }
 
 SimpleStmtNode* SimpleStmtNode::createExpr(ExprNode *expr) {
@@ -752,6 +1072,87 @@ string SimpleStmtNode::toDot() const {
     return result;
 }
 
+void SimpleStmtNode::semantics(SemanticContext &ctx) {
+    switch (type) {
+        case EXPR:
+            if (expr) expr->semantics(ctx);
+            break;
+        case INC:
+        case DEC: {
+            SemanticType exprType = expr ? expr->semantics(ctx) : SemanticType::makeBase(SemanticType::UNKNOWN);
+            if (!exprType.isNumeric()) {
+                ctx.report("Increment/decrement requires numeric expression.");
+            }
+            break;
+        }
+        case ASSIGN:
+        case ADD_ASSIGN:
+        case SUB_ASSIGN:
+        case MUL_ASSIGN:
+        case DIV_ASSIGN:
+        case MOD_ASSIGN:
+        case SHORT_VAR_DECL: {
+            if (!left || !right || !left->getExprList() || !right->getExprList()) {
+                break;
+            }
+            auto &leftExprs = *left->getExprList();
+            auto &rightExprs = *right->getExprList();
+            if (leftExprs.size() != rightExprs.size()) {
+                ctx.report("Assignment list size mismatch.");
+            }
+            auto itLeft = leftExprs.begin();
+            auto itRight = rightExprs.begin();
+            for (; itLeft != leftExprs.end() && itRight != rightExprs.end(); ++itLeft, ++itRight) {
+                ExprNode *leftExpr = *itLeft;
+                ExprNode *rightExpr = *itRight;
+                SemanticType rightType = rightExpr ? rightExpr->semantics(ctx) : SemanticType::makeBase(SemanticType::UNKNOWN);
+
+                string idName;
+                bool isId = isIdentifierExpr(leftExpr, &idName);
+                if (type == SHORT_VAR_DECL) {
+                    if (!isId) {
+                        ctx.report("Short variable declaration requires identifiers.");
+                        continue;
+                    }
+                    if (idName == "_") {
+                        continue;
+                    }
+                    auto it = ctx.locals.find(idName);
+                    if (it == ctx.locals.end()) {
+                        ctx.locals[idName] = rightType;
+                    } else if (!isAssignable(it->second, rightType)) {
+                        ctx.report("Cannot assign to " + idName + " from " + rightType.toString());
+                    }
+                    continue;
+                }
+
+                if (isId && idName != "_") {
+                    auto it = ctx.locals.find(idName);
+                    if (it == ctx.locals.end()) {
+                        ctx.report("Assignment to undeclared identifier: " + idName);
+                    } else if (!isAssignable(it->second, rightType)) {
+                        ctx.report("Type mismatch in assignment to " + idName);
+                    }
+                } else if (leftExpr) {
+                    SemanticType leftType = leftExpr->semantics(ctx);
+                    if (!isAssignable(leftType, rightType)) {
+                        ctx.report("Type mismatch in assignment.");
+                    }
+                }
+
+                if (type != ASSIGN && type != SHORT_VAR_DECL) {
+                    if (!rightType.isNumeric()) {
+                        ctx.report("Compound assignment requires numeric operand.");
+                    }
+                }
+            }
+            break;
+        }
+        default:
+            break;
+    }
+}
+
 SimpleStmtNode::SimpleStmtNode(): AstNode() {
     type = NONE;
     expr = nullptr;
@@ -854,6 +1255,36 @@ string TypeNode::toDot() const {
     return res;
 }
 
+SemanticType TypeNode::getSemanticType() const {
+    switch (kind) {
+        case NAMED: {
+            if (!name) {
+                return SemanticType::makeBase(SemanticType::UNKNOWN);
+            }
+            switch (name->getType()) {
+                case TypeNameNode::INT_64: return SemanticType::makeBase(SemanticType::INT);
+                case TypeNameNode::FLOAT_64: return SemanticType::makeBase(SemanticType::FLOAT);
+                case TypeNameNode::BOOL: return SemanticType::makeBase(SemanticType::BOOL);
+                case TypeNameNode::STRING: return SemanticType::makeBase(SemanticType::STRING);
+                case TypeNameNode::RUNE: return SemanticType::makeBase(SemanticType::RUNE);
+                default: return SemanticType::makeBase(SemanticType::UNKNOWN);
+            }
+        }
+        case ARRAY: {
+            SemanticType elem = elemType ? elemType->getSemanticType() : SemanticType::makeBase(SemanticType::UNKNOWN);
+            elem.arrayDims += 1;
+            return elem;
+        }
+        case SLICE: {
+            SemanticType elem = elemType ? elemType->getSemanticType() : SemanticType::makeBase(SemanticType::UNKNOWN);
+            elem.sliceDims += 1;
+            return elem;
+        }
+        default:
+            return SemanticType::makeBase(SemanticType::UNKNOWN);
+    }
+}
+
 TypeNode::TypeNode(): AstNode() {
     kind = NONE;
     name = nullptr;
@@ -879,6 +1310,24 @@ string ParamDeclNode::toDot() const {
     appendDotEdge(res, idList, "ids");
     appendDotEdge(res, type, "type");
     return res;
+}
+
+void ParamDeclNode::semantics(SemanticContext &ctx) {
+    if (!type) {
+        return;
+    }
+    SemanticType paramType = type->getSemanticType();
+    if (!idList || !idList->getIdList()) {
+        return;
+    }
+    for (ValueNode *id : *idList->getIdList()) {
+        if (isBlankIdentifier(id)) {
+            continue;
+        }
+        if (id && id->getString()) {
+            ctx.locals[*id->getString()] = paramType;
+        }
+    }
 }
 
 ParamDeclNode::ParamDeclNode() {
@@ -917,6 +1366,15 @@ string ParamDeclListNode::toDot() const {
     return res;
 }
 
+void ParamDeclListNode::semantics(SemanticContext &ctx) {
+    if (!paramList) {
+        return;
+    }
+    for (ParamDeclNode *param : *paramList) {
+        if (param) param->semantics(ctx);
+    }
+}
+
 SignatureNode* SignatureNode::createSignature(ParamDeclListNode *paramList, ResultNode *result) {
     SignatureNode *node = new SignatureNode();
     node->paramList = paramList;
@@ -934,6 +1392,11 @@ string SignatureNode::toDot() const {
     appendDotEdge(res, paramList, "params");
     appendDotEdge(res, result, "result");
     return res;
+}
+
+void SignatureNode::semantics(SemanticContext &ctx) {
+    if (paramList) paramList->semantics(ctx);
+    if (result) result->semantics(ctx);
 }
 
 SignatureNode::SignatureNode(): AstNode() {
@@ -966,6 +1429,11 @@ string ResultNode::toDot() const {
 
 }
 
+void ResultNode::semantics(SemanticContext &ctx) {
+    if (paramList) paramList->semantics(ctx);
+    if (type) type->getSemanticType();
+}
+
 ResultNode::ResultNode(): AstNode() {
     paramList = nullptr;
     type = nullptr;
@@ -990,6 +1458,48 @@ string VarSpecNode::toDot() const {
     appendDotEdge(res, type, "type");
     appendDotEdge(res, exprList, "values");
     return res;
+}
+
+void VarSpecNode::semantics(SemanticContext &ctx) {
+    if (!idList || !idList->getIdList()) {
+        return;
+    }
+    SemanticType declaredType = type ? type->getSemanticType() : SemanticType::makeBase(SemanticType::UNKNOWN);
+    list<ExprNode*> *exprs = exprList ? exprList->getExprList() : nullptr;
+    size_t exprCount = exprs ? exprs->size() : 0;
+    size_t idCount = idList->getIdList()->size();
+    if (exprs && exprCount != idCount) {
+        ctx.report("VarSpec: initializer count does not match identifiers.");
+    }
+    auto idIt = idList->getIdList()->begin();
+    auto exprIt = exprs ? exprs->begin() : list<ExprNode*>::iterator();
+    for (; idIt != idList->getIdList()->end(); ++idIt) {
+        ValueNode *id = *idIt;
+        if (isBlankIdentifier(id)) {
+            if (exprs && exprIt != exprs->end()) {
+                (*exprIt)->semantics(ctx);
+                ++exprIt;
+            }
+            continue;
+        }
+        SemanticType initType = declaredType;
+        if (exprs && exprIt != exprs->end()) {
+            SemanticType exprType = (*exprIt)->semantics(ctx);
+            ++exprIt;
+            if (declaredType.base != SemanticType::UNKNOWN && !isAssignable(declaredType, exprType)) {
+                ctx.report("VarSpec: type mismatch for initializer.");
+            }
+            if (declaredType.base == SemanticType::UNKNOWN) {
+                initType = exprType;
+            }
+        } else if (declaredType.base == SemanticType::UNKNOWN) {
+            ctx.report("VarSpec: missing type and initializer.");
+            initType = SemanticType::makeBase(SemanticType::UNKNOWN);
+        }
+        if (id && id->getString()) {
+            ctx.locals[*id->getString()] = initType;
+        }
+    }
 }
 
 VarSpecNode::VarSpecNode() {
@@ -1029,6 +1539,15 @@ string VarSpecListNode::toDot() const {
     return res;
 }
 
+void VarSpecListNode::semantics(SemanticContext &ctx) {
+    if (!varList) {
+        return;
+    }
+    for (VarSpecNode *varElem : *varList) {
+        if (varElem) varElem->semantics(ctx);
+    }
+}
+
 VarSpecListNode::VarSpecListNode(): AstNode() {
     varList = nullptr;
 }
@@ -1052,6 +1571,48 @@ string ConstSpecNode::toDot() const {
     appendDotEdge(res, type, "type");
     appendDotEdge(res, exprList, "values");
     return res;
+}
+
+void ConstSpecNode::semantics(SemanticContext &ctx) {
+    if (!idList || !idList->getIdList()) {
+        return;
+    }
+    SemanticType declaredType = type ? type->getSemanticType() : SemanticType::makeBase(SemanticType::UNKNOWN);
+    list<ExprNode*> *exprs = exprList ? exprList->getExprList() : nullptr;
+    size_t exprCount = exprs ? exprs->size() : 0;
+    size_t idCount = idList->getIdList()->size();
+    if (exprs && exprCount != idCount) {
+        ctx.report("ConstSpec: initializer count does not match identifiers.");
+    }
+    auto idIt = idList->getIdList()->begin();
+    auto exprIt = exprs ? exprs->begin() : list<ExprNode*>::iterator();
+    for (; idIt != idList->getIdList()->end(); ++idIt) {
+        ValueNode *id = *idIt;
+        if (isBlankIdentifier(id)) {
+            if (exprs && exprIt != exprs->end()) {
+                (*exprIt)->semantics(ctx);
+                ++exprIt;
+            }
+            continue;
+        }
+        SemanticType initType = declaredType;
+        if (exprs && exprIt != exprs->end()) {
+            SemanticType exprType = (*exprIt)->semantics(ctx);
+            ++exprIt;
+            if (declaredType.base != SemanticType::UNKNOWN && !isAssignable(declaredType, exprType)) {
+                ctx.report("ConstSpec: type mismatch for initializer.");
+            }
+            if (declaredType.base == SemanticType::UNKNOWN) {
+                initType = exprType;
+            }
+        } else if (declaredType.base == SemanticType::UNKNOWN) {
+            ctx.report("ConstSpec: missing type and initializer.");
+            initType = SemanticType::makeBase(SemanticType::UNKNOWN);
+        }
+        if (id && id->getString()) {
+            ctx.locals[*id->getString()] = initType;
+        }
+    }
 }
 
 ConstSpecNode::ConstSpecNode(): AstNode() {
@@ -1089,6 +1650,15 @@ string ConstSpecListNode::toDot() const {
         }
     }
     return res;
+}
+
+void ConstSpecListNode::semantics(SemanticContext &ctx) {
+    if (!specList) {
+        return;
+    }
+    for (ConstSpecNode *spec : *specList) {
+        if (spec) spec->semantics(ctx);
+    }
 }
 
 ConstSpecListNode::ConstSpecListNode(): AstNode() {
@@ -1132,6 +1702,15 @@ string DeclNode::toDot() const {
 
 }
 
+void DeclNode::semantics(SemanticContext &ctx) {
+    if (constSpecList) {
+        constSpecList->semantics(ctx);
+    }
+    if (varSpecList) {
+        varSpecList->semantics(ctx);
+    }
+}
+
 DeclNode::DeclNode(): AstNode() {
     constSpecList = nullptr;
     varSpecList = nullptr;
@@ -1156,6 +1735,13 @@ string FuncDeclNode::toDot() const {
     appendDotEdge(res, signature, "signature");
     appendDotEdge(res, body, "body");
     return res;
+}
+
+void FuncDeclNode::semantics(SemanticContext &ctx) {
+    SemanticContext local = ctx;
+    if (signature) signature->semantics(local);
+    if (body) body->semantics(local);
+    ctx.errors.insert(ctx.errors.end(), local.errors.begin(), local.errors.end());
 }
 
 FuncDeclNode::FuncDeclNode(): AstNode() {
@@ -1186,6 +1772,11 @@ string TopLevelDeclNode::toDot() const {
     appendDotEdge(res, decl, "decl");
     appendDotEdge(res, funcDecl, "func");
     return res;
+}
+
+void TopLevelDeclNode::semantics(SemanticContext &ctx) {
+    if (decl) decl->semantics(ctx);
+    if (funcDecl) funcDecl->semantics(ctx);
 }
 
 TopLevelDeclNode::TopLevelDeclNode(): AstNode() {
@@ -1222,6 +1813,15 @@ string TopLevelDeclListNode::toDot() const {
         }
     }
     return res;
+}
+
+void TopLevelDeclListNode::semantics(SemanticContext &ctx) {
+    if (!elemList) {
+        return;
+    }
+    for (TopLevelDeclNode *elem : *elemList) {
+        if (elem) elem->semantics(ctx);
+    }
 }
 
 TopLevelDeclListNode::TopLevelDeclListNode(): AstNode() {
@@ -1288,6 +1888,10 @@ string ImportSpecNode::toDot() const {
     return res;
 }
 
+void ImportSpecNode::semantics(SemanticContext &ctx) {
+    (void)ctx;
+}
+
 ImportSpecNode::ImportSpecNode(): AstNode() {
     importType = NONE;
     import = nullptr;
@@ -1325,6 +1929,15 @@ string ImportSpecListNode::toDot() const {
     return res;
 }
 
+void ImportSpecListNode::semantics(SemanticContext &ctx) {
+    if (!elemList) {
+        return;
+    }
+    for (ImportSpecNode *spec : *elemList) {
+        if (spec) spec->semantics(ctx);
+    }
+}
+
 ImportSpecListNode::ImportSpecListNode(): AstNode() {
     elemList = nullptr;
 }
@@ -1350,6 +1963,10 @@ string ImportDeclNode::toDot() const {
     appendDotNode(res);
     appendDotEdge(res, importList, "specs");
     return res;
+}
+
+void ImportDeclNode::semantics(SemanticContext &ctx) {
+    if (importList) importList->semantics(ctx);
 }
 
 ImportDeclNode::ImportDeclNode(): AstNode() {
@@ -1387,6 +2004,15 @@ string ImportDeclListNode::toDot() const {
     return res;
 }
 
+void ImportDeclListNode::semantics(SemanticContext &ctx) {
+    if (!elemList) {
+        return;
+    }
+    for (ImportDeclNode *decl : *elemList) {
+        if (decl) decl->semantics(ctx);
+    }
+}
+
 ImportDeclListNode::ImportDeclListNode(): AstNode() {
     elemList = nullptr;
 }
@@ -1411,6 +2037,11 @@ string ProgramNode::toDot() const {
     appendDotEdge(res, importDeclList, "imports");
     appendDotEdge(res, topLevelDeclList, "decls");
     return res;
+}
+
+void ProgramNode::semantics(SemanticContext &ctx) {
+    if (importDeclList) importDeclList->semantics(ctx);
+    if (topLevelDeclList) topLevelDeclList->semantics(ctx);
 }
 
 ProgramNode::ProgramNode(): AstNode() {
@@ -1458,6 +2089,10 @@ string TypeNameNode::getDotLabel() const {
     case RUNE:    return "rune";
     default:      return "TYPE_NAME";
     }
+}
+
+TypeNameNode::PredefinedTypes TypeNameNode::getType() const {
+    return type;
 }
 
 string TypeNameNode::toDot() const {

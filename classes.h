@@ -6,6 +6,8 @@
 #include <iostream>
 #include <string>
 #include <list>
+#include <unordered_map>
+#include <vector>
 
 using namespace std;
 
@@ -41,6 +43,69 @@ public:
 
     virtual string getDotLabel() const = 0;
     virtual string toDot() const = 0;
+};
+
+struct SemanticType {
+    enum BaseType {
+        UNKNOWN,
+        INT,
+        FLOAT,
+        BOOL,
+        STRING,
+        RUNE
+    };
+
+    BaseType base = UNKNOWN;
+    int arrayDims = 0;
+    int sliceDims = 0;
+    bool isError = false;
+
+    static SemanticType makeBase(BaseType baseType) {
+        SemanticType t;
+        t.base = baseType;
+        return t;
+    }
+
+    static SemanticType makeError() {
+        SemanticType t;
+        t.isError = true;
+        return t;
+    }
+
+    bool isNumeric() const { return base == INT || base == FLOAT; }
+    bool isBool() const { return base == BOOL; }
+    bool isString() const { return base == STRING; }
+    bool isScalar() const { return arrayDims == 0 && sliceDims == 0; }
+
+    bool sameKind(const SemanticType &other) const {
+        return base == other.base && arrayDims == other.arrayDims && sliceDims == other.sliceDims;
+    }
+
+    string toString() const {
+        if (isError) return "error";
+        string baseStr;
+        switch (base) {
+            case INT: baseStr = "int"; break;
+            case FLOAT: baseStr = "float64"; break;
+            case BOOL: baseStr = "bool"; break;
+            case STRING: baseStr = "string"; break;
+            case RUNE: baseStr = "rune"; break;
+            default: baseStr = "unknown"; break;
+        }
+        string prefix;
+        for (int i = 0; i < arrayDims; i++) prefix += "[?]";
+        for (int i = 0; i < sliceDims; i++) prefix += "[]";
+        return prefix + baseStr;
+    }
+};
+
+struct SemanticContext {
+    unordered_map<string, SemanticType> locals;
+    vector<string> errors;
+
+    void report(const string &message) {
+        errors.push_back(message);
+    }
 };
 
 class ExprNode : public AstNode {
@@ -116,6 +181,7 @@ public:
     ExprNode* getArrayLen() const;
     ExprListNode* getArrayElems() const;
     bool isArrayLenAuto() const;
+    SemanticType semantics(SemanticContext &ctx);
 
     string getDotLabel() const override;
     string toDot() const override;
@@ -137,6 +203,7 @@ protected:
     ExprNode *arrayLen;
     ExprListNode *arrayElems;
     bool arrayLenAuto;
+    SemanticType semType;
 
     ExprNode();
 };
@@ -150,6 +217,7 @@ public:
 
     string getDotLabel() const override;
     string toDot() const override;
+    void semantics(SemanticContext &ctx);
 
 protected:
     ExprListNode(): AstNode() {exprs = nullptr;}
@@ -203,6 +271,7 @@ public:
 
     string getDotLabel() const override;
     string toDot() const override;
+    void semantics(SemanticContext &ctx);
 
 protected:
     StmtType type;
@@ -229,6 +298,7 @@ public:
 
     string getDotLabel() const override;
     string toDot() const override;
+    void semantics(SemanticContext &ctx);
 
 protected:
     ExprListNode *exprList;
@@ -246,6 +316,7 @@ public:
 
     string getDotLabel() const override;
     string toDot() const override;
+    void semantics(SemanticContext &ctx);
 
 protected:
     list<CaseNode*> *caseList;
@@ -287,6 +358,7 @@ public:
 
     string getDotLabel() const override;
     string toDot() const override;
+    void semantics(SemanticContext &ctx);
 
 protected:
     SimpleStmtType type;
@@ -330,6 +402,7 @@ public:
 
     string getDotLabel() const override;
     string toDot() const override;
+    SemanticType getSemanticType() const;
 
 private:
     Kind kind;
@@ -347,6 +420,7 @@ public:
 
     string getDotLabel() const override;
     string toDot() const override;
+    void semantics(SemanticContext &ctx);
 
 protected:
     IdListNode *idList;
@@ -364,6 +438,7 @@ public:
 
     string getDotLabel() const override;
     string toDot() const override;
+    void semantics(SemanticContext &ctx);
 
 protected:
     list<ParamDeclNode*> *paramList;
@@ -377,6 +452,7 @@ public:
 
     string getDotLabel() const override;
     string toDot() const override;
+    void semantics(SemanticContext &ctx);
 
 protected:
     ParamDeclListNode *paramList;
@@ -392,6 +468,7 @@ public:
 
     string getDotLabel() const override;
     string toDot() const override;
+    void semantics(SemanticContext &ctx);
 
 protected:
     ParamDeclListNode *paramList;
@@ -406,6 +483,7 @@ public:
 
     string getDotLabel() const override;
     string toDot() const override;
+    void semantics(SemanticContext &ctx);
 
 protected:
     IdListNode *idList;
@@ -424,6 +502,7 @@ public:
 
     string getDotLabel() const override;
     string toDot() const override;
+    void semantics(SemanticContext &ctx);
 
 protected:
     list<VarSpecNode*> *varList;
@@ -437,6 +516,7 @@ public:
 
     string getDotLabel() const override;
     string toDot() const override;
+    void semantics(SemanticContext &ctx);
 
 protected:
     IdListNode *idList;
@@ -455,6 +535,7 @@ public:
 
     string getDotLabel() const override;
     string toDot() const override;
+    void semantics(SemanticContext &ctx);
 
 protected:
     list<ConstSpecNode*> *specList;
@@ -471,6 +552,7 @@ public:
 
     string getDotLabel() const override;
     string toDot() const override;
+    void semantics(SemanticContext &ctx);
 
 protected:
     ConstSpecListNode *constSpecList;
@@ -485,6 +567,7 @@ public:
 
     string getDotLabel() const override;
     string toDot() const override;
+    void semantics(SemanticContext &ctx);
 
 protected:
     ValueNode *id;
@@ -501,6 +584,7 @@ public:
 
     string getDotLabel() const override;
     string toDot() const override;
+    void semantics(SemanticContext &ctx);
 
 protected:
     DeclNode *decl;
@@ -518,6 +602,7 @@ public:
 
     string getDotLabel() const override;
     string toDot() const override;
+    void semantics(SemanticContext &ctx);
 
 protected:
     list<TopLevelDeclNode*> *elemList;
@@ -553,6 +638,7 @@ public:
 
     string getDotLabel() const override;
     string toDot() const override;
+    void semantics(SemanticContext &ctx);
 
 protected:
     ImportType importType;
@@ -571,6 +657,7 @@ public:
 
     string getDotLabel() const override;
     string toDot() const override;
+    void semantics(SemanticContext &ctx);
 
 protected:
     list<ImportSpecNode*> *elemList;
@@ -585,6 +672,7 @@ public:
 
     string getDotLabel() const override;
     string toDot() const override;
+    void semantics(SemanticContext &ctx);
 
 protected:
     ImportSpecListNode *importList;
@@ -601,6 +689,7 @@ public:
 
     string getDotLabel() const override;
     string toDot() const override;
+    void semantics(SemanticContext &ctx);
 
 protected:
     list<ImportDeclNode*> *elemList;
@@ -614,6 +703,7 @@ public:
 
     string getDotLabel() const override;
     string toDot() const override;
+    void semantics(SemanticContext &ctx);
 
 protected:
     PackageClauseNode *packageClause;
@@ -642,6 +732,7 @@ public:
 
     string getDotLabel() const override;
     string toDot() const override;
+    PredefinedTypes getType() const;
 
 protected:
     PredefinedTypes type;
