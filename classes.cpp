@@ -48,6 +48,22 @@ static bool isIdentifierExpr(ExprNode *expr, string *outName) {
     return true;
 }
 
+static bool isAddressableExpr(ExprNode *expr) {
+    if (!expr) {
+        return false;
+    }
+    switch (expr->getType()) {
+        case ExprNode::ID:
+            return true;
+        case ExprNode::ELEMENT_ACCESS:
+            return true;
+        case ExprNode::EXPR_IN_BRACKETS:
+            return isAddressableExpr(expr->getOperand());
+        default:
+            return false;
+    }
+}
+
 void AstNode::appendDotNode(string &res) const {
     res += "node" + to_string(id) + " [label=\"" + getDotLabel() + "\"];\n";
 }
@@ -1097,6 +1113,10 @@ void SimpleStmtNode::semantics(SemanticContext &ctx) {
                 ctx.report("Increment/decrement cannot use blank identifier.");
                 break;
             }
+            if (!isAddressableExpr(expr)) {
+                ctx.report("Increment/decrement requires addressable operand.");
+                break;
+            }
             SemanticType exprType = expr ? expr->semantics(ctx) : SemanticType::makeBase(SemanticType::UNKNOWN);
             if (!exprType.isNumeric()) {
                 ctx.report("Increment/decrement requires numeric expression.");
@@ -1145,6 +1165,14 @@ void SimpleStmtNode::semantics(SemanticContext &ctx) {
                             ctx.report("Cannot assign to " + idName + " from " + rightType.toString());
                         }
                     }
+                    continue;
+                }
+
+                if (!isAddressableExpr(leftExpr)) {
+                    if (leftExpr) {
+                        leftExpr->semantics(ctx);
+                    }
+                    ctx.report("Left side of assignment must be addressable.");
                     continue;
                 }
 
