@@ -878,6 +878,16 @@ void StmtNode::semantics(SemanticContext &ctx) {
                 if (exprList) exprList->semantics(ctx);
             }
             break;
+        case BREAK:
+            if (!ctx.inLoop() && !ctx.inSwitch()) {
+                ctx.report("Break not within loop or switch.");
+            }
+            break;
+        case CONTINUE:
+            if (!ctx.inLoop()) {
+                ctx.report("Continue not within loop.");
+            }
+            break;
         case BLOCK:
             ctx.enterScope();
             if (stmtList && stmtList->getStmtList()) {
@@ -916,6 +926,7 @@ void StmtNode::semantics(SemanticContext &ctx) {
             break;
         case FOR:
             ctx.enterScope();
+            ctx.enterLoop();
             if (condition) {
                 SemanticType condType = condition->semantics(ctx);
                 if (!condType.isBool()) {
@@ -923,10 +934,12 @@ void StmtNode::semantics(SemanticContext &ctx) {
                 }
             }
             if (body) body->semantics(ctx);
+            ctx.exitLoop();
             ctx.exitScope();
             break;
         case FOR_PARAM:
             ctx.enterScope();
+            ctx.enterLoop();
             if (initStmt) initStmt->semantics(ctx);
             if (condition) {
                 SemanticType condType = condition->semantics(ctx);
@@ -936,13 +949,16 @@ void StmtNode::semantics(SemanticContext &ctx) {
             }
             if (postStmt) postStmt->semantics(ctx);
             if (body) body->semantics(ctx);
+            ctx.exitLoop();
             ctx.exitScope();
             break;
         case FOR_RANGE:
             ctx.enterScope();
+            ctx.enterLoop();
             if (exprList) exprList->semantics(ctx);
             if (condition) condition->semantics(ctx);
             if (body) body->semantics(ctx);
+            ctx.exitLoop();
             ctx.exitScope();
             break;
         default:

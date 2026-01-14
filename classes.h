@@ -109,6 +109,7 @@ struct SemanticContext {
     vector<string> errors;
     vector<FunctionReturnInfo> returnStack;
     vector<SemanticType> switchStack;
+    int loopDepth = 0;
 
     SemanticContext() {
         scopes.emplace_back();
@@ -177,6 +178,24 @@ struct SemanticContext {
             return nullptr;
         }
         return &switchStack.back();
+    }
+
+    void enterLoop() {
+        loopDepth++;
+    }
+
+    void exitLoop() {
+        if (loopDepth > 0) {
+            loopDepth--;
+        }
+    }
+
+    bool inLoop() const {
+        return loopDepth > 0;
+    }
+
+    bool inSwitch() const {
+        return !switchStack.empty();
     }
 
     void report(const string &message) {
