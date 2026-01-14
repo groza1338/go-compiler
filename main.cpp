@@ -41,8 +41,19 @@ int main(int argc, char* argv[])
 
     SemanticContext semCtx;
     root->semantics(semCtx);
-    for (const auto &err : semCtx.errors) {
-        cout << "Semantic error: " << err << "\n";
+    const char *semDir = std::getenv("SEMANTIC_OUT_DIR");
+    fs::path semPath = semDir && *semDir
+        ? fs::path(semDir) / (fs::path(inputFile).filename().string() + ".sem.txt")
+        : fs::path(inputFile + ".sem.txt");
+
+    if (!semCtx.errors.empty()) {
+        fs::create_directories(semPath.parent_path());
+        std::ofstream semOut(semPath, std::ios::trunc);
+        for (const auto &err : semCtx.errors) {
+            semOut << "Semantic error: " << err << "\n";
+        }
+    } else {
+        std::filesystem::remove(semPath);
     }
 
     cout << "digraph AST {\n";

@@ -80,8 +80,12 @@ def kill_docker_container(container_name):
         raise Exception(f"Kill container failed:\n {result.stderr}")
 
 
-def run_command_inside_container(command: list[str], container_name: str):
-    exec_prefix = ["docker", "exec", "-i", container_name]
+def run_command_inside_container(command: list[str], container_name: str, extra_env: dict | None = None):
+    exec_prefix = ["docker", "exec", "-i"]
+    if extra_env:
+        for key, value in extra_env.items():
+            exec_prefix.extend(["-e", f"{key}={value}"])
+    exec_prefix.append(container_name)
     run_command = exec_prefix + command
 
     if DEBUG: print(f"Run command inside container {container_name}:\n", " ".join(run_command))
@@ -129,7 +133,13 @@ if __name__ == "__main__":
             png_output = test_dir / f"{base_name}.png"
 
             command = [EXECUTABLE_TARGET, file_path.as_posix()]
-            result = run_command_inside_container(command, container_name)
+            relative_sem_dir = test_dir.relative_to(TEST_RESULT_DIRECTORY).as_posix()
+            semantic_out_dir = PurePosixPath(DOCKER_RESULT_DIRECTORY) / relative_sem_dir
+            result = run_command_inside_container(
+                command,
+                container_name,
+                extra_env={"SEMANTIC_OUT_DIR": semantic_out_dir.as_posix()},
+            )
 
             safe_stdout = result.stdout if result.stdout is not None else ""
             txt_output.write_text(safe_stdout, encoding="utf-8", errors="replace")
