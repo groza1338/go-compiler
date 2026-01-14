@@ -598,10 +598,29 @@ SemanticType ExprNode::semantics(SemanticContext &ctx) {
         }
         case SLICE: {
             SemanticType operandType = operand ? operand->semantics(ctx) : SemanticType::makeBase(SemanticType::UNKNOWN);
+            auto checkIndex = [&](ExprNode *expr, const string &label) {
+                if (!expr) {
+                    return;
+                }
+                SemanticType idxType = expr->semantics(ctx);
+                if (idxType.base != SemanticType::INT || !idxType.isScalar()) {
+                    ctx.report("Slice " + label + " index must be int.");
+                }
+            };
+            checkIndex(sliceLow, "low");
+            checkIndex(sliceHigh, "high");
+            checkIndex(sliceMax, "max");
             semType = operandType;
             if (operandType.arrayDims > 0) {
                 semType.arrayDims -= 1;
                 semType.sliceDims = 1;
+            } else if (operandType.sliceDims > 0 || (operandType.isString() && operandType.isScalar())) {
+                if (operandType.isString() && operandType.isScalar() && sliceMax) {
+                    ctx.report("Three-index slicing is not allowed for strings.");
+                }
+            } else {
+                ctx.report("Slicing requires array, slice, or string operand.");
+                semType = SemanticType::makeBase(SemanticType::UNKNOWN);
             }
             break;
         }
