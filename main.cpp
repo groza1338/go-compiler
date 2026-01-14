@@ -39,6 +39,12 @@ int main(int argc, char* argv[])
         return 1;
     }
 
+    SemanticContext semCtx;
+    root->semantics(semCtx);
+    for (const auto &err : semCtx.errors) {
+        cout << "Semantic error: " << err << "\n";
+    }
+
     cout << "digraph AST {\n";
     cout << root->toDot();
     cout << "}\n";
