@@ -34,6 +34,28 @@ static bool isAssignable(const SemanticType &left, const SemanticType &right) {
     return left.sameKind(right);
 }
 
+static void addOuterArrayDim(SemanticType &type, int length) {
+    type.arrayDims += 1;
+    type.arrayLengths.insert(type.arrayLengths.begin(), length);
+}
+
+static void dropOuterArrayDim(SemanticType &type) {
+    if (type.arrayDims <= 0) {
+        return;
+    }
+    type.arrayDims -= 1;
+    if (!type.arrayLengths.empty()) {
+        type.arrayLengths.erase(type.arrayLengths.begin());
+    }
+}
+
+static bool isOrderable(const SemanticType &type) {
+    return type.isScalar() && (type.base == SemanticType::INT
+        || type.base == SemanticType::FLOAT
+        || type.base == SemanticType::RUNE
+        || type.base == SemanticType::STRING);
+}
+
 static bool isIdentifierExpr(ExprNode *expr, string *outName) {
     if (!expr || expr->getType() != ExprNode::ID) {
         return false;
@@ -114,6 +136,8 @@ static bool getFunctionCallResults(ExprNode *expr, SemanticContext &ctx, vector<
     return found;
 }
 
+static bool checkPackageCallResults(ExprNode *expr, SemanticContext &ctx, vector<SemanticType> &results);
+
 static void collectExprListTypes(ExprListNode *exprList, SemanticContext &ctx, vector<SemanticType> &outTypes) {
     outTypes.clear();
     if (!exprList || !exprList->getExprList()) {
@@ -123,7 +147,8 @@ static void collectExprListTypes(ExprListNode *exprList, SemanticContext &ctx, v
     if (exprs.size() == 1) {
         ExprNode *expr = exprs.front();
         vector<SemanticType> results;
-        if (getFunctionCallResults(expr, ctx, results) && results.size() > 1) {
+        if ((getFunctionCallResults(expr, ctx, results) || checkPackageCallResults(expr, ctx, results))
+            && results.size() > 1) {
             outTypes = results;
             return;
         }
@@ -141,7 +166,7 @@ static bool getRangeTypes(const SemanticType &rangeType, SemanticType &indexType
     }
     if (rangeType.arrayDims > 0) {
         valueType = rangeType;
-        valueType.arrayDims -= 1;
+        dropOuterArrayDim(valueType);
         return true;
     }
     if (rangeType.sliceDims > 0) {
@@ -149,6 +174,217 @@ static bool getRangeTypes(const SemanticType &rangeType, SemanticType &indexType
         valueType.sliceDims -= 1;
         return true;
     }
+    return false;
+}
+
+static bool isAddressOfExprNode(ExprNode *expr) {
+    if (!expr) {
+        return false;
+    }
+    if (expr->getType() == ExprNode::ADDRESS_OF) {
+        return true;
+    }
+    if (expr->getType() == ExprNode::EXPR_IN_BRACKETS) {
+        return isAddressOfExprNode(expr->getOperand());
+    }
+    return false;
+}
+
+static bool checkPackageCallResults(ExprNode *expr, SemanticContext &ctx, vector<SemanticType> &results) {
+    results.clear();
+    if (!expr || expr->getType() != ExprNode::FUNCTION_CALL) {
+        return false;
+    }
+    ExprNode *callee = expr->getOperand();
+    if (!callee || callee->getType() != ExprNode::SELECTOR) {
+        return false;
+    }
+    ExprNode *pkgExpr = callee->getOperand();
+    ValueNode *funcNameVal = callee->getIdentifier();
+    if (!pkgExpr || pkgExpr->getType() != ExprNode::ID || !funcNameVal || !funcNameVal->getString()) {
+        return false;
+    }
+    ValueNode *pkgNameVal = pkgExpr->getIdentifier();
+    if (!pkgNameVal || !pkgNameVal->getString()) {
+        return false;
+    }
+    const string &pkgName = *pkgNameVal->getString();
+    const string &funcName = *funcNameVal->getString();
+    string target = ctx.getImportTarget(pkgName);
+    if (target.empty()) {
+        return false;
+    }
+
+    list<ExprNode*> *argsList = nullptr;
+    if (ExprListNode *args = expr->getArgs()) {
+        argsList = args->getExprList();
+    }
+    size_t argCount = argsList ? argsList->size() : 0;
+    vector<SemanticType> argTypes;
+    if (argsList) {
+        argTypes.reserve(argsList->size());
+        for (ExprNode *arg : *argsList) {
+            argTypes.push_back(arg ? arg->semantics(ctx) : SemanticType::makeBase(SemanticType::UNKNOWN));
+        }
+    }
+
+    auto argAt = [&](size_t index) -> ExprNode* {
+        if (!argsList || index >= argsList->size()) {
+            return nullptr;
+        }
+        auto it = argsList->begin();
+        advance(it, index);
+        return *it;
+    };
+
+    auto checkArgType = [&](size_t index, SemanticType::BaseType base, const string &label) {
+        ExprNode *arg = argAt(index);
+        SemanticType argType = index < argTypes.size() ? argTypes[index] : SemanticType::makeBase(SemanticType::UNKNOWN);
+        if (argType.base != base || !argType.isScalar()) {
+            ctx.report(label + " argument has invalid type.");
+        }
+    };
+
+    auto checkMinArgs = [&](size_t minArgs, const string &label) {
+        if (argCount < minArgs) {
+            ctx.report(label + " requires at least " + to_string(minArgs) + " arguments.");
+            return false;
+        }
+        return true;
+    };
+
+    if (target == "fmt") {
+        if (funcName == "Print" || funcName == "Println") {
+            results = {SemanticType::makeBase(SemanticType::INT), SemanticType::makeBase(SemanticType::UNKNOWN)};
+            return true;
+        }
+        if (funcName == "Printf") {
+            if (checkMinArgs(1, "fmt.Printf")) {
+                checkArgType(0, SemanticType::STRING, "fmt.Printf");
+            }
+            results = {SemanticType::makeBase(SemanticType::INT), SemanticType::makeBase(SemanticType::UNKNOWN)};
+            return true;
+        }
+        if (funcName == "Fprint" || funcName == "Fprintln") {
+            checkMinArgs(1, "fmt.Fprint");
+            results = {SemanticType::makeBase(SemanticType::INT), SemanticType::makeBase(SemanticType::UNKNOWN)};
+            return true;
+        }
+        if (funcName == "Fprintf") {
+            if (checkMinArgs(2, "fmt.Fprintf")) {
+                checkArgType(1, SemanticType::STRING, "fmt.Fprintf");
+            }
+            results = {SemanticType::makeBase(SemanticType::INT), SemanticType::makeBase(SemanticType::UNKNOWN)};
+            return true;
+        }
+        if (funcName == "Scan" || funcName == "Scanln") {
+            if (checkMinArgs(1, "fmt.Scan")) {
+                size_t index = 0;
+                for (ExprNode *arg : *argsList) {
+                    if (!isAddressOfExprNode(arg)) {
+                        ctx.report("fmt.Scan arguments must be address-of expressions.");
+                        break;
+                    }
+                    index++;
+                }
+            }
+            results = {SemanticType::makeBase(SemanticType::INT), SemanticType::makeBase(SemanticType::UNKNOWN)};
+            return true;
+        }
+        if (funcName == "Scanf") {
+            if (checkMinArgs(2, "fmt.Scanf")) {
+                checkArgType(0, SemanticType::STRING, "fmt.Scanf");
+                size_t index = 1;
+                auto it = argsList->begin();
+                advance(it, 1);
+                for (; it != argsList->end(); ++it) {
+                    if (!isAddressOfExprNode(*it)) {
+                        ctx.report("fmt.Scanf arguments must be address-of expressions.");
+                        break;
+                    }
+                    index++;
+                }
+            }
+            results = {SemanticType::makeBase(SemanticType::INT), SemanticType::makeBase(SemanticType::UNKNOWN)};
+            return true;
+        }
+    }
+
+    if (target == "strconv") {
+        if (funcName == "Atoi") {
+            if (checkMinArgs(1, "strconv.Atoi")) {
+                checkArgType(0, SemanticType::STRING, "strconv.Atoi");
+            }
+            results = {SemanticType::makeBase(SemanticType::INT), SemanticType::makeBase(SemanticType::UNKNOWN)};
+            return true;
+        }
+        if (funcName == "ParseInt") {
+            if (checkMinArgs(3, "strconv.ParseInt")) {
+                checkArgType(0, SemanticType::STRING, "strconv.ParseInt");
+                checkArgType(1, SemanticType::INT, "strconv.ParseInt");
+                checkArgType(2, SemanticType::INT, "strconv.ParseInt");
+            }
+            results = {SemanticType::makeBase(SemanticType::INT), SemanticType::makeBase(SemanticType::UNKNOWN)};
+            return true;
+        }
+        if (funcName == "ParseUint") {
+            if (checkMinArgs(3, "strconv.ParseUint")) {
+                checkArgType(0, SemanticType::STRING, "strconv.ParseUint");
+                checkArgType(1, SemanticType::INT, "strconv.ParseUint");
+                checkArgType(2, SemanticType::INT, "strconv.ParseUint");
+            }
+            results = {SemanticType::makeBase(SemanticType::INT), SemanticType::makeBase(SemanticType::UNKNOWN)};
+            return true;
+        }
+        if (funcName == "ParseFloat") {
+            if (checkMinArgs(2, "strconv.ParseFloat")) {
+                checkArgType(0, SemanticType::STRING, "strconv.ParseFloat");
+                checkArgType(1, SemanticType::INT, "strconv.ParseFloat");
+            }
+            results = {SemanticType::makeBase(SemanticType::FLOAT), SemanticType::makeBase(SemanticType::UNKNOWN)};
+            return true;
+        }
+        if (funcName == "ParseBool") {
+            if (checkMinArgs(1, "strconv.ParseBool")) {
+                checkArgType(0, SemanticType::STRING, "strconv.ParseBool");
+            }
+            results = {SemanticType::makeBase(SemanticType::BOOL), SemanticType::makeBase(SemanticType::UNKNOWN)};
+            return true;
+        }
+        if (funcName == "Itoa") {
+            if (checkMinArgs(1, "strconv.Itoa")) {
+                checkArgType(0, SemanticType::INT, "strconv.Itoa");
+            }
+            results = {SemanticType::makeBase(SemanticType::STRING)};
+            return true;
+        }
+        if (funcName == "FormatInt") {
+            if (checkMinArgs(2, "strconv.FormatInt")) {
+                checkArgType(0, SemanticType::INT, "strconv.FormatInt");
+                checkArgType(1, SemanticType::INT, "strconv.FormatInt");
+            }
+            results = {SemanticType::makeBase(SemanticType::STRING)};
+            return true;
+        }
+        if (funcName == "FormatFloat") {
+            if (checkMinArgs(4, "strconv.FormatFloat")) {
+                checkArgType(0, SemanticType::FLOAT, "strconv.FormatFloat");
+                checkArgType(1, SemanticType::INT, "strconv.FormatFloat");
+                checkArgType(2, SemanticType::INT, "strconv.FormatFloat");
+                checkArgType(3, SemanticType::INT, "strconv.FormatFloat");
+            }
+            results = {SemanticType::makeBase(SemanticType::STRING)};
+            return true;
+        }
+        if (funcName == "FormatBool") {
+            if (checkMinArgs(1, "strconv.FormatBool")) {
+                checkArgType(0, SemanticType::BOOL, "strconv.FormatBool");
+            }
+            results = {SemanticType::makeBase(SemanticType::STRING)};
+            return true;
+        }
+    }
+
     return false;
 }
 
@@ -272,7 +508,7 @@ static string baseImportName(const string &pathLiteral) {
 static SemanticType evalCompositeLiteralWithExpected(ExprNode *expr, const SemanticType &expected, SemanticContext &ctx) {
     SemanticType elemExpected = expected;
     if (elemExpected.arrayDims > 0) {
-        elemExpected.arrayDims -= 1;
+        dropOuterArrayDim(elemExpected);
     } else if (elemExpected.sliceDims > 0) {
         elemExpected.sliceDims -= 1;
     } else {
@@ -281,6 +517,12 @@ static SemanticType evalCompositeLiteralWithExpected(ExprNode *expr, const Seman
     ExprListNode *elems = expr->getArrayElems();
     if (!elems || !elems->getExprList()) {
         return expected;
+    }
+    if (expected.arrayDims > 0 && !expected.arrayLengths.empty()) {
+        int expectedLen = expected.arrayLengths.front();
+        if (expectedLen >= 0 && elems->getExprList()->size() > static_cast<size_t>(expectedLen)) {
+            ctx.report("Composite literal has more elements than expected array length.");
+        }
     }
     for (ExprNode *elem : *elems->getExprList()) {
         if (!elem) {
@@ -616,7 +858,9 @@ SemanticType ExprNode::semantics(SemanticContext &ctx) {
             break;
         case COMPOSITE_LIT: {
             SemanticType elemType = SemanticType::makeBase(SemanticType::UNKNOWN);
+            size_t elemCount = 0;
             if (arrayElems && arrayElems->getExprList() && !arrayElems->getExprList()->empty()) {
+                elemCount = arrayElems->getExprList()->size();
                 auto it = arrayElems->getExprList()->begin();
                 elemType = (*it)->semantics(ctx);
                 for (; it != arrayElems->getExprList()->end(); ++it) {
@@ -632,12 +876,13 @@ SemanticType ExprNode::semantics(SemanticContext &ctx) {
                 semType = SemanticType::makeBase(SemanticType::UNKNOWN);
             } else {
                 semType = elemType;
-                semType.arrayDims += 1;
+                addOuterArrayDim(semType, static_cast<int>(elemCount));
             }
             break;
         }
         case ARRAY_LIT: {
             SemanticType elemType = SemanticType::makeBase(SemanticType::UNKNOWN);
+            int lenValue = -1;
             if (arrayElemType) {
                 elemType = arrayElemType->getSemanticType();
             } else if (arrayElems && arrayElems->getExprList() && !arrayElems->getExprList()->empty()) {
@@ -647,17 +892,20 @@ SemanticType ExprNode::semantics(SemanticContext &ctx) {
                 } else {
                     elemType = (*it)->semantics(ctx);
                 }
-                for (; it != arrayElems->getExprList()->end(); ++it) {
-                    if (!*it) {
+            }
+
+            if (arrayElems && arrayElems->getExprList()) {
+                for (ExprNode *elem : *arrayElems->getExprList()) {
+                    if (!elem) {
                         continue;
                     }
                     SemanticType t = SemanticType::makeBase(SemanticType::UNKNOWN);
-                    if ((*it)->getType() == COMPOSITE_LIT && elemType.base != SemanticType::UNKNOWN) {
-                        t = evalCompositeLiteralWithExpected(*it, elemType, ctx);
+                    if (elem->getType() == COMPOSITE_LIT && elemType.base != SemanticType::UNKNOWN) {
+                        t = evalCompositeLiteralWithExpected(elem, elemType, ctx);
                     } else {
-                        t = (*it)->semantics(ctx);
+                        t = elem->semantics(ctx);
                     }
-                    if (!elemType.sameKind(t)) {
+                    if (elemType.base != SemanticType::UNKNOWN && !elemType.sameKind(t)) {
                         ctx.report("Array literal has inconsistent element types.");
                         elemType = SemanticType::makeBase(SemanticType::UNKNOWN);
                         break;
@@ -673,6 +921,7 @@ SemanticType ExprNode::semantics(SemanticContext &ctx) {
                 if (arrayElems && arrayElems->getExprList() && arrayLen->getType() == LIT_VAL) {
                     ValueNode *lenVal = arrayLen->getLiteral();
                     if (lenVal && lenVal->getValueType() == ValueNode::LIT_INT) {
+                        lenValue = lenVal->getInt();
                         size_t elemCount = arrayElems->getExprList()->size();
                         if (elemCount > static_cast<size_t>(lenVal->getInt())) {
                             ctx.report("Array literal has more elements than its length.");
@@ -685,7 +934,7 @@ SemanticType ExprNode::semantics(SemanticContext &ctx) {
                 semType = SemanticType::makeBase(SemanticType::UNKNOWN);
             } else {
                 semType = elemType;
-                semType.arrayDims += 1;
+                addOuterArrayDim(semType, lenValue);
             }
             break;
         }
@@ -750,6 +999,8 @@ SemanticType ExprNode::semantics(SemanticContext &ctx) {
             SemanticType rightType = right ? right->semantics(ctx) : SemanticType::makeBase(SemanticType::UNKNOWN);
             if (!leftType.sameKind(rightType) || !leftType.isScalar()) {
                 ctx.report("Comparison requires scalar operands of the same type.");
+            } else if (type != EQUAL && type != NOT_EQUAL && !isOrderable(leftType)) {
+                ctx.report("Ordering comparison requires numeric, rune, or string operands.");
             }
             semType = SemanticType::makeBase(SemanticType::BOOL);
             break;
@@ -794,7 +1045,7 @@ SemanticType ExprNode::semantics(SemanticContext &ctx) {
             }
             if (operandType.arrayDims > 0) {
                 semType = operandType;
-                semType.arrayDims -= 1;
+                dropOuterArrayDim(semType);
             } else if (operandType.sliceDims > 0) {
                 semType = operandType;
                 semType.sliceDims -= 1;
@@ -822,7 +1073,7 @@ SemanticType ExprNode::semantics(SemanticContext &ctx) {
             checkIndex(sliceMax, "max");
             semType = operandType;
             if (operandType.arrayDims > 0) {
-                semType.arrayDims -= 1;
+                dropOuterArrayDim(semType);
                 semType.sliceDims = 1;
             } else if (operandType.sliceDims > 0 || (operandType.isString() && operandType.isScalar())) {
                 if (operandType.isString() && operandType.isScalar() && sliceMax) {
@@ -838,7 +1089,7 @@ SemanticType ExprNode::semantics(SemanticContext &ctx) {
             semType = SemanticType::makeBase(SemanticType::UNKNOWN);
             {
                 vector<SemanticType> results;
-                if (getFunctionCallResults(this, ctx, results)) {
+                if (getFunctionCallResults(this, ctx, results) || checkPackageCallResults(this, ctx, results)) {
                     if (results.size() == 1) {
                         semType = results[0];
                     } else if (results.size() > 1 && !ctx.allowMultiValue) {
@@ -1788,7 +2039,14 @@ SemanticType TypeNode::getSemanticType() const {
         }
         case ARRAY: {
             SemanticType elem = elemType ? elemType->getSemanticType() : SemanticType::makeBase(SemanticType::UNKNOWN);
-            elem.arrayDims += 1;
+            int lenValue = -1;
+            if (arrayLen && arrayLen->getType() == ExprNode::LIT_VAL) {
+                ValueNode *lenVal = arrayLen->getLiteral();
+                if (lenVal && lenVal->getValueType() == ValueNode::LIT_INT) {
+                    lenValue = lenVal->getInt();
+                }
+            }
+            addOuterArrayDim(elem, lenValue);
             return elem;
         }
         case SLICE: {
@@ -2474,7 +2732,11 @@ void ImportSpecNode::semantics(SemanticContext &ctx) {
         if (name == "_") {
             return;
         }
-        ctx.declareImport(name);
+        string target;
+        if (import && import->getString()) {
+            target = baseImportName(*import->getString());
+        }
+        ctx.declareImport(name, target);
         return;
     }
     if (!import || !import->getString()) {
@@ -2484,7 +2746,7 @@ void ImportSpecNode::semantics(SemanticContext &ctx) {
     if (name.empty()) {
         return;
     }
-    ctx.declareImport(name);
+    ctx.declareImport(name, name);
 }
 
 ImportSpecNode::ImportSpecNode(): AstNode() {

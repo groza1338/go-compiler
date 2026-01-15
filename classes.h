@@ -8,6 +8,7 @@
 #include <list>
 #include <unordered_map>
 #include <unordered_set>
+#include <iterator>
 #include <vector>
 
 using namespace std;
@@ -59,6 +60,7 @@ struct SemanticType {
     BaseType base = UNKNOWN;
     int arrayDims = 0;
     int sliceDims = 0;
+    vector<int> arrayLengths;
     bool isError = false;
 
     static SemanticType makeBase(BaseType baseType) {
@@ -79,7 +81,18 @@ struct SemanticType {
     bool isScalar() const { return arrayDims == 0 && sliceDims == 0; }
 
     bool sameKind(const SemanticType &other) const {
-        return base == other.base && arrayDims == other.arrayDims && sliceDims == other.sliceDims;
+        if (base != other.base || arrayDims != other.arrayDims || sliceDims != other.sliceDims) {
+            return false;
+        }
+        size_t lenCount = min(arrayLengths.size(), other.arrayLengths.size());
+        for (size_t i = 0; i < lenCount; ++i) {
+            int leftLen = arrayLengths[i];
+            int rightLen = other.arrayLengths[i];
+            if (leftLen >= 0 && rightLen >= 0 && leftLen != rightLen) {
+                return false;
+            }
+        }
+        return true;
     }
 
     string toString() const {
@@ -94,7 +107,17 @@ struct SemanticType {
             default: baseStr = "unknown"; break;
         }
         string prefix;
-        for (int i = 0; i < arrayDims; i++) prefix += "[?]";
+        for (int i = 0; i < arrayDims; i++) {
+            int len = -1;
+            if (i < static_cast<int>(arrayLengths.size())) {
+                len = arrayLengths[i];
+            }
+            if (len >= 0) {
+                prefix += "[" + to_string(len) + "]";
+            } else {
+                prefix += "[?]";
+            }
+        }
         for (int i = 0; i < sliceDims; i++) prefix += "[]";
         return prefix + baseStr;
     }
@@ -118,6 +141,7 @@ struct SemanticContext {
     int loopDepth = 0;
     unordered_map<string, FunctionInfo> functions;
     unordered_set<string> importNames;
+    unordered_map<string, string> importTargets;
     bool inConstBlock = false;
     int iotaValue = 0;
     ExprListNode *constPrevExprs = nullptr;
@@ -239,7 +263,7 @@ struct SemanticContext {
         return true;
     }
 
-    bool declareImport(const string &name) {
+    bool declareImport(const string &name, const string &target) {
         if (name.empty()) {
             return false;
         }
@@ -248,11 +272,20 @@ struct SemanticContext {
             return false;
         }
         importNames.insert(name);
+        importTargets[name] = target;
         return true;
     }
 
     bool isImportName(const string &name) const {
         return importNames.count(name) != 0;
+    }
+
+    string getImportTarget(const string &name) const {
+        auto it = importTargets.find(name);
+        if (it == importTargets.end()) {
+            return "";
+        }
+        return it->second;
     }
 
     void report(const string &message) {
