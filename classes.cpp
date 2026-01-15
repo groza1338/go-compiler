@@ -70,6 +70,69 @@ static bool isAddressableExpr(ExprNode *expr, SemanticContext &ctx) {
     }
 }
 
+static bool getFunctionCallResults(ExprNode *expr, SemanticContext &ctx, vector<SemanticType> &results) {
+    results.clear();
+    if (!expr || expr->getType() != ExprNode::FUNCTION_CALL) {
+        return false;
+    }
+    ExprNode *operand = expr->getOperand();
+    if (!operand || operand->getType() != ExprNode::ID) {
+        return false;
+    }
+    ValueNode *idVal = operand->getIdentifier();
+    if (!idVal || !idVal->getString()) {
+        return false;
+    }
+    const string &name = *idVal->getString();
+    SemanticContext::FunctionInfo fnInfo;
+    bool found = ctx.lookupFunction(name, fnInfo);
+    if (!found) {
+        ctx.report("Unknown function: " + name);
+    }
+
+    vector<SemanticType> argTypes;
+    if (ExprListNode *args = expr->getArgs()) {
+        if (args->getExprList()) {
+            for (ExprNode *arg : *args->getExprList()) {
+                argTypes.push_back(arg ? arg->semantics(ctx) : SemanticType::makeBase(SemanticType::UNKNOWN));
+            }
+        }
+    }
+
+    if (found) {
+        if (argTypes.size() != fnInfo.params.size()) {
+            ctx.report("Function call argument count mismatch.");
+        } else {
+            for (size_t i = 0; i < argTypes.size(); ++i) {
+                if (!isAssignable(fnInfo.params[i], argTypes[i])) {
+                    ctx.report("Function call argument type mismatch.");
+                }
+            }
+        }
+        results = fnInfo.results;
+    }
+    return found;
+}
+
+static void collectExprListTypes(ExprListNode *exprList, SemanticContext &ctx, vector<SemanticType> &outTypes) {
+    outTypes.clear();
+    if (!exprList || !exprList->getExprList()) {
+        return;
+    }
+    auto &exprs = *exprList->getExprList();
+    if (exprs.size() == 1) {
+        ExprNode *expr = exprs.front();
+        vector<SemanticType> results;
+        if (getFunctionCallResults(expr, ctx, results) && results.size() > 1) {
+            outTypes = results;
+            return;
+        }
+    }
+    for (ExprNode *expr : exprs) {
+        outTypes.push_back(expr ? expr->semantics(ctx) : SemanticType::makeBase(SemanticType::UNKNOWN));
+    }
+}
+
 static bool getRangeTypes(const SemanticType &rangeType, SemanticType &indexType, SemanticType &valueType) {
     indexType = SemanticType::makeBase(SemanticType::INT);
     if (rangeType.base == SemanticType::STRING && rangeType.isScalar()) {
@@ -485,6 +548,9 @@ SemanticType ExprNode::semantics(SemanticContext &ctx) {
             break;
         }
         case IOTA:
+            if (!ctx.inConstBlock) {
+                ctx.report("iota can only be used in const declarations.");
+            }
             semType = SemanticType::makeBase(SemanticType::INT);
             break;
         case LIT_VAL:
@@ -602,6 +668,9 @@ SemanticType ExprNode::semantics(SemanticContext &ctx) {
             break;
         }
         case ADDRESS_OF:
+            if (!isAddressableExpr(operand, ctx)) {
+                ctx.report("Address-of requires addressable operand.");
+            }
             semType = operand ? operand->semantics(ctx) : SemanticType::makeBase(SemanticType::UNKNOWN);
             break;
         case ELEMENT_ACCESS: {
@@ -654,38 +723,18 @@ SemanticType ExprNode::semantics(SemanticContext &ctx) {
         }
         case FUNCTION_CALL:
             semType = SemanticType::makeBase(SemanticType::UNKNOWN);
-            if (operand && operand->getType() == ID && operand->getIdentifier() && operand->getIdentifier()->getString()) {
-                const string &name = *operand->getIdentifier()->getString();
-                SemanticContext::FunctionInfo fnInfo;
-                bool found = ctx.lookupFunction(name, fnInfo);
-                if (!found) {
-                    ctx.report("Unknown function: " + name);
-                }
-                vector<SemanticType> argTypes;
-                if (args && args->getExprList()) {
-                    for (ExprNode *arg : *args->getExprList()) {
-                        argTypes.push_back(arg ? arg->semantics(ctx) : SemanticType::makeBase(SemanticType::UNKNOWN));
-                    }
-                }
-                if (found) {
-                    if (argTypes.size() != fnInfo.params.size()) {
-                        ctx.report("Function call argument count mismatch.");
-                    } else {
-                        for (size_t i = 0; i < argTypes.size(); ++i) {
-                            if (!isAssignable(fnInfo.params[i], argTypes[i])) {
-                                ctx.report("Function call argument type mismatch.");
-                            }
-                        }
-                    }
-                    if (fnInfo.results.size() == 1) {
-                        semType = fnInfo.results[0];
-                    } else if (fnInfo.results.size() > 1) {
+            {
+                vector<SemanticType> results;
+                if (getFunctionCallResults(this, ctx, results)) {
+                    if (results.size() == 1) {
+                        semType = results[0];
+                    } else if (results.size() > 1 && !ctx.allowMultiValue) {
                         ctx.report("Function call returns multiple values.");
                     }
+                } else {
+                    if (operand) operand->semantics(ctx);
+                    if (args) args->semantics(ctx);
                 }
-            } else {
-                if (operand) operand->semantics(ctx);
-                if (args) args->semantics(ctx);
             }
             break;
         case SELECTOR:
@@ -986,12 +1035,9 @@ void StmtNode::semantics(SemanticContext &ctx) {
             break;
         case RETURN:
             if (const auto *retInfo = ctx.currentReturn()) {
-                list<ExprNode*> *exprs = exprList ? exprList->getExprList() : nullptr;
                 vector<SemanticType> exprTypes;
-                if (exprs) {
-                    for (ExprNode *expr : *exprs) {
-                        exprTypes.push_back(expr ? expr->semantics(ctx) : SemanticType::makeBase(SemanticType::UNKNOWN));
-                    }
+                if (exprList) {
+                    collectExprListTypes(exprList, ctx, exprTypes);
                 }
                 size_t exprCount = exprTypes.size();
                 size_t retCount = retInfo->types.size();
@@ -1366,7 +1412,12 @@ string SimpleStmtNode::toDot() const {
 void SimpleStmtNode::semantics(SemanticContext &ctx) {
     switch (type) {
         case EXPR:
-            if (expr) expr->semantics(ctx);
+            if (expr) {
+                bool allowMultiValue = ctx.allowMultiValue;
+                ctx.allowMultiValue = true;
+                expr->semantics(ctx);
+                ctx.allowMultiValue = allowMultiValue;
+            }
             break;
         case INC:
         case DEC: {
@@ -1396,17 +1447,17 @@ void SimpleStmtNode::semantics(SemanticContext &ctx) {
                 break;
             }
             auto &leftExprs = *left->getExprList();
-            auto &rightExprs = *right->getExprList();
-            if (leftExprs.size() != rightExprs.size()) {
+            vector<SemanticType> rightTypes;
+            collectExprListTypes(right, ctx, rightTypes);
+            if (leftExprs.size() != rightTypes.size()) {
                 ctx.report("Assignment list size mismatch.");
             }
             auto itLeft = leftExprs.begin();
-            auto itRight = rightExprs.begin();
             int newCount = 0;
-            for (; itLeft != leftExprs.end() && itRight != rightExprs.end(); ++itLeft, ++itRight) {
+            size_t count = min(leftExprs.size(), rightTypes.size());
+            for (size_t i = 0; i < count && itLeft != leftExprs.end(); ++i, ++itLeft) {
                 ExprNode *leftExpr = *itLeft;
-                ExprNode *rightExpr = *itRight;
-                SemanticType rightType = rightExpr ? rightExpr->semantics(ctx) : SemanticType::makeBase(SemanticType::UNKNOWN);
+                SemanticType rightType = rightTypes[i];
 
                 string idName;
                 bool isId = isIdentifierExpr(leftExpr, &idName);
@@ -1826,27 +1877,27 @@ void VarSpecNode::semantics(SemanticContext &ctx) {
         return;
     }
     SemanticType declaredType = type ? type->getSemanticType() : SemanticType::makeBase(SemanticType::UNKNOWN);
-    list<ExprNode*> *exprs = exprList ? exprList->getExprList() : nullptr;
-    size_t exprCount = exprs ? exprs->size() : 0;
     size_t idCount = idList->getIdList()->size();
-    if (exprs && exprCount != idCount) {
-        ctx.report("VarSpec: initializer count does not match identifiers.");
+    vector<SemanticType> exprTypes;
+    if (exprList) {
+        collectExprListTypes(exprList, ctx, exprTypes);
+        if (exprTypes.size() != idCount) {
+            ctx.report("VarSpec: initializer count does not match identifiers.");
+        }
     }
     auto idIt = idList->getIdList()->begin();
-    auto exprIt = exprs ? exprs->begin() : list<ExprNode*>::iterator();
+    size_t exprIndex = 0;
     for (; idIt != idList->getIdList()->end(); ++idIt) {
         ValueNode *id = *idIt;
         if (isBlankIdentifier(id)) {
-            if (exprs && exprIt != exprs->end()) {
-                (*exprIt)->semantics(ctx);
-                ++exprIt;
+            if (exprIndex < exprTypes.size()) {
+                ++exprIndex;
             }
             continue;
         }
         SemanticType initType = declaredType;
-        if (exprs && exprIt != exprs->end()) {
-            SemanticType exprType = (*exprIt)->semantics(ctx);
-            ++exprIt;
+        if (exprIndex < exprTypes.size()) {
+            SemanticType exprType = exprTypes[exprIndex++];
             if (declaredType.base != SemanticType::UNKNOWN && !isAssignable(declaredType, exprType)) {
                 ctx.report("VarSpec: type mismatch for initializer.");
             }
@@ -1939,35 +1990,42 @@ void ConstSpecNode::semantics(SemanticContext &ctx) {
         return;
     }
     SemanticType declaredType = type ? type->getSemanticType() : SemanticType::makeBase(SemanticType::UNKNOWN);
-    list<ExprNode*> *exprs = exprList ? exprList->getExprList() : nullptr;
-    size_t exprCount = exprs ? exprs->size() : 0;
+    ExprListNode *useExprList = exprList;
+    if (!useExprList && ctx.inConstBlock && ctx.constPrevExprs) {
+        useExprList = ctx.constPrevExprs;
+    }
+    if (exprList) {
+        ctx.constPrevExprs = exprList;
+    }
     size_t idCount = idList->getIdList()->size();
-    if (exprs && exprCount != idCount) {
-        ctx.report("ConstSpec: initializer count does not match identifiers.");
+    vector<SemanticType> exprTypes;
+    if (useExprList) {
+        collectExprListTypes(useExprList, ctx, exprTypes);
+        if (exprTypes.size() != idCount) {
+            ctx.report("ConstSpec: initializer count does not match identifiers.");
+        }
     }
     auto idIt = idList->getIdList()->begin();
-    auto exprIt = exprs ? exprs->begin() : list<ExprNode*>::iterator();
+    size_t exprIndex = 0;
     for (; idIt != idList->getIdList()->end(); ++idIt) {
         ValueNode *id = *idIt;
         if (isBlankIdentifier(id)) {
-            if (exprs && exprIt != exprs->end()) {
-                (*exprIt)->semantics(ctx);
-                ++exprIt;
+            if (exprIndex < exprTypes.size()) {
+                ++exprIndex;
             }
             continue;
         }
         SemanticType initType = declaredType;
-        if (exprs && exprIt != exprs->end()) {
-            SemanticType exprType = (*exprIt)->semantics(ctx);
-            ++exprIt;
+        if (exprIndex < exprTypes.size()) {
+            SemanticType exprType = exprTypes[exprIndex++];
             if (declaredType.base != SemanticType::UNKNOWN && !isAssignable(declaredType, exprType)) {
                 ctx.report("ConstSpec: type mismatch for initializer.");
             }
             if (declaredType.base == SemanticType::UNKNOWN) {
                 initType = exprType;
             }
-        } else if (declaredType.base == SemanticType::UNKNOWN) {
-            ctx.report("ConstSpec: missing type and initializer.");
+        } else {
+            ctx.report("ConstSpec: missing initializer.");
             initType = SemanticType::makeBase(SemanticType::UNKNOWN);
         }
         if (id && id->getString()) {
@@ -2017,9 +2075,13 @@ void ConstSpecListNode::semantics(SemanticContext &ctx) {
     if (!specList) {
         return;
     }
+    ctx.enterConstBlock();
+    int iotaValue = 0;
     for (ConstSpecNode *spec : *specList) {
+        ctx.iotaValue = iotaValue++;
         if (spec) spec->semantics(ctx);
     }
+    ctx.exitConstBlock();
 }
 
 ConstSpecListNode::ConstSpecListNode(): AstNode() {

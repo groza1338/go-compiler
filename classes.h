@@ -116,6 +116,10 @@ struct SemanticContext {
     vector<SemanticType> switchStack;
     int loopDepth = 0;
     unordered_map<string, FunctionInfo> functions;
+    bool inConstBlock = false;
+    int iotaValue = 0;
+    ExprListNode *constPrevExprs = nullptr;
+    bool allowMultiValue = false;
 
     SemanticContext() {
         scopes.emplace_back();
@@ -129,6 +133,17 @@ struct SemanticContext {
         if (scopes.size() > 1) {
             scopes.pop_back();
         }
+    }
+
+    void enterConstBlock() {
+        inConstBlock = true;
+        iotaValue = 0;
+        constPrevExprs = nullptr;
+    }
+
+    void exitConstBlock() {
+        inConstBlock = false;
+        constPrevExprs = nullptr;
     }
 
     bool isDeclaredInCurrent(const string &name) const {
