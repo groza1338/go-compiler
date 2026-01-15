@@ -157,6 +157,34 @@ static vector<SemanticType> collectResultTypes(ResultNode *result, bool &allowBa
     return types;
 }
 
+static vector<SemanticType> collectParamTypes(ParamDeclListNode *paramList) {
+    vector<SemanticType> types;
+    if (!paramList || !paramList->getParamList()) {
+        return types;
+    }
+    for (ParamDeclNode *param : *paramList->getParamList()) {
+        if (!param) {
+            continue;
+        }
+        TypeNode *paramTypeNode = param->getType();
+        if (!paramTypeNode) {
+            continue;
+        }
+        SemanticType paramType = paramTypeNode->getSemanticType();
+        IdListNode *ids = param->getIdList();
+        if (ids && ids->getIdList() && !ids->getIdList()->empty()) {
+            for (ValueNode *id : *ids->getIdList()) {
+                if (id) {
+                    types.push_back(paramType);
+                }
+            }
+        } else {
+            types.push_back(paramType);
+        }
+    }
+    return types;
+}
+
 void AstNode::appendDotNode(string &res) const {
     res += "node" + to_string(id) + " [label=\"" + getDotLabel() + "\"];\n";
 }
@@ -625,6 +653,41 @@ SemanticType ExprNode::semantics(SemanticContext &ctx) {
             break;
         }
         case FUNCTION_CALL:
+            semType = SemanticType::makeBase(SemanticType::UNKNOWN);
+            if (operand && operand->getType() == ID && operand->getIdentifier() && operand->getIdentifier()->getString()) {
+                const string &name = *operand->getIdentifier()->getString();
+                SemanticContext::FunctionInfo fnInfo;
+                bool found = ctx.lookupFunction(name, fnInfo);
+                if (!found) {
+                    ctx.report("Unknown function: " + name);
+                }
+                vector<SemanticType> argTypes;
+                if (args && args->getExprList()) {
+                    for (ExprNode *arg : *args->getExprList()) {
+                        argTypes.push_back(arg ? arg->semantics(ctx) : SemanticType::makeBase(SemanticType::UNKNOWN));
+                    }
+                }
+                if (found) {
+                    if (argTypes.size() != fnInfo.params.size()) {
+                        ctx.report("Function call argument count mismatch.");
+                    } else {
+                        for (size_t i = 0; i < argTypes.size(); ++i) {
+                            if (!isAssignable(fnInfo.params[i], argTypes[i])) {
+                                ctx.report("Function call argument type mismatch.");
+                            }
+                        }
+                    }
+                    if (fnInfo.results.size() == 1) {
+                        semType = fnInfo.results[0];
+                    } else if (fnInfo.results.size() > 1) {
+                        ctx.report("Function call returns multiple values.");
+                    }
+                }
+            } else {
+                if (operand) operand->semantics(ctx);
+                if (args) args->semantics(ctx);
+            }
+            break;
         case SELECTOR:
         case EXPR_IN_BRACKETS:
         default:
@@ -1685,6 +1748,10 @@ ResultNode* SignatureNode::getResult() const {
     return result;
 }
 
+ParamDeclListNode* SignatureNode::getParamList() const {
+    return paramList;
+}
+
 SignatureNode::SignatureNode(): AstNode() {
     paramList = nullptr;
     result = nullptr;
@@ -2045,6 +2112,14 @@ void FuncDeclNode::semantics(SemanticContext &ctx) {
     ctx.errors.insert(ctx.errors.end(), local.errors.begin(), local.errors.end());
 }
 
+ValueNode* FuncDeclNode::getId() const {
+    return id;
+}
+
+SignatureNode* FuncDeclNode::getSignature() const {
+    return signature;
+}
+
 FuncDeclNode::FuncDeclNode(): AstNode() {
     id = nullptr;
     signature = nullptr;
@@ -2078,6 +2153,14 @@ string TopLevelDeclNode::toDot() const {
 void TopLevelDeclNode::semantics(SemanticContext &ctx) {
     if (decl) decl->semantics(ctx);
     if (funcDecl) funcDecl->semantics(ctx);
+}
+
+DeclNode* TopLevelDeclNode::getDecl() const {
+    return decl;
+}
+
+FuncDeclNode* TopLevelDeclNode::getFuncDecl() const {
+    return funcDecl;
 }
 
 TopLevelDeclNode::TopLevelDeclNode(): AstNode() {
@@ -2342,6 +2425,25 @@ string ProgramNode::toDot() const {
 
 void ProgramNode::semantics(SemanticContext &ctx) {
     if (importDeclList) importDeclList->semantics(ctx);
+    if (topLevelDeclList && topLevelDeclList->getList()) {
+        for (TopLevelDeclNode *elem : *topLevelDeclList->getList()) {
+            if (!elem) {
+                continue;
+            }
+            FuncDeclNode *funcDecl = elem->getFuncDecl();
+            if (!funcDecl || !funcDecl->getId() || !funcDecl->getId()->getString()) {
+                continue;
+            }
+            const string &name = *funcDecl->getId()->getString();
+            SemanticContext::FunctionInfo fnInfo;
+            if (SignatureNode *sig = funcDecl->getSignature()) {
+                fnInfo.params = collectParamTypes(sig->getParamList());
+                bool allowBare = false;
+                fnInfo.results = collectResultTypes(sig->getResult(), allowBare);
+            }
+            ctx.declareFunction(name, fnInfo);
+        }
+    }
     if (topLevelDeclList) topLevelDeclList->semantics(ctx);
 }
 

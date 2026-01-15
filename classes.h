@@ -105,11 +105,17 @@ struct SemanticContext {
         bool allowBareReturn = false;
     };
 
+    struct FunctionInfo {
+        vector<SemanticType> params;
+        vector<SemanticType> results;
+    };
+
     vector<unordered_map<string, SemanticType>> scopes;
     vector<string> errors;
     vector<FunctionReturnInfo> returnStack;
     vector<SemanticType> switchStack;
     int loopDepth = 0;
+    unordered_map<string, FunctionInfo> functions;
 
     SemanticContext() {
         scopes.emplace_back();
@@ -196,6 +202,24 @@ struct SemanticContext {
 
     bool inSwitch() const {
         return !switchStack.empty();
+    }
+
+    bool declareFunction(const string &name, const FunctionInfo &info) {
+        if (functions.count(name) != 0) {
+            report("Duplicate function: " + name);
+            return false;
+        }
+        functions[name] = info;
+        return true;
+    }
+
+    bool lookupFunction(const string &name, FunctionInfo &out) const {
+        auto it = functions.find(name);
+        if (it == functions.end()) {
+            return false;
+        }
+        out = it->second;
+        return true;
     }
 
     void report(const string &message) {
@@ -548,6 +572,7 @@ class SignatureNode : public AstNode {
 public:
     static SignatureNode* createSignature(ParamDeclListNode *paramList, ResultNode *result);
 
+    ParamDeclListNode* getParamList() const;
     ResultNode* getResult() const;
 
     string getDotLabel() const override;
@@ -668,6 +693,9 @@ class FuncDeclNode : public AstNode {
 public:
     static FuncDeclNode* createFuncDecl(ValueNode *id, SignatureNode *signature, StmtNode *body);
 
+    ValueNode* getId() const;
+    SignatureNode* getSignature() const;
+
     string getDotLabel() const override;
     string toDot() const override;
     void semantics(SemanticContext &ctx);
@@ -684,6 +712,9 @@ class TopLevelDeclNode : public AstNode {
 public:
     static TopLevelDeclNode* createTopLevelDecl(DeclNode *decl);
     static TopLevelDeclNode* createTopLevelDecl(FuncDeclNode *funcDecl);
+
+    DeclNode* getDecl() const;
+    FuncDeclNode* getFuncDecl() const;
 
     string getDotLabel() const override;
     string toDot() const override;
