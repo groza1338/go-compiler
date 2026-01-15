@@ -248,6 +248,27 @@ static vector<SemanticType> collectParamTypes(ParamDeclListNode *paramList) {
     return types;
 }
 
+static string stripStringLiteral(const string &text) {
+    if (text.size() < 2) {
+        return text;
+    }
+    char first = text.front();
+    char last = text.back();
+    if ((first == '"' && last == '"') || (first == '`' && last == '`')) {
+        return text.substr(1, text.size() - 2);
+    }
+    return text;
+}
+
+static string baseImportName(const string &pathLiteral) {
+    string path = stripStringLiteral(pathLiteral);
+    size_t pos = path.find_last_of('/');
+    if (pos == string::npos) {
+        return path;
+    }
+    return path.substr(pos + 1);
+}
+
 void AstNode::appendDotNode(string &res) const {
     res += "node" + to_string(id) + " [label=\"" + getDotLabel() + "\"];\n";
 }
@@ -739,6 +760,12 @@ SemanticType ExprNode::semantics(SemanticContext &ctx) {
             break;
         case SELECTOR:
             semType = SemanticType::makeBase(SemanticType::UNKNOWN);
+            if (operand && operand->getType() == ID) {
+                ValueNode *idVal = operand->getIdentifier();
+                if (idVal && idVal->getString() && ctx.isImportName(*idVal->getString())) {
+                    break;
+                }
+            }
             if (operand) {
                 SemanticType operandType = operand->semantics(ctx);
                 if (operandType.base != SemanticType::UNKNOWN) {
@@ -2343,7 +2370,28 @@ string ImportSpecNode::toDot() const {
 }
 
 void ImportSpecNode::semantics(SemanticContext &ctx) {
-    (void)ctx;
+    if (importType == POINT) {
+        return;
+    }
+    if (importType == NAMED) {
+        if (!alias || !alias->getString()) {
+            return;
+        }
+        const string &name = *alias->getString();
+        if (name == "_") {
+            return;
+        }
+        ctx.declareImport(name);
+        return;
+    }
+    if (!import || !import->getString()) {
+        return;
+    }
+    string name = baseImportName(*import->getString());
+    if (name.empty()) {
+        return;
+    }
+    ctx.declareImport(name);
 }
 
 ImportSpecNode::ImportSpecNode(): AstNode() {

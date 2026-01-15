@@ -7,6 +7,7 @@
 #include <string>
 #include <list>
 #include <unordered_map>
+#include <unordered_set>
 #include <vector>
 
 using namespace std;
@@ -116,6 +117,7 @@ struct SemanticContext {
     vector<SemanticType> switchStack;
     int loopDepth = 0;
     unordered_map<string, FunctionInfo> functions;
+    unordered_set<string> importNames;
     bool inConstBlock = false;
     int iotaValue = 0;
     ExprListNode *constPrevExprs = nullptr;
@@ -235,6 +237,22 @@ struct SemanticContext {
         }
         out = it->second;
         return true;
+    }
+
+    bool declareImport(const string &name) {
+        if (name.empty()) {
+            return false;
+        }
+        if (importNames.count(name) != 0) {
+            report("Duplicate import name: " + name);
+            return false;
+        }
+        importNames.insert(name);
+        return true;
+    }
+
+    bool isImportName(const string &name) const {
+        return importNames.count(name) != 0;
     }
 
     void report(const string &message) {
