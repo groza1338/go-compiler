@@ -738,6 +738,14 @@ SemanticType ExprNode::semantics(SemanticContext &ctx) {
             }
             break;
         case SELECTOR:
+            semType = SemanticType::makeBase(SemanticType::UNKNOWN);
+            if (operand) {
+                SemanticType operandType = operand->semantics(ctx);
+                if (operandType.base != SemanticType::UNKNOWN) {
+                    ctx.report("Selector is not supported for this operand type.");
+                }
+            }
+            break;
         case EXPR_IN_BRACKETS:
         default:
             semType = SemanticType::makeBase(SemanticType::UNKNOWN);
