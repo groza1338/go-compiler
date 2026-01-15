@@ -345,6 +345,7 @@ expr			:	ID {$$=ExprNode::createIdentifier(ValueNode::createString($1));}
                 |	IOTA {$$=ExprNode::createIota();}
                 |	'(' expr ')' {$$=$2;}
                 |	literal_val {$$=ExprNode::createLiteralVal($1);}
+                |   '{' e_expr_list '}' {$$=ExprNode::createCompositeLiteral($2);}
                 |   array_lit {$$=$1;}
 				|	expr '+' expr {$$=ExprNode::createSummary($1, $3);}
 				|	expr '-' expr {$$=ExprNode::createSubtraction($1, $3);}

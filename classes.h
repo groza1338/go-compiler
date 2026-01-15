@@ -268,6 +268,7 @@ public:
         IOTA,
         EXPR_IN_BRACKETS,
         LIT_VAL,
+        COMPOSITE_LIT,
         ARRAY_LIT,
         SLICE_LIT,
         SUMMARY,
@@ -295,6 +296,7 @@ public:
     static ExprNode* createIdentifier(ValueNode *value);
     static ExprNode* createIota();
     static ExprNode* createLiteralVal(ValueNode *value);
+    static ExprNode* createCompositeLiteral(ExprListNode *elems);
     static ExprNode* createSummary(ExprNode *left, ExprNode *right);
     static ExprNode* createSubtraction(ExprNode *left, ExprNode *right);
     static ExprNode* createMultiplication(ExprNode *left, ExprNode *right);

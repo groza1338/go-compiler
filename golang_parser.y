@@ -345,6 +345,7 @@ expr			:	ID
                 |	IOTA
                 |	'(' expr ')'
                 |	literal_val
+                |   '{' e_expr_list '}'
 				|	array_lit
 				|	expr '+' expr
 				|	expr '-' expr
@@ -392,4 +393,3 @@ void yyerror(const char* s) {
     cout << s << endl;
 }
 // Секция пользовательского кода
-

@@ -269,6 +269,36 @@ static string baseImportName(const string &pathLiteral) {
     return path.substr(pos + 1);
 }
 
+static SemanticType evalCompositeLiteralWithExpected(ExprNode *expr, const SemanticType &expected, SemanticContext &ctx) {
+    SemanticType elemExpected = expected;
+    if (elemExpected.arrayDims > 0) {
+        elemExpected.arrayDims -= 1;
+    } else if (elemExpected.sliceDims > 0) {
+        elemExpected.sliceDims -= 1;
+    } else {
+        return expected;
+    }
+    ExprListNode *elems = expr->getArrayElems();
+    if (!elems || !elems->getExprList()) {
+        return expected;
+    }
+    for (ExprNode *elem : *elems->getExprList()) {
+        if (!elem) {
+            continue;
+        }
+        SemanticType elemType = SemanticType::makeBase(SemanticType::UNKNOWN);
+        if (elem->getType() == ExprNode::COMPOSITE_LIT) {
+            elemType = evalCompositeLiteralWithExpected(elem, elemExpected, ctx);
+        } else {
+            elemType = elem->semantics(ctx);
+        }
+        if (!isAssignable(elemExpected, elemType)) {
+            ctx.report("Composite literal element type mismatch.");
+        }
+    }
+    return expected;
+}
+
 void AstNode::appendDotNode(string &res) const {
     res += "node" + to_string(id) + " [label=\"" + getDotLabel() + "\"];\n";
 }
@@ -302,6 +332,13 @@ ExprNode* ExprNode::createLiteralVal(ValueNode *value) {
     ExprNode *node = new ExprNode();
     node->type = LIT_VAL;
     node->value = value;
+    return node;
+}
+
+ExprNode* ExprNode::createCompositeLiteral(ExprListNode *elems) {
+    ExprNode *node = new ExprNode();
+    node->type = COMPOSITE_LIT;
+    node->arrayElems = elems;
     return node;
 }
 
@@ -577,15 +614,49 @@ SemanticType ExprNode::semantics(SemanticContext &ctx) {
         case LIT_VAL:
             semType = semanticTypeFromValue(value);
             break;
+        case COMPOSITE_LIT: {
+            SemanticType elemType = SemanticType::makeBase(SemanticType::UNKNOWN);
+            if (arrayElems && arrayElems->getExprList() && !arrayElems->getExprList()->empty()) {
+                auto it = arrayElems->getExprList()->begin();
+                elemType = (*it)->semantics(ctx);
+                for (; it != arrayElems->getExprList()->end(); ++it) {
+                    SemanticType t = (*it)->semantics(ctx);
+                    if (!elemType.sameKind(t)) {
+                        ctx.report("Composite literal has inconsistent element types.");
+                        elemType = SemanticType::makeBase(SemanticType::UNKNOWN);
+                        break;
+                    }
+                }
+            }
+            if (elemType.base == SemanticType::UNKNOWN) {
+                semType = SemanticType::makeBase(SemanticType::UNKNOWN);
+            } else {
+                semType = elemType;
+                semType.arrayDims += 1;
+            }
+            break;
+        }
         case ARRAY_LIT: {
             SemanticType elemType = SemanticType::makeBase(SemanticType::UNKNOWN);
             if (arrayElemType) {
                 elemType = arrayElemType->getSemanticType();
             } else if (arrayElems && arrayElems->getExprList() && !arrayElems->getExprList()->empty()) {
                 auto it = arrayElems->getExprList()->begin();
-                elemType = (*it)->semantics(ctx);
+                if (*it && (*it)->getType() == COMPOSITE_LIT) {
+                    elemType = (*it)->semantics(ctx);
+                } else {
+                    elemType = (*it)->semantics(ctx);
+                }
                 for (; it != arrayElems->getExprList()->end(); ++it) {
-                    SemanticType t = (*it)->semantics(ctx);
+                    if (!*it) {
+                        continue;
+                    }
+                    SemanticType t = SemanticType::makeBase(SemanticType::UNKNOWN);
+                    if ((*it)->getType() == COMPOSITE_LIT && elemType.base != SemanticType::UNKNOWN) {
+                        t = evalCompositeLiteralWithExpected(*it, elemType, ctx);
+                    } else {
+                        t = (*it)->semantics(ctx);
+                    }
                     if (!elemType.sameKind(t)) {
                         ctx.report("Array literal has inconsistent element types.");
                         elemType = SemanticType::makeBase(SemanticType::UNKNOWN);
@@ -625,6 +696,21 @@ SemanticType ExprNode::semantics(SemanticContext &ctx) {
             } else if (arrayElems && arrayElems->getExprList() && !arrayElems->getExprList()->empty()) {
                 elemType = arrayElems->getExprList()->front()->semantics(ctx);
             }
+            if (arrayElems && arrayElems->getExprList()) {
+                for (ExprNode *elem : *arrayElems->getExprList()) {
+                    if (!elem) {
+                        continue;
+                    }
+                    if (elem->getType() == COMPOSITE_LIT && elemType.base != SemanticType::UNKNOWN) {
+                        evalCompositeLiteralWithExpected(elem, elemType, ctx);
+                    } else {
+                        SemanticType t = elem->semantics(ctx);
+                        if (elemType.base != SemanticType::UNKNOWN && !elemType.sameKind(t)) {
+                            ctx.report("Slice literal has inconsistent element types.");
+                        }
+                    }
+                }
+            }
             semType = elemType;
             semType.sliceDims += 1;
             break;
@@ -640,7 +726,13 @@ SemanticType ExprNode::semantics(SemanticContext &ctx) {
                 semType = SemanticType::makeBase(SemanticType::STRING);
                 break;
             }
-            if (!leftType.isNumeric() || !rightType.isNumeric() || !leftType.sameKind(rightType)) {
+            if (type == MODULO) {
+                if (leftType.base != SemanticType::INT || rightType.base != SemanticType::INT || !leftType.isScalar() || !rightType.isScalar()) {
+                    ctx.report("Modulo requires integer operands.");
+                    semType = SemanticType::makeBase(SemanticType::UNKNOWN);
+                    break;
+                }
+            } else if (!leftType.isNumeric() || !rightType.isNumeric() || !leftType.sameKind(rightType)) {
                 ctx.report("Numeric operator requires operands of the same numeric type.");
                 semType = SemanticType::makeBase(SemanticType::UNKNOWN);
                 break;
@@ -791,6 +883,7 @@ string ExprNode::getDotLabel() const {
         case IOTA:              return "iota";
         case EXPR_IN_BRACKETS:  return "()";
         case LIT_VAL:           return "LIT_VAL";
+        case COMPOSITE_LIT:     return "COMPOSITE_LIT";
         case ARRAY_LIT:
             return arrayLenAuto ? "ARRAY_LIT_AUTO" : "ARRAY_LIT";
         case SLICE_LIT:         return "SLICE_LIT";
