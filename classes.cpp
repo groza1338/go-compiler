@@ -83,8 +83,14 @@ static bool isAddressableExpr(ExprNode *expr, SemanticContext &ctx) {
                 if (operandType.isString() && operandType.isScalar()) {
                     return false;
                 }
+                if (operandType.arrayDims > 0) {
+                    return isAddressableExpr(operand, ctx);
+                }
+                if (operandType.sliceDims > 0) {
+                    return true;
+                }
             }
-            return true;
+            return false;
         case ExprNode::EXPR_IN_BRACKETS:
             return isAddressableExpr(expr->getOperand(), ctx);
         default:
