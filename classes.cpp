@@ -1088,7 +1088,7 @@ SemanticType ExprNode::semantics(SemanticContext &ctx) {
         }
         case ADDRESS_OF:
             if (!isAddressableExpr(operand, ctx)) {
-                ctx.report("Address-of requires addressable operand.");
+                ctx.report("invalid operation: cannot take address of " + toString());
             }
             semType = operand ? operand->semantics(ctx) : SemanticType::makeBase(SemanticType::UNKNOWN);
             break;
@@ -1096,7 +1096,8 @@ SemanticType ExprNode::semantics(SemanticContext &ctx) {
             SemanticType operandType = operand ? operand->semantics(ctx) : SemanticType::makeBase(SemanticType::UNKNOWN);
             SemanticType indexType = index ? index->semantics(ctx) : SemanticType::makeBase(SemanticType::UNKNOWN);
             if (indexType.base != SemanticType::INT || !indexType.isScalar()) {
-                ctx.report("Index expression must be int.");
+                ctx.report("invalid index access: " + toString() + " (index must be integer instead of "
+                    + indexType.toString() + ")");
             }
             if (operandType.arrayDims > 0) {
                 semType = operandType;
@@ -1107,7 +1108,7 @@ SemanticType ExprNode::semantics(SemanticContext &ctx) {
             } else if (operandType.isString() && operandType.isScalar()) {
                 semType = SemanticType::makeBase(SemanticType::INT);
             } else {
-                ctx.report("Indexing requires array or slice operand.");
+                ctx.report("cannot index " + toString() + " (variable of type " + operandType.toString() + ")");
                 semType = SemanticType::makeBase(SemanticType::UNKNOWN);
             }
             break;
