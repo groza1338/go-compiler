@@ -381,6 +381,205 @@ void AstNode::appendDotEdge(string &res, const AstNode *child, const string &edg
     res += ";\n" + child->toDot();
 }
 
+SemanticType SemanticType::makeBase(BaseType baseType) {
+    SemanticType t;
+    t.base = baseType;
+    return t;
+}
+
+SemanticType SemanticType::makeError() {
+    SemanticType t;
+    t.isError = true;
+    return t;
+}
+
+bool SemanticType::sameKind(const SemanticType &other) const {
+    if (base != other.base || arrayDims != other.arrayDims || sliceDims != other.sliceDims) {
+        return false;
+    }
+    size_t lenCount = min(arrayLengths.size(), other.arrayLengths.size());
+    for (size_t i = 0; i < lenCount; ++i) {
+        int leftLen = arrayLengths[i];
+        int rightLen = other.arrayLengths[i];
+        if (leftLen >= 0 && rightLen >= 0 && leftLen != rightLen) {
+            return false;
+        }
+    }
+    return true;
+}
+
+string SemanticType::toString() const {
+    if (isError) return "error";
+    string baseStr;
+    switch (base) {
+        case INT: baseStr = "int"; break;
+        case FLOAT: baseStr = "float64"; break;
+        case BOOL: baseStr = "bool"; break;
+        case STRING: baseStr = "string"; break;
+        case RUNE: baseStr = "rune"; break;
+        default: baseStr = "unknown"; break;
+    }
+    string prefix;
+    for (int i = 0; i < arrayDims; i++) {
+        int len = -1;
+        if (i < static_cast<int>(arrayLengths.size())) {
+            len = arrayLengths[i];
+        }
+        if (len >= 0) {
+            prefix += "[" + to_string(len) + "]";
+        } else {
+            prefix += "[?]";
+        }
+    }
+    for (int i = 0; i < sliceDims; i++) prefix += "[]";
+    return prefix + baseStr;
+}
+
+SemanticContext::SemanticContext() {
+    scopes.emplace_back();
+}
+
+void SemanticContext::enterScope() {
+    scopes.emplace_back();
+}
+
+void SemanticContext::exitScope() {
+    if (scopes.size() > 1) {
+        scopes.pop_back();
+    }
+}
+
+void SemanticContext::enterConstBlock() {
+    inConstBlock = true;
+    iotaValue = 0;
+    constPrevExprs = nullptr;
+}
+
+void SemanticContext::exitConstBlock() {
+    inConstBlock = false;
+    constPrevExprs = nullptr;
+}
+
+bool SemanticContext::isDeclaredInCurrent(const string &name) const {
+    return !scopes.empty() && scopes.back().count(name) != 0;
+}
+
+bool SemanticContext::lookup(const string &name, SemanticType &out) const {
+    for (auto it = scopes.rbegin(); it != scopes.rend(); ++it) {
+        auto found = it->find(name);
+        if (found != it->end()) {
+            out = found->second;
+            return true;
+        }
+    }
+    return false;
+}
+
+void SemanticContext::declare(const string &name, const SemanticType &type) {
+    if (!scopes.empty()) {
+        scopes.back()[name] = type;
+    }
+}
+
+void SemanticContext::enterFunction(const FunctionReturnInfo &info) {
+    returnStack.push_back(info);
+}
+
+void SemanticContext::exitFunction() {
+    if (!returnStack.empty()) {
+        returnStack.pop_back();
+    }
+}
+
+const SemanticContext::FunctionReturnInfo * SemanticContext::currentReturn() const {
+    if (returnStack.empty()) {
+        return nullptr;
+    }
+    return &returnStack.back();
+}
+
+void SemanticContext::enterSwitch(const SemanticType &type) {
+    switchStack.push_back(type);
+}
+
+void SemanticContext::exitSwitch() {
+    if (!switchStack.empty()) {
+        switchStack.pop_back();
+    }
+}
+
+const SemanticType * SemanticContext::currentSwitchType() const {
+    if (switchStack.empty()) {
+        return nullptr;
+    }
+    return &switchStack.back();
+}
+
+void SemanticContext::enterLoop() {
+    loopDepth++;
+}
+
+void SemanticContext::exitLoop() {
+    if (loopDepth > 0) {
+        loopDepth--;
+    }
+}
+
+bool SemanticContext::inLoop() const {
+    return loopDepth > 0;
+}
+
+bool SemanticContext::inSwitch() const {
+    return !switchStack.empty();
+}
+
+bool SemanticContext::declareFunction(const string &name, const FunctionInfo &info) {
+    if (functions.count(name) != 0) {
+        report("Duplicate function: " + name);
+        return false;
+    }
+    functions[name] = info;
+    return true;
+}
+
+bool SemanticContext::lookupFunction(const string &name, FunctionInfo &out) const {
+    auto it = functions.find(name);
+    if (it == functions.end()) {
+        return false;
+    }
+    out = it->second;
+    return true;
+}
+
+bool SemanticContext::declareImport(const string &name, const string &target) {
+    if (name.empty()) {
+        return false;
+    }
+    if (importNames.count(name) != 0) {
+        report("Duplicate import name: " + name);
+        return false;
+    }
+    importNames.insert(name);
+    importTargets[name] = target;
+    return true;
+}
+
+bool SemanticContext::isImportName(const string &name) const {
+    return importNames.count(name) != 0;
+}
+
+string SemanticContext::getImportTarget(const string &name) const {
+    auto it = importTargets.find(name);
+    if (it == importTargets.end()) {
+        return "";
+    }
+    return it->second;
+}
+
+void SemanticContext::report(const string &message) {
+    errors.push_back(message);
+}
+
 ExprNode* ExprNode::createIdentifier(ValueNode *value) {
     ExprNode *node = new ExprNode();
     node->type = ID;

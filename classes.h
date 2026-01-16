@@ -63,64 +63,18 @@ struct SemanticType {
     vector<int> arrayLengths;
     bool isError = false;
 
-    static SemanticType makeBase(BaseType baseType) {
-        SemanticType t;
-        t.base = baseType;
-        return t;
-    }
+    static SemanticType makeBase(BaseType baseType);
 
-    static SemanticType makeError() {
-        SemanticType t;
-        t.isError = true;
-        return t;
-    }
+    static SemanticType makeError();
 
     bool isNumeric() const { return base == INT || base == FLOAT; }
     bool isBool() const { return base == BOOL; }
     bool isString() const { return base == STRING; }
     bool isScalar() const { return arrayDims == 0 && sliceDims == 0; }
 
-    bool sameKind(const SemanticType &other) const {
-        if (base != other.base || arrayDims != other.arrayDims || sliceDims != other.sliceDims) {
-            return false;
-        }
-        size_t lenCount = min(arrayLengths.size(), other.arrayLengths.size());
-        for (size_t i = 0; i < lenCount; ++i) {
-            int leftLen = arrayLengths[i];
-            int rightLen = other.arrayLengths[i];
-            if (leftLen >= 0 && rightLen >= 0 && leftLen != rightLen) {
-                return false;
-            }
-        }
-        return true;
-    }
+    bool sameKind(const SemanticType &other) const;
 
-    string toString() const {
-        if (isError) return "error";
-        string baseStr;
-        switch (base) {
-            case INT: baseStr = "int"; break;
-            case FLOAT: baseStr = "float64"; break;
-            case BOOL: baseStr = "bool"; break;
-            case STRING: baseStr = "string"; break;
-            case RUNE: baseStr = "rune"; break;
-            default: baseStr = "unknown"; break;
-        }
-        string prefix;
-        for (int i = 0; i < arrayDims; i++) {
-            int len = -1;
-            if (i < static_cast<int>(arrayLengths.size())) {
-                len = arrayLengths[i];
-            }
-            if (len >= 0) {
-                prefix += "[" + to_string(len) + "]";
-            } else {
-                prefix += "[?]";
-            }
-        }
-        for (int i = 0; i < sliceDims; i++) prefix += "[]";
-        return prefix + baseStr;
-    }
+    string toString() const;
 };
 
 struct SemanticContext {
@@ -147,150 +101,53 @@ struct SemanticContext {
     ExprListNode *constPrevExprs = nullptr;
     bool allowMultiValue = false;
 
-    SemanticContext() {
-        scopes.emplace_back();
-    }
+    SemanticContext();
 
-    void enterScope() {
-        scopes.emplace_back();
-    }
+    void enterScope();
 
-    void exitScope() {
-        if (scopes.size() > 1) {
-            scopes.pop_back();
-        }
-    }
+    void exitScope();
 
-    void enterConstBlock() {
-        inConstBlock = true;
-        iotaValue = 0;
-        constPrevExprs = nullptr;
-    }
+    void enterConstBlock();
 
-    void exitConstBlock() {
-        inConstBlock = false;
-        constPrevExprs = nullptr;
-    }
+    void exitConstBlock();
 
-    bool isDeclaredInCurrent(const string &name) const {
-        return !scopes.empty() && scopes.back().count(name) != 0;
-    }
+    bool isDeclaredInCurrent(const string &name) const;
 
-    bool lookup(const string &name, SemanticType &out) const {
-        for (auto it = scopes.rbegin(); it != scopes.rend(); ++it) {
-            auto found = it->find(name);
-            if (found != it->end()) {
-                out = found->second;
-                return true;
-            }
-        }
-        return false;
-    }
+    bool lookup(const string &name, SemanticType &out) const;
 
-    void declare(const string &name, const SemanticType &type) {
-        if (!scopes.empty()) {
-            scopes.back()[name] = type;
-        }
-    }
+    void declare(const string &name, const SemanticType &type);
 
-    void enterFunction(const FunctionReturnInfo &info) {
-        returnStack.push_back(info);
-    }
+    void enterFunction(const FunctionReturnInfo &info);
 
-    void exitFunction() {
-        if (!returnStack.empty()) {
-            returnStack.pop_back();
-        }
-    }
+    void exitFunction();
 
-    const FunctionReturnInfo* currentReturn() const {
-        if (returnStack.empty()) {
-            return nullptr;
-        }
-        return &returnStack.back();
-    }
+    const FunctionReturnInfo* currentReturn() const;
 
-    void enterSwitch(const SemanticType &type) {
-        switchStack.push_back(type);
-    }
+    void enterSwitch(const SemanticType &type);
 
-    void exitSwitch() {
-        if (!switchStack.empty()) {
-            switchStack.pop_back();
-        }
-    }
+    void exitSwitch();
 
-    const SemanticType* currentSwitchType() const {
-        if (switchStack.empty()) {
-            return nullptr;
-        }
-        return &switchStack.back();
-    }
+    const SemanticType* currentSwitchType() const;
 
-    void enterLoop() {
-        loopDepth++;
-    }
+    void enterLoop();
 
-    void exitLoop() {
-        if (loopDepth > 0) {
-            loopDepth--;
-        }
-    }
+    void exitLoop();
 
-    bool inLoop() const {
-        return loopDepth > 0;
-    }
+    bool inLoop() const;
 
-    bool inSwitch() const {
-        return !switchStack.empty();
-    }
+    bool inSwitch() const;
 
-    bool declareFunction(const string &name, const FunctionInfo &info) {
-        if (functions.count(name) != 0) {
-            report("Duplicate function: " + name);
-            return false;
-        }
-        functions[name] = info;
-        return true;
-    }
+    bool declareFunction(const string &name, const FunctionInfo &info);
 
-    bool lookupFunction(const string &name, FunctionInfo &out) const {
-        auto it = functions.find(name);
-        if (it == functions.end()) {
-            return false;
-        }
-        out = it->second;
-        return true;
-    }
+    bool lookupFunction(const string &name, FunctionInfo &out) const;
 
-    bool declareImport(const string &name, const string &target) {
-        if (name.empty()) {
-            return false;
-        }
-        if (importNames.count(name) != 0) {
-            report("Duplicate import name: " + name);
-            return false;
-        }
-        importNames.insert(name);
-        importTargets[name] = target;
-        return true;
-    }
+    bool declareImport(const string &name, const string &target);
 
-    bool isImportName(const string &name) const {
-        return importNames.count(name) != 0;
-    }
+    bool isImportName(const string &name) const;
 
-    string getImportTarget(const string &name) const {
-        auto it = importTargets.find(name);
-        if (it == importTargets.end()) {
-            return "";
-        }
-        return it->second;
-    }
+    string getImportTarget(const string &name) const;
 
-    void report(const string &message) {
-        errors.push_back(message);
-    }
+    void report(const string &message);
 };
 
 class ExprNode : public AstNode {
