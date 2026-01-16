@@ -1132,7 +1132,7 @@ SemanticType ExprNode::semantics(SemanticContext &ctx) {
                 }
                 SemanticType idxType = expr->semantics(ctx);
                 if (idxType.base != SemanticType::INT || !idxType.isScalar()) {
-                    ctx.report("Slice " + label + " index must be int.");
+                    ctx.report("cannot convert " + label + " of " + toString() + "(" + idxType.toString() + ") to integer");
                 }
             };
             checkIndex(sliceLow, "low");
@@ -1144,10 +1144,10 @@ SemanticType ExprNode::semantics(SemanticContext &ctx) {
                 semType.sliceDims = 1;
             } else if (operandType.sliceDims > 0 || (operandType.isString() && operandType.isScalar())) {
                 if (operandType.isString() && operandType.isScalar() && sliceMax) {
-                    ctx.report("Three-index slicing is not allowed for strings.");
+                    ctx.report("invalid operation: 3-index slice of string " + toString());
                 }
             } else {
-                ctx.report("Slicing requires array, slice, or string operand.");
+                ctx.report("cannot slice " + toString() + " (variable of type " + operandType.toString() + ")");
                 semType = SemanticType::makeBase(SemanticType::UNKNOWN);
             }
             break;
@@ -1179,7 +1179,8 @@ SemanticType ExprNode::semantics(SemanticContext &ctx) {
             if (operand) {
                 SemanticType operandType = operand->semantics(ctx);
                 if (operandType.base != SemanticType::UNKNOWN) {
-                    ctx.report("Selector is not supported for this operand type.");
+                    ctx.report(toString() + "undefined (type " + operandType.toString()
+                        + " has no field of method " + *identifier->getValueString());
                 }
             }
             break;
