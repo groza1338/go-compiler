@@ -56,6 +56,16 @@ static bool isOrderable(const SemanticType &type) {
         || type.base == SemanticType::STRING);
 }
 
+static string comparisonTypeName(const SemanticType &type) {
+    if (type.arrayDims > 0) {
+        return "array";
+    }
+    if (type.sliceDims > 0) {
+        return "slice";
+    }
+    return type.toString();
+}
+
 static bool isIdentifierExpr(ExprNode *expr, string *outName) {
     if (!expr || expr->getType() != ExprNode::ID) {
         return false;
@@ -1028,10 +1038,14 @@ SemanticType ExprNode::semantics(SemanticContext &ctx) {
         case GREATER_OR_EQUAL: {
             SemanticType leftType = left ? left->semantics(ctx) : SemanticType::makeBase(SemanticType::UNKNOWN);
             SemanticType rightType = right ? right->semantics(ctx) : SemanticType::makeBase(SemanticType::UNKNOWN);
-            if (!leftType.sameKind(rightType) || !leftType.isScalar()) {
-                ctx.report("Comparison requires scalar operands of the same type.");
+            string exprStr = (left ? left->toString() : "nil") + " " + getDotLabel() + " " + (right ? right->toString() : "nil");
+            string typeName = comparisonTypeName(leftType);
+            if (!leftType.sameKind(rightType)) {
+                ctx.report("invalid operation: " + exprStr + " (mismatched types " + leftType.toString() + " and " + rightType.toString() + ")");
             } else if (type != EQUAL && type != NOT_EQUAL && !isOrderable(leftType)) {
-                ctx.report("Ordering comparison requires numeric, rune, or string operands.");
+                ctx.report("invalid operation: " + exprStr + " (operator " + getDotLabel() + " not defined on " + typeName + ")");
+            } else if (!leftType.isScalar()) {
+                ctx.report("invalid operation: " + exprStr + " (operator " + getDotLabel() + " not defined on " + typeName + ")");
             }
             semType = SemanticType::makeBase(SemanticType::BOOL);
             break;
