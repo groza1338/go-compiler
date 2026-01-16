@@ -89,6 +89,7 @@ struct SemanticContext {
     };
 
     vector<unordered_map<string, SemanticType>> scopes;
+    vector<unordered_set<string>> usedScopes;
     vector<string> errors;
     vector<FunctionReturnInfo> returnStack;
     vector<SemanticType> switchStack;
@@ -116,6 +117,7 @@ struct SemanticContext {
     bool lookup(const string &name, SemanticType &out) const;
 
     void declare(const string &name, const SemanticType &type);
+    void markUsed(const string &name);
 
     void enterFunction(const FunctionReturnInfo &info);
 

@@ -73,6 +73,79 @@ static string comparisonTypeName(const SemanticType &type) {
     return type.toString();
 }
 
+static string formatMultiValueTypeList(const vector<SemanticType> &types) {
+    string out;
+    for (size_t i = 0; i < types.size(); ++i) {
+        if (i > 0) {
+            out += ", ";
+        }
+        out += types[i].toString();
+    }
+    return out;
+}
+
+static string formatTypeList(const vector<SemanticType> &types) {
+    return "(" + formatMultiValueTypeList(types) + ")";
+}
+
+static string quoteGoStringLiteral(const string &value) {
+    string out = "\"";
+    for (char c : value) {
+        switch (c) {
+            case '\\': out += "\\\\"; break;
+            case '\"': out += "\\\""; break;
+            case '\n': out += "\\n"; break;
+            case '\t': out += "\\t"; break;
+            default: out.push_back(c); break;
+        }
+    }
+    out += "\"";
+    return out;
+}
+
+static bool buildLiteralReturnMismatch(ExprNode *expr, const SemanticType &expected, string &outMsg) {
+    if (!expr || expr->getType() != ExprNode::LIT_VAL) {
+        return false;
+    }
+    ValueNode *lit = expr->getLiteral();
+    if (!lit) {
+        return false;
+    }
+    string literalText;
+    string literalType;
+    switch (lit->getValueType()) {
+        case ValueNode::LIT_BOOL:
+            literalText = lit->getBool() ? "true" : "false";
+            literalType = "untyped bool constant";
+            break;
+        case ValueNode::LIT_STRING:
+            if (lit->getString()) {
+                literalText = quoteGoStringLiteral(*lit->getString());
+            } else {
+                literalText = "\"\"";
+            }
+            literalType = "untyped string constant";
+            break;
+        case ValueNode::LIT_INT:
+            literalText = to_string(lit->getInt());
+            literalType = "untyped int constant";
+            break;
+        case ValueNode::LIT_FLOAT:
+            literalText = to_string(lit->getFloat());
+            literalType = "untyped float constant";
+            break;
+        case ValueNode::LIT_RUNE:
+            literalText = to_string(lit->getRune());
+            literalType = "untyped rune constant";
+            break;
+        default:
+            return false;
+    }
+    outMsg = "cannot use " + literalText + " (" + literalType + ") as " + expected.toString()
+        + " value in return statement";
+    return true;
+}
+
 static bool isIdentifierExpr(ExprNode *expr, string *outName) {
     if (!expr || expr->getType() != ExprNode::ID) {
         return false;
@@ -146,7 +219,13 @@ static bool getFunctionCallResults(ExprNode *expr, SemanticContext &ctx, vector<
 
     if (found) {
         if (argTypes.size() != fnInfo.params.size()) {
-            ctx.report("Function call argument count mismatch.");
+            string haveTypes = formatTypeList(argTypes);
+            string wantTypes = formatTypeList(fnInfo.params);
+            if (argTypes.size() > fnInfo.params.size()) {
+                ctx.report("too many arguments in call to " + name + "\n\thave " + haveTypes + "\n\twant " + wantTypes);
+            } else {
+                ctx.report("not enough arguments in call to " + name + "\n\thave " + haveTypes + "\n\twant " + wantTypes);
+            }
         } else {
             for (size_t i = 0; i < argTypes.size(); ++i) {
                 if (!isAssignable(fnInfo.params[i], argTypes[i])) {
@@ -460,15 +539,33 @@ string SemanticType::toString() const {
 
 SemanticContext::SemanticContext() {
     scopes.emplace_back();
+    usedScopes.emplace_back();
 }
 
 void SemanticContext::enterScope() {
     scopes.emplace_back();
+    usedScopes.emplace_back();
 }
 
 void SemanticContext::exitScope() {
     if (scopes.size() > 1) {
+        if (!returnStack.empty()) {
+            vector<string> unusedMessages;
+            for (const auto &entry : scopes.back()) {
+                const string &name = entry.first;
+                if (name == "_") {
+                    continue;
+                }
+                if (usedScopes.back().count(name) == 0) {
+                    unusedMessages.push_back("declared and not used: " + name);
+                }
+            }
+            if (!unusedMessages.empty()) {
+                errors.insert(errors.begin(), unusedMessages.begin(), unusedMessages.end());
+            }
+        }
         scopes.pop_back();
+        usedScopes.pop_back();
     }
 }
 
@@ -501,6 +598,15 @@ bool SemanticContext::lookup(const string &name, SemanticType &out) const {
 void SemanticContext::declare(const string &name, const SemanticType &type) {
     if (!scopes.empty()) {
         scopes.back()[name] = type;
+    }
+}
+
+void SemanticContext::markUsed(const string &name) {
+    for (size_t i = scopes.size(); i-- > 0;) {
+        if (scopes[i].count(name) != 0) {
+            usedScopes[i].insert(name);
+            break;
+        }
     }
 }
 
@@ -890,6 +996,7 @@ SemanticType ExprNode::semantics(SemanticContext &ctx) {
                 semType = SemanticType::makeBase(SemanticType::UNKNOWN);
             } else {
                 semType = foundType;
+                ctx.markUsed(name);
             }
             break;
         }
@@ -1054,6 +1161,10 @@ SemanticType ExprNode::semantics(SemanticContext &ctx) {
             SemanticType rightType = right ? right->semantics(ctx) : SemanticType::makeBase(SemanticType::UNKNOWN);
             string exprStr = (left ? left->toString() : "nil") + " " + getDotLabel() + " " + (right ? right->toString() : "nil");
             string typeName = comparisonTypeName(leftType);
+            if (leftType.isError || rightType.isError) {
+                semType = SemanticType::makeBase(SemanticType::BOOL);
+                break;
+            }
             if (!leftType.sameKind(rightType)) {
                 ctx.report("invalid operation: " + exprStr + " (mismatched types " + leftType.toString() + " and " + rightType.toString() + ")");
             } else if ((type == EQUAL || type == NOT_EQUAL) && !isComparableType(leftType)) {
@@ -1107,8 +1218,19 @@ SemanticType ExprNode::semantics(SemanticContext &ctx) {
             SemanticType operandType = operand ? operand->semantics(ctx) : SemanticType::makeBase(SemanticType::UNKNOWN);
             SemanticType indexType = index ? index->semantics(ctx) : SemanticType::makeBase(SemanticType::UNKNOWN);
             if (indexType.base != SemanticType::INT || !indexType.isScalar()) {
-                ctx.report("invalid index access: " + toString() + " (index must be integer instead of "
-                    + indexType.toString() + ")");
+                bool reported = false;
+                if (index && index->getType() == LIT_VAL) {
+                    ValueNode *lit = index->getLiteral();
+                    if (lit && lit->getValueType() == ValueNode::LIT_STRING && lit->getString()) {
+                        ctx.report("cannot convert " + quoteGoStringLiteral(*lit->getString())
+                            + " (untyped string constant) to type int");
+                        reported = true;
+                    }
+                }
+                if (!reported) {
+                    ctx.report("invalid index access: " + toString() + " (index must be integer instead of "
+                        + indexType.toString() + ")");
+                }
             }
             if (operandType.arrayDims > 0) {
                 semType = operandType;
@@ -1160,7 +1282,9 @@ SemanticType ExprNode::semantics(SemanticContext &ctx) {
                     if (results.size() == 1) {
                         semType = results[0];
                     } else if (results.size() > 1 && !ctx.allowMultiValue) {
-                        ctx.report("Function call returns multiple values.");
+                        string typeList = formatMultiValueTypeList(results);
+                        ctx.report("multiple-value " + toString() + " (value of type (" + typeList + ")) in single-value context");
+                        semType = SemanticType::makeError();
                     }
                 } else {
                     if (operand) operand->semantics(ctx);
@@ -1624,8 +1748,10 @@ void StmtNode::semantics(SemanticContext &ctx) {
         case RETURN:
             if (const auto *retInfo = ctx.currentReturn()) {
                 vector<SemanticType> exprTypes;
+                list<ExprNode*> *exprNodes = nullptr;
                 if (exprList) {
                     collectExprListTypes(exprList, ctx, exprTypes);
+                    exprNodes = exprList->getExprList();
                 }
                 size_t exprCount = exprTypes.size();
                 size_t retCount = retInfo->types.size();
@@ -1643,7 +1769,20 @@ void StmtNode::semantics(SemanticContext &ctx) {
                     }
                     for (size_t i = 0; i < exprCount && i < retCount; ++i) {
                         if (!isAssignable(retInfo->types[i], exprTypes[i])) {
-                            ctx.report("Return type mismatch.");
+                            string msg;
+                            ExprNode *exprNode = nullptr;
+                            if (exprNodes) {
+                                auto it = exprNodes->begin();
+                                std::advance(it, static_cast<long>(i));
+                                if (it != exprNodes->end()) {
+                                    exprNode = *it;
+                                }
+                            }
+                            if (buildLiteralReturnMismatch(exprNode, retInfo->types[i], msg)) {
+                                ctx.report(msg);
+                            } else {
+                                ctx.report("Return type mismatch.");
+                            }
                         }
                     }
                 }
@@ -1653,7 +1792,7 @@ void StmtNode::semantics(SemanticContext &ctx) {
             break;
         case BREAK:
             if (!ctx.inLoop() && !ctx.inSwitch()) {
-                ctx.report("Break not within loop or switch.");
+                ctx.report("break is not in a loop, switch, or select");
             }
             break;
         case CONTINUE:
@@ -1676,7 +1815,7 @@ void StmtNode::semantics(SemanticContext &ctx) {
             if (condition) {
                 SemanticType condType = condition->semantics(ctx);
                 if (!condType.isBool()) {
-                    ctx.report("If condition must be bool.");
+                    ctx.report("non-boolean condition in if statement");
                 }
             }
             if (thenBranch) thenBranch->semantics(ctx);
@@ -2088,7 +2227,7 @@ void SimpleStmtNode::semantics(SemanticContext &ctx) {
                 if (isId) {
                     SemanticType found;
                     if (!ctx.lookup(idName, found)) {
-                        ctx.report("Assignment to undeclared identifier: " + idName);
+                        ctx.report("undefined: " + idName);
                     } else {
                         leftType = found;
                     }
@@ -2120,7 +2259,7 @@ void SimpleStmtNode::semantics(SemanticContext &ctx) {
                 }
             }
             if (type == SHORT_VAR_DECL && newCount == 0) {
-                ctx.report("Short variable declaration requires at least one new variable.");
+                ctx.report("no new variables on left side of :=");
             }
             break;
         }
@@ -2309,6 +2448,7 @@ void ParamDeclNode::semantics(SemanticContext &ctx) {
         }
         if (id && id->getString()) {
             ctx.declare(*id->getString(), paramType);
+            ctx.markUsed(*id->getString());
         }
     }
 }
@@ -2757,6 +2897,7 @@ string FuncDeclNode::toDot() const {
 
 void FuncDeclNode::semantics(SemanticContext &ctx) {
     SemanticContext local = ctx;
+    local.errors.clear();
     local.enterScope();
     if (signature) signature->semantics(local);
     SemanticContext::FunctionReturnInfo retInfo;
