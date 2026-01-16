@@ -1013,7 +1013,8 @@ SemanticType ExprNode::semantics(SemanticContext &ctx) {
                     break;
                 }
             } else if (!leftType.isNumeric() || !rightType.isNumeric() || !leftType.sameKind(rightType)) {
-                ctx.report("invalid operation");
+                ctx.report("invalid operation: " + toString() + " (mismatched operands types: " +
+                    left->toString() + "of type " + leftType.toString() + " and " + right->toString() + " of type " + rightType.toString() + ")");
                 semType = SemanticType::makeBase(SemanticType::UNKNOWN);
                 break;
             }
@@ -1041,7 +1042,8 @@ SemanticType ExprNode::semantics(SemanticContext &ctx) {
             SemanticType leftType = left ? left->semantics(ctx) : SemanticType::makeBase(SemanticType::UNKNOWN);
             SemanticType rightType = right ? right->semantics(ctx) : SemanticType::makeBase(SemanticType::UNKNOWN);
             if (!leftType.isBool() || !rightType.isBool()) {
-                ctx.report("Logical operator requires boolean operands.");
+                ctx.report("invalid operation: " + toString() + " (mismatched operands types: " +
+                    left->toString() + "of type " + leftType.toString() + " and " + right->toString() + " of type " + rightType.toString());
             }
             semType = SemanticType::makeBase(SemanticType::BOOL);
             break;
