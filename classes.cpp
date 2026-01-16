@@ -146,6 +146,19 @@ static bool buildLiteralReturnMismatch(ExprNode *expr, const SemanticType &expec
     return true;
 }
 
+static bool buildReturnMismatch(ExprNode *expr, const SemanticType &actual, const SemanticType &expected, string &outMsg) {
+    if (buildLiteralReturnMismatch(expr, expected, outMsg)) {
+        return true;
+    }
+    string exprText = "value";
+    if (expr) {
+        exprText = expr->toString();
+    }
+    outMsg = "cannot use " + exprText + " (" + actual.toString() + ") as " + expected.toString()
+        + " value in return statement";
+    return true;
+}
+
 static bool isIdentifierExpr(ExprNode *expr, string *outName) {
     if (!expr || expr->getType() != ExprNode::ID) {
         return false;
@@ -1775,17 +1788,41 @@ void StmtNode::semantics(SemanticContext &ctx) {
                 }
                 size_t exprCount = exprTypes.size();
                 size_t retCount = retInfo->types.size();
-                if (retCount == 0) {
-                    if (exprCount > 0) {
-                        ctx.report("Return values not allowed in function with no return type.");
-                    }
-                } else if (exprCount == 0) {
+                if (exprCount == 0) {
                     if (!retInfo->allowBareReturn) {
-                        ctx.report("Return values required.");
+                        string want = "(";
+                        for (size_t i = 0; i < retInfo->types.size(); ++i) {
+                            if (i > 0) {
+                                want += ", ";
+                            }
+                            want += retInfo->types[i].toString();
+                        }
+                        want += ")";
+                        ctx.report("not enough return values\nhave ()\nwant " + want);
                     }
                 } else {
                     if (exprCount != retCount) {
-                        ctx.report("Return value count mismatch.");
+                        string have = "(";
+                        for (size_t i = 0; i < exprTypes.size(); ++i) {
+                            if (i > 0) {
+                                have += ", ";
+                            }
+                            have += exprTypes[i].toString();
+                        }
+                        have += ")";
+                        string want = "(";
+                        for (size_t i = 0; i < retInfo->types.size(); ++i) {
+                            if (i > 0) {
+                                want += ", ";
+                            }
+                            want += retInfo->types[i].toString();
+                        }
+                        want += ")";
+                        if (exprCount < retCount) {
+                            ctx.report("not enough return values\nhave " + have + "\nwant " + want);
+                        } else {
+                            ctx.report("too many return values\nhave " + have + "\nwant " + want);
+                        }
                     }
                     for (size_t i = 0; i < exprCount && i < retCount; ++i) {
                         if (!isAssignable(retInfo->types[i], exprTypes[i])) {
@@ -1798,15 +1835,13 @@ void StmtNode::semantics(SemanticContext &ctx) {
                                     exprNode = *it;
                                 }
                             }
-                            if (buildLiteralReturnMismatch(exprNode, retInfo->types[i], msg)) {
-                                ctx.report(msg);
-                            } else {
-                                ctx.report("Return type mismatch.");
-                            }
+                            buildReturnMismatch(exprNode, exprTypes[i], retInfo->types[i], msg);
+                            ctx.report(msg);
                         }
                     }
                 }
             } else {
+                ctx.report("syntax error: non-declaration statement outside function body");
                 if (exprList) exprList->semantics(ctx);
             }
             break;
