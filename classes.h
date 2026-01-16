@@ -226,6 +226,7 @@ public:
     ExprListNode* getArrayElems() const;
     bool isArrayLenAuto() const;
     SemanticType semantics(SemanticContext &ctx);
+    string toString() const;
 
     string getDotLabel() const override;
     string toDot() const override;

@@ -1159,6 +1159,147 @@ SemanticType ExprNode::semantics(SemanticContext &ctx) {
     return semType;
 }
 
+string ExprNode::toString() const {
+    switch (type) {
+        case ID: {
+            if (!identifier) {
+                return "nil";
+            }
+            if (identifier->getString()) {
+                return *identifier->getString();
+            }
+            return identifier->getDotLabel();
+        }
+        case IOTA:
+            return "iota";
+        case EXPR_IN_BRACKETS:
+            return "(" + (operand ? operand->toString() : "nil") + ")";
+        case LIT_VAL:
+            return value ? value->getDotLabel() : "nil";
+        case COMPOSITE_LIT: {
+            string out = "{";
+            if (arrayElems && arrayElems->getExprList()) {
+                bool first = true;
+                for (ExprNode *expr : *arrayElems->getExprList()) {
+                    if (!first) {
+                        out += ", ";
+                    }
+                    out += expr ? expr->toString() : "nil";
+                    first = false;
+                }
+            }
+            out += "}";
+            return out;
+        }
+        case ARRAY_LIT: {
+            string lenStr = arrayLenAuto ? "..." : (arrayLen ? arrayLen->toString() : "nil");
+            string elemTypeStr = arrayElemType ? arrayElemType->getSemanticType().toString() : "?";
+            string out = "[" + lenStr + "]" + elemTypeStr + "{";
+            if (arrayElems && arrayElems->getExprList()) {
+                bool first = true;
+                for (ExprNode *expr : *arrayElems->getExprList()) {
+                    if (!first) {
+                        out += ", ";
+                    }
+                    out += expr ? expr->toString() : "nil";
+                    first = false;
+                }
+            }
+            out += "}";
+            return out;
+        }
+        case SLICE_LIT: {
+            string elemTypeStr = arrayElemType ? arrayElemType->getSemanticType().toString() : "?";
+            string out = "[]" + elemTypeStr + "{";
+            if (arrayElems && arrayElems->getExprList()) {
+                bool first = true;
+                for (ExprNode *expr : *arrayElems->getExprList()) {
+                    if (!first) {
+                        out += ", ";
+                    }
+                    out += expr ? expr->toString() : "nil";
+                    first = false;
+                }
+            }
+            out += "}";
+            return out;
+        }
+        case SUMMARY:
+            return "(" + (left ? left->toString() : "nil") + " + " + (right ? right->toString() : "nil") + ")";
+        case SUBTRACTION:
+            return "(" + (left ? left->toString() : "nil") + " - " + (right ? right->toString() : "nil") + ")";
+        case MULTIPLICATION:
+            return "(" + (left ? left->toString() : "nil") + " * " + (right ? right->toString() : "nil") + ")";
+        case DIVISION:
+            return "(" + (left ? left->toString() : "nil") + " / " + (right ? right->toString() : "nil") + ")";
+        case MODULO:
+            return "(" + (left ? left->toString() : "nil") + " % " + (right ? right->toString() : "nil") + ")";
+        case EQUAL:
+            return "(" + (left ? left->toString() : "nil") + " == " + (right ? right->toString() : "nil") + ")";
+        case NOT_EQUAL:
+            return "(" + (left ? left->toString() : "nil") + " != " + (right ? right->toString() : "nil") + ")";
+        case LESS:
+            return "(" + (left ? left->toString() : "nil") + " < " + (right ? right->toString() : "nil") + ")";
+        case GREATER:
+            return "(" + (left ? left->toString() : "nil") + " > " + (right ? right->toString() : "nil") + ")";
+        case LESS_OR_EQUAL:
+            return "(" + (left ? left->toString() : "nil") + " <= " + (right ? right->toString() : "nil") + ")";
+        case GREATER_OR_EQUAL:
+            return "(" + (left ? left->toString() : "nil") + " >= " + (right ? right->toString() : "nil") + ")";
+        case AND:
+            return "(" + (left ? left->toString() : "nil") + " && " + (right ? right->toString() : "nil") + ")";
+        case OR:
+            return "(" + (left ? left->toString() : "nil") + " || " + (right ? right->toString() : "nil") + ")";
+        case NOT:
+            return "(!" + (operand ? operand->toString() : "nil") + ")";
+        case UNARY_MINUS:
+            return "(-" + (operand ? operand->toString() : "nil") + ")";
+        case ADDRESS_OF:
+            return "(&" + (operand ? operand->toString() : "nil") + ")";
+        case ELEMENT_ACCESS:
+            return (operand ? operand->toString() : "nil") + "[" + (index ? index->toString() : "nil") + "]";
+        case SELECTOR: {
+            string field = "nil";
+            if (identifier) {
+                if (identifier->getString()) {
+                    field = *identifier->getString();
+                } else {
+                    field = identifier->getDotLabel();
+                }
+            }
+            return (operand ? operand->toString() : "nil") + "." + field;
+        }
+        case SLICE: {
+            string low = sliceLow ? sliceLow->toString() : "";
+            string high = sliceHigh ? sliceHigh->toString() : "";
+            string max = sliceMax ? sliceMax->toString() : "";
+            string res = (operand ? operand->toString() : "nil") + "[" + low + ":" + high;
+            if (sliceMax) {
+                res += ":" + max;
+            }
+            res += "]";
+            return res;
+        }
+        case FUNCTION_CALL: {
+            string out = (operand ? operand->toString() : "nil") + "(";
+            if (args && args->getExprList()) {
+                bool first = true;
+                for (ExprNode *expr : *args->getExprList()) {
+                    if (!first) {
+                        out += ", ";
+                    }
+                    out += expr ? expr->toString() : "nil";
+                    first = false;
+                }
+            }
+            out += ")";
+            return out;
+        }
+        default:
+            return "UNKNOWN_EXPR";
+    }
+}
+
 string ExprNode::getDotLabel() const {
     switch (type) {
         case ID:                return "IDENTIFIER";
