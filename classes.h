@@ -822,6 +822,7 @@ public:
     bool getBool() const;
     string* getString() const;
     int getRune() const;
+    string* getValueString();
 
     string getDotLabel() const override;
     string toDot() const override;

@@ -857,13 +857,13 @@ SemanticType ExprNode::semantics(SemanticContext &ctx) {
             }
             const string &name = *identifier->getString();
             if (name == "_") {
-                ctx.report("Blank identifier can only be used on the left side of assignment.");
+                ctx.report("cannot use _ as value");
                 semType = SemanticType::makeBase(SemanticType::UNKNOWN);
                 break;
             }
             SemanticType foundType;
             if (!ctx.lookup(name, foundType)) {
-                ctx.report("Unknown identifier: " + name);
+                ctx.report("undefined: " + name);
                 semType = SemanticType::makeBase(SemanticType::UNKNOWN);
             } else {
                 semType = foundType;
@@ -872,7 +872,7 @@ SemanticType ExprNode::semantics(SemanticContext &ctx) {
         }
         case IOTA:
             if (!ctx.inConstBlock) {
-                ctx.report("iota can only be used in const declarations.");
+                ctx.report("cannot use iota outside constant declaration");
             }
             semType = SemanticType::makeBase(SemanticType::INT);
             break;
@@ -889,7 +889,8 @@ SemanticType ExprNode::semantics(SemanticContext &ctx) {
                 for (; it != arrayElems->getExprList()->end(); ++it) {
                     SemanticType t = (*it)->semantics(ctx);
                     if (!elemType.sameKind(t)) {
-                        ctx.report("Composite literal has inconsistent element types.");
+                        ctx.report("cannot use " + *(*it)->getLiteral()->getValueString() + " (" + t.toString() + ") " +
+                            elemType.toString() + " value in composite literal");
                         elemType = SemanticType::makeBase(SemanticType::UNKNOWN);
                         break;
                     }
@@ -929,7 +930,8 @@ SemanticType ExprNode::semantics(SemanticContext &ctx) {
                         t = elem->semantics(ctx);
                     }
                     if (elemType.base != SemanticType::UNKNOWN && !elemType.sameKind(t)) {
-                        ctx.report("Array literal has inconsistent element types.");
+                        ctx.report("cannot use " + *elem->getLiteral()->getValueString() + " (" + t.toString() + ") " +
+                            elemType.toString() + " value in array literal");
                         elemType = SemanticType::makeBase(SemanticType::UNKNOWN);
                         break;
                     }
@@ -939,7 +941,7 @@ SemanticType ExprNode::semantics(SemanticContext &ctx) {
             if (arrayLen) {
                 SemanticType lenType = arrayLen->semantics(ctx);
                 if (!lenType.isError && lenType.base != SemanticType::INT) {
-                    ctx.report("Array length must be int.");
+                    ctx.report("array length " + *arrayLen->getLiteral()->getValueString() + " must be integer");
                 }
                 if (arrayElems && arrayElems->getExprList() && arrayLen->getType() == LIT_VAL) {
                     ValueNode *lenVal = arrayLen->getLiteral();
@@ -947,7 +949,7 @@ SemanticType ExprNode::semantics(SemanticContext &ctx) {
                         lenValue = lenVal->getInt();
                         size_t elemCount = arrayElems->getExprList()->size();
                         if (elemCount > static_cast<size_t>(lenVal->getInt())) {
-                            ctx.report("Array literal has more elements than its length.");
+                            ctx.report("array elements count " + to_string(elemCount) + "more than it size " + *lenVal->getValueString());
                         }
                     }
                 }
@@ -978,7 +980,8 @@ SemanticType ExprNode::semantics(SemanticContext &ctx) {
                     } else {
                         SemanticType t = elem->semantics(ctx);
                         if (elemType.base != SemanticType::UNKNOWN && !elemType.sameKind(t)) {
-                            ctx.report("Slice literal has inconsistent element types.");
+                            ctx.report("cannot use " + *elem->getLiteral()->getValueString() + " (" + t.toString() + ") " +
+                            elemType.toString() + " value in slice literal");
                         }
                     }
                 }
@@ -998,6 +1001,11 @@ SemanticType ExprNode::semantics(SemanticContext &ctx) {
                 semType = SemanticType::makeBase(SemanticType::STRING);
                 break;
             }
+            if (type != SUMMARY && leftType.isString() && rightType.isString()) {
+                ctx.report("invalid operation: operator " + getDotLabel() + " not defined for variable of type string");
+                semType = SemanticType::makeBase(SemanticType::UNKNOWN);
+                break;
+            }
             if (type == MODULO) {
                 if (leftType.base != SemanticType::INT || rightType.base != SemanticType::INT || !leftType.isScalar() || !rightType.isScalar()) {
                     ctx.report("Modulo requires integer operands.");
@@ -1005,7 +1013,7 @@ SemanticType ExprNode::semantics(SemanticContext &ctx) {
                     break;
                 }
             } else if (!leftType.isNumeric() || !rightType.isNumeric() || !leftType.sameKind(rightType)) {
-                ctx.report("Numeric operator requires operands of the same numeric type.");
+                ctx.report("invalid operation");
                 semType = SemanticType::makeBase(SemanticType::UNKNOWN);
                 break;
             }
@@ -3061,6 +3069,50 @@ string* ValueNode::getString() const {
 
 int ValueNode::getRune() const {
     return intValue;
+}
+
+string * ValueNode::getValueString() {
+    switch (valueType) {
+        case LIT_INT:
+            return new string(to_string(intValue));
+        case LIT_FLOAT:
+            return new string(to_string(floatValue));
+        case LIT_BOOL:
+            return new string(boolValue ? "true" : "false");
+        case LIT_STRING:
+            return stringValue;
+        case LIT_RUNE: {
+            auto encodeRuneUtf8 = [](unsigned int codepoint) {
+                string out;
+                if (codepoint > 0x10FFFF || (codepoint >= 0xD800 && codepoint <= 0xDFFF)) {
+                    return out;
+                }
+                if (codepoint <= 0x7F) {
+                    out.push_back(static_cast<char>(codepoint));
+                } else if (codepoint <= 0x7FF) {
+                    out.push_back(static_cast<char>(0xC0 | ((codepoint >> 6) & 0x1F)));
+                    out.push_back(static_cast<char>(0x80 | (codepoint & 0x3F)));
+                } else if (codepoint <= 0xFFFF) {
+                    out.push_back(static_cast<char>(0xE0 | ((codepoint >> 12) & 0x0F)));
+                    out.push_back(static_cast<char>(0x80 | ((codepoint >> 6) & 0x3F)));
+                    out.push_back(static_cast<char>(0x80 | (codepoint & 0x3F)));
+                } else {
+                    out.push_back(static_cast<char>(0xF0 | ((codepoint >> 18) & 0x07)));
+                    out.push_back(static_cast<char>(0x80 | ((codepoint >> 12) & 0x3F)));
+                    out.push_back(static_cast<char>(0x80 | ((codepoint >> 6) & 0x3F)));
+                    out.push_back(static_cast<char>(0x80 | (codepoint & 0x3F)));
+                }
+                return out;
+            };
+            string runeStr = encodeRuneUtf8(static_cast<unsigned int>(intValue));
+            if (runeStr.empty()) {
+                return new string(to_string(intValue));
+            }
+            return new string(runeStr);
+        }
+        default:
+            return nullptr;
+    }
 }
 
 string ValueNode::getDotLabel() const {
