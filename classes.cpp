@@ -1051,7 +1051,8 @@ SemanticType ExprNode::semantics(SemanticContext &ctx) {
         case NOT: {
             SemanticType operandType = operand ? operand->semantics(ctx) : SemanticType::makeBase(SemanticType::UNKNOWN);
             if (!operandType.isBool()) {
-                ctx.report("Logical NOT requires boolean operand.");
+                ctx.report("invalid operation: operator " + getDotLabel() + " not defined on " + toString() +
+                    " (value of type " + operandType.toString() + ")");
             }
             semType = SemanticType::makeBase(SemanticType::BOOL);
             break;
@@ -1059,7 +1060,8 @@ SemanticType ExprNode::semantics(SemanticContext &ctx) {
         case UNARY_MINUS: {
             SemanticType operandType = operand ? operand->semantics(ctx) : SemanticType::makeBase(SemanticType::UNKNOWN);
             if (!operandType.isNumeric()) {
-                ctx.report("Unary minus requires numeric operand.");
+                ctx.report("invalid operation: operator " + getDotLabel() + " not defined on " + toString() +
+                    " (value of type " + operandType.toString() + ")");
             }
             semType = operandType;
             break;
