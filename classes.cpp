@@ -1797,7 +1797,7 @@ void StmtNode::semantics(SemanticContext &ctx) {
             break;
         case CONTINUE:
             if (!ctx.inLoop()) {
-                ctx.report("Continue not within loop.");
+                ctx.report("continue is not in a loop");
             }
             break;
         case BLOCK:
