@@ -1144,7 +1144,7 @@ SemanticType ExprNode::semantics(SemanticContext &ctx) {
                 semType.sliceDims = 1;
             } else if (operandType.sliceDims > 0 || (operandType.isString() && operandType.isScalar())) {
                 if (operandType.isString() && operandType.isScalar() && sliceMax) {
-                    ctx.report("invalid operation: 3-index slice of string " + toString());
+                    ctx.report("invalid operation: 3-index slice of string " + operand->toString());
                 }
             } else {
                 ctx.report("cannot slice " + toString() + " (variable of type " + operandType.toString() + ")");
