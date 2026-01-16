@@ -262,6 +262,10 @@ static void collectExprListTypes(ExprListNode *exprList, SemanticContext &ctx, v
 
 static bool getRangeTypes(const SemanticType &rangeType, SemanticType &indexType, SemanticType &valueType) {
     indexType = SemanticType::makeBase(SemanticType::INT);
+    if (rangeType.base == SemanticType::INT && rangeType.isScalar()) {
+        valueType = SemanticType::makeBase(SemanticType::INT);
+        return true;
+    }
     if (rangeType.base == SemanticType::STRING && rangeType.isScalar()) {
         valueType = SemanticType::makeBase(SemanticType::RUNE);
         return true;
@@ -325,7 +329,23 @@ static void checkRangeTarget(ExprNode *leftExpr, const SemanticType &expectedTyp
     }
     if (!isAddressableExpr(leftExpr, ctx)) {
         leftExpr->semantics(ctx);
-        ctx.report("Range assignment requires addressable identifiers.");
+        if (!isId) {
+            ctx.report("no new variables on left side of :=");
+            string declTarget = leftExpr->toString();
+            if (leftExpr->getType() == ExprNode::LIT_VAL) {
+                ValueNode *lit = leftExpr->getLiteral();
+                if (lit) {
+                    if (lit->getValueType() == ValueNode::LIT_STRING && lit->getString()) {
+                        declTarget = quoteGoStringLiteral(*lit->getString());
+                    } else if (lit->getValueString()) {
+                        declTarget = *lit->getValueString();
+                    }
+                }
+            }
+            ctx.report("invalid syntax tree: cannot declare " + declTarget);
+        } else {
+            ctx.report("Range assignment requires addressable identifiers.");
+        }
         return;
     }
     SemanticType leftType = SemanticType::makeBase(SemanticType::UNKNOWN);
@@ -1842,7 +1862,7 @@ void StmtNode::semantics(SemanticContext &ctx) {
             if (condition) {
                 SemanticType condType = condition->semantics(ctx);
                 if (!condType.isBool()) {
-                    ctx.report("For condition must be bool.");
+                    ctx.report("non-boolean condition in for statement");
                 }
             }
             if (body) body->semantics(ctx);
@@ -1856,7 +1876,7 @@ void StmtNode::semantics(SemanticContext &ctx) {
             if (condition) {
                 SemanticType condType = condition->semantics(ctx);
                 if (!condType.isBool()) {
-                    ctx.report("For condition must be bool.");
+                    ctx.report("non-boolean condition in for statement");
                 }
             }
             if (postStmt) postStmt->semantics(ctx);
@@ -1878,7 +1898,7 @@ void StmtNode::semantics(SemanticContext &ctx) {
                     auto &targets = *exprList->getExprList();
                     size_t count = targets.size();
                     if (count > 2) {
-                        ctx.report("Range assignment requires at most two variables.");
+                        ctx.report("range clause permits at most two iteration variables");
                     }
                     auto it = targets.begin();
                     if (count >= 1 && it != targets.end()) {
