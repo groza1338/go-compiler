@@ -93,8 +93,14 @@ static bool isAddressableExpr(ExprNode *expr, SemanticContext &ctx) {
                 if (operandType.isString() && operandType.isScalar()) {
                     return false;
                 }
+                if (operandType.arrayDims > 0) {
+                    return isAddressableExpr(operand, ctx);
+                }
+                if (operandType.sliceDims > 0) {
+                    return true;
+                }
             }
-            return true;
+            return false;
         case ExprNode::EXPR_IN_BRACKETS:
             return isAddressableExpr(expr->getOperand(), ctx);
         default:
@@ -1023,7 +1029,8 @@ SemanticType ExprNode::semantics(SemanticContext &ctx) {
                     break;
                 }
             } else if (!leftType.isNumeric() || !rightType.isNumeric() || !leftType.sameKind(rightType)) {
-                ctx.report("invalid operation");
+                ctx.report("invalid operation: " + toString() + " (mismatched operands types: " +
+                    left->toString() + "of type " + leftType.toString() + " and " + right->toString() + " of type " + rightType.toString() + ")");
                 semType = SemanticType::makeBase(SemanticType::UNKNOWN);
                 break;
             }
@@ -1055,7 +1062,8 @@ SemanticType ExprNode::semantics(SemanticContext &ctx) {
             SemanticType leftType = left ? left->semantics(ctx) : SemanticType::makeBase(SemanticType::UNKNOWN);
             SemanticType rightType = right ? right->semantics(ctx) : SemanticType::makeBase(SemanticType::UNKNOWN);
             if (!leftType.isBool() || !rightType.isBool()) {
-                ctx.report("Logical operator requires boolean operands.");
+                ctx.report("invalid operation: " + toString() + " (mismatched operands types: " +
+                    left->toString() + "of type " + leftType.toString() + " and " + right->toString() + " of type " + rightType.toString());
             }
             semType = SemanticType::makeBase(SemanticType::BOOL);
             break;
@@ -1063,7 +1071,8 @@ SemanticType ExprNode::semantics(SemanticContext &ctx) {
         case NOT: {
             SemanticType operandType = operand ? operand->semantics(ctx) : SemanticType::makeBase(SemanticType::UNKNOWN);
             if (!operandType.isBool()) {
-                ctx.report("Logical NOT requires boolean operand.");
+                ctx.report("invalid operation: operator " + getDotLabel() + " not defined on " + toString() +
+                    " (value of type " + operandType.toString() + ")");
             }
             semType = SemanticType::makeBase(SemanticType::BOOL);
             break;
@@ -1071,7 +1080,8 @@ SemanticType ExprNode::semantics(SemanticContext &ctx) {
         case UNARY_MINUS: {
             SemanticType operandType = operand ? operand->semantics(ctx) : SemanticType::makeBase(SemanticType::UNKNOWN);
             if (!operandType.isNumeric()) {
-                ctx.report("Unary minus requires numeric operand.");
+                ctx.report("invalid operation: operator " + getDotLabel() + " not defined on " + toString() +
+                    " (value of type " + operandType.toString() + ")");
             }
             semType = operandType;
             break;
