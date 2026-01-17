@@ -2601,8 +2601,14 @@ void ParamDeclNode::semantics(SemanticContext &ctx) {
             continue;
         }
         if (id && id->getString()) {
-            ctx.declare(*id->getString(), paramType);
-            ctx.markUsed(*id->getString());
+            const string &name = *id->getString();
+            if (ctx.isDeclaredInCurrent(name)) {
+                ctx.report(name + " redeclared in this block");
+                ctx.report("other declaration of " + name);
+                continue;
+            }
+            ctx.declare(name, paramType);
+            ctx.markUsed(name);
         }
     }
 }
