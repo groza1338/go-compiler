@@ -229,7 +229,7 @@ public:
     ExprNode* getArrayLen() const;
     ExprListNode* getArrayElems() const;
     bool isArrayLenAuto() const;
-    SemanticType semantics(SemanticContext &ctx);
+    SemanticType semantics(SemanticContext &ctx); // TODO Исправить, что int можно присвоить в float64, а наоборот нельзя
     string toString() const;
 
     string getDotLabel() const override;
