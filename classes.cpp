@@ -226,6 +226,7 @@ static bool buildAssignMismatch(ExprNode *expr, const SemanticType &actual, cons
     return true;
 }
 
+
 static bool isIdentifierExpr(ExprNode *expr, string *outName) {
     if (!expr || expr->getType() != ExprNode::ID) {
         return false;
@@ -2835,7 +2836,8 @@ void VarSpecNode::semantics(SemanticContext &ctx) {
     if (exprList) {
         collectExprListTypes(exprList, ctx, exprTypes);
         if (exprTypes.size() != idCount) {
-            ctx.report("VarSpec: initializer count does not match identifiers.");
+            ctx.report("assignment mismatch: " + to_string(idCount)
+                + " variables but " + to_string(exprTypes.size()) + " value");
         }
     }
     auto idIt = idList->getIdList()->begin();
@@ -2852,14 +2854,28 @@ void VarSpecNode::semantics(SemanticContext &ctx) {
         if (exprIndex < exprTypes.size()) {
             SemanticType exprType = exprTypes[exprIndex++];
             if (declaredType.base != SemanticType::UNKNOWN && !isAssignable(declaredType, exprType)) {
-                ctx.report("VarSpec: type mismatch for initializer.");
+                ExprNode *exprNode = nullptr;
+                if (exprList && exprList->getExprList()) {
+                    auto it = exprList->getExprList()->begin();
+                    std::advance(it, static_cast<long>(exprIndex - 1));
+                    if (it != exprList->getExprList()->end()) {
+                        exprNode = *it;
+                    }
+                }
+                string literalText;
+                string literalType;
+                if (getLiteralTextAndType(exprNode, literalText, literalType)) {
+                    ctx.report("cannot use " + literalText + " (" + literalType + ") as "
+                        + declaredType.toString() + " value in variable declaration");
+                } else {
+                    string exprText = formatExprForGoMessage(exprNode);
+                    ctx.report("cannot use " + exprText + " (" + exprType.toString() + ") as "
+                        + declaredType.toString() + " value in variable declaration");
+                }
             }
             if (declaredType.base == SemanticType::UNKNOWN) {
                 initType = exprType;
             }
-        } else if (declaredType.base == SemanticType::UNKNOWN) {
-            ctx.report("VarSpec: missing type and initializer.");
-            initType = SemanticType::makeBase(SemanticType::UNKNOWN);
         }
         if (id && id->getString()) {
             const string &name = *id->getString();
