@@ -2862,7 +2862,13 @@ void VarSpecNode::semantics(SemanticContext &ctx) {
             initType = SemanticType::makeBase(SemanticType::UNKNOWN);
         }
         if (id && id->getString()) {
-            ctx.declare(*id->getString(), initType);
+            const string &name = *id->getString();
+            if (ctx.isDeclaredInCurrent(name)) {
+                ctx.report(name + " redeclared in this block");
+                ctx.report("\tother declaration of " + name);
+                continue;
+            }
+            ctx.declare(name, initType);
         }
     }
 }
