@@ -1,6 +1,7 @@
 #include <iostream>
 #include <fstream>
 #include <filesystem>
+#include <cstdlib>
 #include "golang_parser.hpp"
 
 namespace fs = std::filesystem;
@@ -56,9 +57,15 @@ int main(int argc, char* argv[])
         std::filesystem::remove(semPath);
     }
 
-    cout << "digraph AST {\n";
-    cout << root->toDot();
-    cout << "}\n";
+    const char *rawEnv = std::getenv("PRINT_RAW_AST");
+    bool wantRaw = rawEnv && *rawEnv == '1';
+    bool wantTyped = !wantRaw && semCtx.errors.empty();
+    if (wantRaw || wantTyped) {
+        AstNode::setShowTypes(wantTyped);
+        cout << "digraph AST {\n";
+        cout << root->toDot();
+        cout << "}\n";
+    }
 
     return 0;
 }

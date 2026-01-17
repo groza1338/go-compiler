@@ -32,6 +32,7 @@ class ValueNode;
 class AstNode {
 protected:
     static unsigned int maxId;
+    static bool showTypes;
     unsigned int id;
 
     void appendDotNode(string &res) const;
@@ -42,6 +43,8 @@ public:
     virtual ~AstNode() = default;
 
     unsigned int getId() const {return id;};
+    static void setShowTypes(bool value) {showTypes = value;};
+    static bool shouldShowTypes() {return showTypes;};
 
     virtual string getDotLabel() const = 0;
     virtual string toDot() const = 0;

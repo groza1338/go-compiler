@@ -3,8 +3,10 @@
 //
 
 #include "classes.h"
+#include <cmath>
 
 unsigned int AstNode::maxId = 0;
+bool AstNode::showTypes = false;
 
 static bool isBlankIdentifier(const ValueNode *id) {
     if (!id || !id->getString()) {
@@ -25,6 +27,61 @@ static SemanticType semanticTypeFromValue(ValueNode *value) {
         case ValueNode::LIT_RUNE: return SemanticType::makeBase(SemanticType::RUNE);
         default: return SemanticType::makeBase(SemanticType::UNKNOWN);
     }
+}
+
+static bool isIntLiteralExpr(const ExprNode *expr) {
+    if (!expr || expr->getType() != ExprNode::LIT_VAL) {
+        return false;
+    }
+    ValueNode *lit = expr->getLiteral();
+    if (!lit) {
+        return false;
+    }
+    return lit->getValueType() == ValueNode::LIT_INT || lit->getValueType() == ValueNode::LIT_RUNE;
+}
+
+static bool isFloatLiteralExpr(const ExprNode *expr) {
+    if (!expr || expr->getType() != ExprNode::LIT_VAL) {
+        return false;
+    }
+    ValueNode *lit = expr->getLiteral();
+    if (!lit) {
+        return false;
+    }
+    return lit->getValueType() == ValueNode::LIT_FLOAT;
+}
+
+static bool isFloatLiteralIntegral(const ExprNode *expr) {
+    if (!isFloatLiteralExpr(expr)) {
+        return false;
+    }
+    ValueNode *lit = expr->getLiteral();
+    if (!lit) {
+        return false;
+    }
+    double value = static_cast<double>(lit->getFloat());
+    double rounded = std::round(value);
+    return std::fabs(value - rounded) < 1e-9;
+}
+
+static bool isLiteralAssignableToType(ExprNode *expr, const SemanticType &target) {
+    if (!expr || expr->getType() != ExprNode::LIT_VAL) {
+        return false;
+    }
+    if (!target.isScalar()) {
+        return false;
+    }
+    ValueNode *lit = expr->getLiteral();
+    if (!lit) {
+        return false;
+    }
+    if (target.base == SemanticType::FLOAT) {
+        return lit->getValueType() == ValueNode::LIT_INT;
+    }
+    if (target.base == SemanticType::INT) {
+        return lit->getValueType() == ValueNode::LIT_FLOAT && isFloatLiteralIntegral(expr);
+    }
+    return false;
 }
 
 static bool isAssignable(const SemanticType &left, const SemanticType &right) {
@@ -1292,6 +1349,7 @@ SemanticType ExprNode::semantics(SemanticContext &ctx) {
         case MODULO: {
             SemanticType leftType = left ? left->semantics(ctx) : SemanticType::makeBase(SemanticType::UNKNOWN);
             SemanticType rightType = right ? right->semantics(ctx) : SemanticType::makeBase(SemanticType::UNKNOWN);
+            string exprStr = (left ? left->toString() : "nil") + " " + getDotLabel() + " " + (right ? right->toString() : "nil");
             if (type == SUMMARY && leftType.isString() && rightType.isString()) {
                 semType = SemanticType::makeBase(SemanticType::STRING);
                 break;
@@ -1301,15 +1359,39 @@ SemanticType ExprNode::semantics(SemanticContext &ctx) {
                 semType = SemanticType::makeBase(SemanticType::UNKNOWN);
                 break;
             }
+            bool leftIntLit = isIntLiteralExpr(left);
+            bool rightIntLit = isIntLiteralExpr(right);
+            bool leftFloatIntegral = isFloatLiteralIntegral(left);
+            bool rightFloatIntegral = isFloatLiteralIntegral(right);
+            if (type != MODULO) {
+                if (leftType.base == SemanticType::INT && rightType.base == SemanticType::FLOAT) {
+                    if (leftIntLit) {
+                        semType = rightType;
+                        break;
+                    }
+                    if (rightFloatIntegral && !rightIntLit && !leftIntLit) {
+                        semType = leftType;
+                        break;
+                    }
+                } else if (leftType.base == SemanticType::FLOAT && rightType.base == SemanticType::INT) {
+                    if (rightIntLit) {
+                        semType = leftType;
+                        break;
+                    }
+                    if (leftFloatIntegral && !leftIntLit && !rightIntLit) {
+                        semType = rightType;
+                        break;
+                    }
+                }
+            }
             if (type == MODULO) {
                 if (leftType.base != SemanticType::INT || rightType.base != SemanticType::INT || !leftType.isScalar() || !rightType.isScalar()) {
-                    ctx.report("Modulo requires integer operands.");
+                    ctx.report("invalid operation: " + exprStr + " (mismatched types " + leftType.toString() + " and " + rightType.toString() + ")");
                     semType = SemanticType::makeBase(SemanticType::UNKNOWN);
                     break;
                 }
             } else if (!leftType.isNumeric() || !rightType.isNumeric() || !leftType.sameKind(rightType)) {
-                ctx.report("invalid operation: " + toString() + " (mismatched operands types: " +
-                    left->toString() + "of type " + leftType.toString() + " and " + right->toString() + " of type " + rightType.toString() + ")");
+                ctx.report("invalid operation: " + exprStr + " (mismatched types " + leftType.toString() + " and " + rightType.toString() + ")");
                 semType = SemanticType::makeBase(SemanticType::UNKNOWN);
                 break;
             }
@@ -1670,38 +1752,43 @@ string ExprNode::toString() const {
 }
 
 string ExprNode::getDotLabel() const {
+    string label;
     switch (type) {
-        case ID:                return "IDENTIFIER";
-        case IOTA:              return "iota";
-        case EXPR_IN_BRACKETS:  return "()";
-        case LIT_VAL:           return "LIT_VAL";
-        case COMPOSITE_LIT:     return "COMPOSITE_LIT";
+        case ID:                label = "IDENTIFIER"; break;
+        case IOTA:              label = "iota"; break;
+        case EXPR_IN_BRACKETS:  label = "()"; break;
+        case LIT_VAL:           label = "LIT_VAL"; break;
+        case COMPOSITE_LIT:     label = "COMPOSITE_LIT"; break;
         case ARRAY_LIT:
-            return arrayLenAuto ? "ARRAY_LIT_AUTO" : "ARRAY_LIT";
-        case SLICE_LIT:         return "SLICE_LIT";
-        case SUMMARY:           return "+";
-        case SUBTRACTION:       return "-";
-        case MULTIPLICATION:    return "*";
-        case DIVISION:          return "/";
-        case MODULO:            return "%";
-        case EQUAL:             return "==";
-        case NOT_EQUAL:         return "!=";
-        case LESS:              return "<";
-        case GREATER:           return ">";
-        case LESS_OR_EQUAL:     return "<=";
-        case GREATER_OR_EQUAL:  return ">=";
-        case AND:               return "&&";
-        case OR:                return "||";
-        case NOT:               return "!";
-        case UNARY_MINUS:       return "-";
-        case ADDRESS_OF:        return "&";
-        case ELEMENT_ACCESS:    return "[i]";
-        case ELEMENT_ASSIGN:    return "[]=";
-        case SELECTOR:          return ".";
-        case SLICE:             return "[]";
-        case FUNCTION_CALL:     return "func()";
-        default:                return "UNKNOWN";
+            label = arrayLenAuto ? "ARRAY_LIT_AUTO" : "ARRAY_LIT"; break;
+        case SLICE_LIT:         label = "SLICE_LIT"; break;
+        case SUMMARY:           label = "+"; break;
+        case SUBTRACTION:       label = "-"; break;
+        case MULTIPLICATION:    label = "*"; break;
+        case DIVISION:          label = "/"; break;
+        case MODULO:            label = "%"; break;
+        case EQUAL:             label = "=="; break;
+        case NOT_EQUAL:         label = "!="; break;
+        case LESS:              label = "<"; break;
+        case GREATER:           label = ">"; break;
+        case LESS_OR_EQUAL:     label = "<="; break;
+        case GREATER_OR_EQUAL:  label = ">="; break;
+        case AND:               label = "&&"; break;
+        case OR:                label = "||"; break;
+        case NOT:               label = "!"; break;
+        case UNARY_MINUS:       label = "-"; break;
+        case ADDRESS_OF:        label = "&"; break;
+        case ELEMENT_ACCESS:    label = "[i]"; break;
+        case ELEMENT_ASSIGN:    label = "[]="; break;
+        case SELECTOR:          label = "."; break;
+        case SLICE:             label = "[]"; break;
+        case FUNCTION_CALL:     label = "func()"; break;
+        default:                label = "UNKNOWN"; break;
     }
+    if (AstNode::shouldShowTypes()) {
+        label += "\\ntype: " + semType.toString();
+    }
+    return label;
 }
 
 string ExprNode::toDot() const {
@@ -1710,16 +1797,17 @@ string ExprNode::toDot() const {
     appendDotNode(result);
 
     appendDotEdge(result, identifier, "id");
-    appendDotEdge(result, value, "value");
-
-    appendDotEdge(result, left, "left");
     if (type == ELEMENT_ASSIGN) {
+        appendDotEdge(result, operand, "operand");
+        appendDotEdge(result, index, "index");
         appendDotEdge(result, right, "value");
     } else {
+        appendDotEdge(result, value, "value");
+        appendDotEdge(result, left, "left");
         appendDotEdge(result, right, "right");
+        appendDotEdge(result, operand, "operand");
+        appendDotEdge(result, index, "index");
     }
-    appendDotEdge(result, operand, "operand");
-    appendDotEdge(result, index, "index");
     appendDotEdge(result, sliceLow, "sliceLow");
     appendDotEdge(result, sliceHigh, "sliceHigh");
     appendDotEdge(result, sliceMax, "sliceMax");
@@ -3031,15 +3119,17 @@ void VarSpecNode::semantics(SemanticContext &ctx) {
                         exprNode = *it;
                     }
                 }
-                string literalText;
-                string literalType;
-                if (getLiteralTextAndType(exprNode, literalText, literalType)) {
-                    ctx.report("cannot use " + literalText + " (" + literalType + ") as "
-                        + declaredType.toString() + " value in variable declaration");
-                } else {
-                    string exprText = formatExprForGoMessage(exprNode);
-                    ctx.report("cannot use " + exprText + " (" + exprType.toString() + ") as "
-                        + declaredType.toString() + " value in variable declaration");
+                if (!isLiteralAssignableToType(exprNode, declaredType)) {
+                    string literalText;
+                    string literalType;
+                    if (getLiteralTextAndType(exprNode, literalText, literalType)) {
+                        ctx.report("cannot use " + literalText + " (" + literalType + ") as "
+                            + declaredType.toString() + " value in variable declaration");
+                    } else {
+                        string exprText = formatExprForGoMessage(exprNode);
+                        ctx.report("cannot use " + exprText + " (" + exprType.toString() + ") as "
+                            + declaredType.toString() + " value in variable declaration");
+                    }
                 }
             }
             if (declaredType.base == SemanticType::UNKNOWN) {
@@ -3172,15 +3262,17 @@ void ConstSpecNode::semantics(SemanticContext &ctx) {
             }
             SemanticType exprType = exprTypes[exprIndex++];
             if (declaredType.base != SemanticType::UNKNOWN && !isAssignable(declaredType, exprType)) {
-                string literalText;
-                string literalType;
-                if (getLiteralTextAndType(exprNode, literalText, literalType)) {
-                    ctx.report("cannot use " + literalText + " (" + literalType + ") as "
-                        + declaredType.toString() + " value in constant declaration");
-                } else {
-                    string exprText = formatExprForGoMessage(exprNode);
-                    ctx.report("cannot use " + exprText + " (" + exprType.toString() + ") as "
-                        + declaredType.toString() + " value in constant declaration");
+                if (!isLiteralAssignableToType(exprNode, declaredType)) {
+                    string literalText;
+                    string literalType;
+                    if (getLiteralTextAndType(exprNode, literalText, literalType)) {
+                        ctx.report("cannot use " + literalText + " (" + literalType + ") as "
+                            + declaredType.toString() + " value in constant declaration");
+                    } else {
+                        string exprText = formatExprForGoMessage(exprNode);
+                        ctx.report("cannot use " + exprText + " (" + exprType.toString() + ") as "
+                            + declaredType.toString() + " value in constant declaration");
+                    }
                 }
             }
             if (declaredType.base == SemanticType::UNKNOWN) {
@@ -3902,17 +3994,17 @@ string ValueNode::getDotLabel() const {
     };
 
     switch (valueType) {
-        case LIT_INT:       return "int64: " + to_string(intValue);
-        case LIT_FLOAT:     return "float64: " + to_string(floatValue);
+        case LIT_INT:       return to_string(intValue);
+        case LIT_FLOAT:     return to_string(floatValue);
         case LIT_RUNE: {
             string runeStr = encodeRuneUtf8(static_cast<unsigned int>(intValue));
             if (runeStr.empty()) {
-                return "rune: " + to_string(intValue);
+                return to_string(intValue);
             }
-            return "rune: " + escapeString(runeStr);
+            return escapeString(runeStr);
         }
-        case LIT_STRING:    return "string: " + escapeString(*stringValue);
-        case LIT_BOOL:      return string("bool: ") + (boolValue ? "true" : "false");
+        case LIT_STRING:    return escapeString(*stringValue);
+        case LIT_BOOL:      return boolValue ? "true" : "false";
         default:            return "UNKNOWN";
     }
 }
