@@ -363,7 +363,7 @@ public:
 
     string getDotLabel() const override;
     string toDot() const override;
-    void semantics(SemanticContext &ctx);
+    void semantics(SemanticContext &ctx); // TODO Проверить в компиляторе, что будет при двух case с одинаковыми expr и при двух или больше default
 
 protected:
     list<CaseNode*> *caseList;
