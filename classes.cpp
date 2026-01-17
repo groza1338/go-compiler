@@ -2301,18 +2301,19 @@ void SimpleStmtNode::semantics(SemanticContext &ctx) {
             break;
         case INC:
         case DEC: {
+            string opText = (type == INC) ? "++" : "--";
             string idName;
             if (isIdentifierExpr(expr, &idName) && idName == "_") {
-                ctx.report("Increment/decrement cannot use blank identifier.");
+                ctx.report("cannot use _ as value or type");
                 break;
             }
             if (!isAddressableExpr(expr, ctx)) {
-                ctx.report("Increment/decrement requires addressable operand.");
+                ctx.report("cannot assign to " + expr->toString() + " (neither addressable nor a map index expression)");
                 break;
             }
             SemanticType exprType = expr ? expr->semantics(ctx) : SemanticType::makeBase(SemanticType::UNKNOWN);
             if (!exprType.isNumeric()) {
-                ctx.report("Increment/decrement requires numeric expression.");
+                ctx.report("invalid operation: " + expr->toString() + opText + " (non-numeric type " + exprType.toString() + ")");
             }
             break;
         }
