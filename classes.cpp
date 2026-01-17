@@ -2992,15 +2992,36 @@ void ConstSpecNode::semantics(SemanticContext &ctx) {
         }
         SemanticType initType = declaredType;
         if (exprIndex < exprTypes.size()) {
+            ExprNode *exprNode = nullptr;
+            if (useExprList && useExprList->getExprList()) {
+                auto it = useExprList->getExprList()->begin();
+                std::advance(it, static_cast<long>(exprIndex));
+                if (it != useExprList->getExprList()->end()) {
+                    exprNode = *it;
+                }
+            }
             SemanticType exprType = exprTypes[exprIndex++];
             if (declaredType.base != SemanticType::UNKNOWN && !isAssignable(declaredType, exprType)) {
-                ctx.report("ConstSpec: type mismatch for initializer.");
+                string literalText;
+                string literalType;
+                if (getLiteralTextAndType(exprNode, literalText, literalType)) {
+                    ctx.report("cannot use " + literalText + " (" + literalType + ") as "
+                        + declaredType.toString() + " value in constant declaration");
+                } else {
+                    string exprText = formatExprForGoMessage(exprNode);
+                    ctx.report("cannot use " + exprText + " (" + exprType.toString() + ") as "
+                        + declaredType.toString() + " value in constant declaration");
+                }
             }
             if (declaredType.base == SemanticType::UNKNOWN) {
                 initType = exprType;
             }
         } else {
-            ctx.report("ConstSpec: missing initializer.");
+            if (id && id->getString()) {
+                ctx.report("missing init expr for " + *id->getString());
+            } else {
+                ctx.report("ConstSpec: missing initializer.");
+            }
             initType = SemanticType::makeBase(SemanticType::UNKNOWN);
         }
         if (id && id->getString()) {
