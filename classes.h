@@ -78,6 +78,10 @@ struct SemanticType {
 };
 
 struct SemanticContext {
+    struct SymbolInfo {
+        SemanticType type;
+        bool isConst = false;
+    };
     struct FunctionReturnInfo {
         vector<SemanticType> types;
         bool allowBareReturn = false;
@@ -88,7 +92,7 @@ struct SemanticContext {
         vector<SemanticType> results;
     };
 
-    vector<unordered_map<string, SemanticType>> scopes;
+    vector<unordered_map<string, SymbolInfo>> scopes;
     vector<unordered_set<string>> usedScopes;
     vector<string> errors;
     vector<FunctionReturnInfo> returnStack;
@@ -119,7 +123,8 @@ struct SemanticContext {
 
     bool lookup(const string &name, SemanticType &out) const;
 
-    void declare(const string &name, const SemanticType &type);
+    bool isConst(const string &name) const;
+    void declare(const string &name, const SemanticType &type, bool isConst);
     void markUsed(const string &name);
 
     void enterFunction(const FunctionReturnInfo &info);

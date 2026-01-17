@@ -247,6 +247,11 @@ static bool isAddressableExpr(ExprNode *expr, SemanticContext &ctx) {
     }
     switch (expr->getType()) {
         case ExprNode::ID:
+            if (ValueNode *id = expr->getIdentifier()) {
+                if (id->getString() && ctx.isConst(*id->getString())) {
+                    return false;
+                }
+            }
             return true;
         case ExprNode::ELEMENT_ACCESS:
             if (ExprNode *operand = expr->getOperand()) {
@@ -433,7 +438,7 @@ static void checkRangeTarget(ExprNode *leftExpr, const SemanticType &expectedTyp
     if (isId) {
         SemanticType found;
         if (!ctx.lookup(idName, found)) {
-            ctx.declare(idName, expectedType);
+            ctx.declare(idName, expectedType, false);
             return;
         }
         leftType = found;
@@ -689,16 +694,26 @@ bool SemanticContext::lookup(const string &name, SemanticType &out) const {
     for (auto it = scopes.rbegin(); it != scopes.rend(); ++it) {
         auto found = it->find(name);
         if (found != it->end()) {
-            out = found->second;
+            out = found->second.type;
             return true;
         }
     }
     return false;
 }
 
-void SemanticContext::declare(const string &name, const SemanticType &type) {
+bool SemanticContext::isConst(const string &name) const {
+    for (auto it = scopes.rbegin(); it != scopes.rend(); ++it) {
+        auto found = it->find(name);
+        if (found != it->end()) {
+            return found->second.isConst;
+        }
+    }
+    return false;
+}
+
+void SemanticContext::declare(const string &name, const SemanticType &type, bool isConst) {
     if (!scopes.empty()) {
-        scopes.back()[name] = type;
+        scopes.back()[name] = {type, isConst};
     }
 }
 
@@ -2392,7 +2407,7 @@ void SimpleStmtNode::semantics(SemanticContext &ctx) {
                         continue;
                     }
                     if (!ctx.isDeclaredInCurrent(idName)) {
-                        ctx.declare(idName, rightType);
+                        ctx.declare(idName, rightType, false);
                         newCount++;
                     } else {
                         SemanticType existing;
@@ -2666,7 +2681,7 @@ void ParamDeclNode::semantics(SemanticContext &ctx) {
                 ctx.report("\tother declaration of " + name);
                 continue;
             }
-            ctx.declare(name, paramType);
+            ctx.declare(name, paramType, false);
             ctx.markUsed(name);
         }
     }
@@ -2884,7 +2899,7 @@ void VarSpecNode::semantics(SemanticContext &ctx) {
                 ctx.report("\tother declaration of " + name);
                 continue;
             }
-            ctx.declare(name, initType);
+            ctx.declare(name, initType, false);
         }
     }
 }
@@ -3025,7 +3040,7 @@ void ConstSpecNode::semantics(SemanticContext &ctx) {
             initType = SemanticType::makeBase(SemanticType::UNKNOWN);
         }
         if (id && id->getString()) {
-            ctx.declare(*id->getString(), initType);
+            ctx.declare(*id->getString(), initType, true);
         }
     }
 }
