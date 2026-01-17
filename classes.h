@@ -191,6 +191,7 @@ public:
         UNARY_MINUS,
         ADDRESS_OF,
         ELEMENT_ACCESS,
+        ELEMENT_ASSIGN,
         SELECTOR,
         SLICE,
         FUNCTION_CALL
@@ -217,6 +218,7 @@ public:
     static ExprNode* createUnaryMinus(ExprNode *operand);
     static ExprNode* createAddressOf(ExprNode *operand);
     static ExprNode* createElementAccess(ExprNode *operand, ExprNode *index);
+    static ExprNode* createElementAssign(ExprNode *operand, ExprNode *index, ExprNode *value);
     static ExprNode* createSelector(ExprNode *operand, ValueNode *field);
     static ExprNode* createSlice(ExprNode *operand, ExprNode *low, ExprNode *high, ExprNode *max);
     static ExprNode* createFunctionCall(ExprNode *operand, ExprListNode *args);

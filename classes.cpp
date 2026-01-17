@@ -1025,6 +1025,15 @@ ExprNode* ExprNode::createElementAccess(ExprNode *operand, ExprNode *index) {
     return node;
 }
 
+ExprNode* ExprNode::createElementAssign(ExprNode *operand, ExprNode *index, ExprNode *value) {
+    ExprNode *node = new ExprNode();
+    node->type = ELEMENT_ASSIGN;
+    node->operand = operand;
+    node->index = index;
+    node->right = value;
+    return node;
+}
+
 ExprNode* ExprNode::createSelector(ExprNode *operand, ValueNode *field) {
     ExprNode *node = new ExprNode();
     node->type = SELECTOR;
@@ -1402,6 +1411,46 @@ SemanticType ExprNode::semantics(SemanticContext &ctx) {
             }
             break;
         }
+        case ELEMENT_ASSIGN: {
+            SemanticType operandType = operand ? operand->semantics(ctx) : SemanticType::makeBase(SemanticType::UNKNOWN);
+            SemanticType indexType = index ? index->semantics(ctx) : SemanticType::makeBase(SemanticType::UNKNOWN);
+            if (indexType.base != SemanticType::INT || !indexType.isScalar()) {
+                bool reported = false;
+                if (index && index->getType() == LIT_VAL) {
+                    ValueNode *lit = index->getLiteral();
+                    if (lit && lit->getValueType() == ValueNode::LIT_STRING && lit->getString()) {
+                        ctx.report("cannot convert " + quoteGoStringLiteral(*lit->getString())
+                            + " (untyped string constant) to type int");
+                        reported = true;
+                    }
+                }
+                if (!reported) {
+                    ctx.report("invalid index access: " + toString() + " (index must be integer instead of "
+                        + indexType.toString() + ")");
+                }
+            }
+            SemanticType elemType = SemanticType::makeBase(SemanticType::UNKNOWN);
+            if (operandType.arrayDims > 0) {
+                elemType = operandType;
+                dropOuterArrayDim(elemType);
+            } else if (operandType.sliceDims > 0) {
+                elemType = operandType;
+                elemType.sliceDims -= 1;
+            } else if (operandType.isString() && operandType.isScalar()) {
+                ctx.report("cannot assign to " + formatExprForGoMessage(operand)
+                    + " (neither addressable nor a map index expression)");
+            } else {
+                ctx.report("cannot index " + toString() + " (variable of type " + operandType.toString() + ")");
+            }
+            SemanticType rightType = right ? right->semantics(ctx) : SemanticType::makeBase(SemanticType::UNKNOWN);
+            if (elemType.base != SemanticType::UNKNOWN && !isAssignable(elemType, rightType)) {
+                string msg;
+                buildAssignMismatch(right, rightType, elemType, msg);
+                ctx.report(msg);
+            }
+            semType = elemType;
+            break;
+        }
         case SLICE: {
             SemanticType operandType = operand ? operand->semantics(ctx) : SemanticType::makeBase(SemanticType::UNKNOWN);
             auto checkIndex = [&](ExprNode *expr, const string &label) {
@@ -1575,6 +1624,9 @@ string ExprNode::toString() const {
             return "(&" + (operand ? operand->toString() : "nil") + ")";
         case ELEMENT_ACCESS:
             return (operand ? operand->toString() : "nil") + "[" + (index ? index->toString() : "nil") + "]";
+        case ELEMENT_ASSIGN:
+            return (operand ? operand->toString() : "nil") + "[" + (index ? index->toString() : "nil") + "] = "
+                + (right ? right->toString() : "nil");
         case SELECTOR: {
             string field = "nil";
             if (identifier) {
@@ -1644,6 +1696,7 @@ string ExprNode::getDotLabel() const {
         case UNARY_MINUS:       return "-";
         case ADDRESS_OF:        return "&";
         case ELEMENT_ACCESS:    return "[i]";
+        case ELEMENT_ASSIGN:    return "[]=";
         case SELECTOR:          return ".";
         case SLICE:             return "[]";
         case FUNCTION_CALL:     return "func()";
@@ -1660,7 +1713,11 @@ string ExprNode::toDot() const {
     appendDotEdge(result, value, "value");
 
     appendDotEdge(result, left, "left");
-    appendDotEdge(result, right, "right");
+    if (type == ELEMENT_ASSIGN) {
+        appendDotEdge(result, right, "value");
+    } else {
+        appendDotEdge(result, right, "right");
+    }
     appendDotEdge(result, operand, "operand");
     appendDotEdge(result, index, "index");
     appendDotEdge(result, sliceLow, "sliceLow");
@@ -2376,34 +2433,37 @@ void SimpleStmtNode::semantics(SemanticContext &ctx) {
                 break;
             }
             auto &leftExprs = *left->getExprList();
+            auto *rightList = right->getExprList();
             vector<SemanticType> rightTypes;
             collectExprListTypes(right, ctx, rightTypes);
-            vector<ExprNode*> rightNodes;
-            if (right->getExprList()) {
-                for (ExprNode *exprNode : *right->getExprList()) {
-                    rightNodes.push_back(exprNode);
-                }
-            }
             if (leftExprs.size() != rightTypes.size()) {
                 ctx.report("assignment mismatch: " + to_string(leftExprs.size())
                     + " variables but " + to_string(rightTypes.size()) + " value");
             }
             auto itLeft = leftExprs.begin();
+            auto itRight = rightList ? rightList->begin() : list<ExprNode*>::iterator();
             int newCount = 0;
             size_t count = min(leftExprs.size(), rightTypes.size());
             for (size_t i = 0; i < count && itLeft != leftExprs.end(); ++i, ++itLeft) {
                 ExprNode *leftExpr = *itLeft;
                 SemanticType rightType = rightTypes[i];
-                ExprNode *rightExpr = i < rightNodes.size() ? rightNodes[i] : nullptr;
+                ExprNode *rightExpr = (rightList && itRight != rightList->end()) ? *itRight : nullptr;
+                bool erasedRight = false;
 
                 string idName;
                 bool isId = isIdentifierExpr(leftExpr, &idName);
                 if (type == SHORT_VAR_DECL) {
                     if (!isId) {
                         ctx.report("non-name " + leftExpr->toString() + " on left side of :=");
+                        if (rightList && itRight != rightList->end()) {
+                            ++itRight;
+                        }
                         continue;
                     }
                     if (idName == "_") {
+                        if (rightList && itRight != rightList->end()) {
+                            ++itRight;
+                        }
                         continue;
                     }
                     if (!ctx.isDeclaredInCurrent(idName)) {
@@ -2416,6 +2476,9 @@ void SimpleStmtNode::semantics(SemanticContext &ctx) {
                                 + " constant) as " + expr->toString() + " value in assigment");
                         }
                     }
+                    if (rightList && itRight != rightList->end()) {
+                        ++itRight;
+                    }
                     continue;
                 }
 
@@ -2424,12 +2487,97 @@ void SimpleStmtNode::semantics(SemanticContext &ctx) {
                         leftExpr->semantics(ctx);
                     }
                     ctx.report("cannot assign to " + leftExpr->toString() + " (neither addressable nor a map index expression)");
+                    if (rightList && itRight != rightList->end()) {
+                        ++itRight;
+                    }
                     continue;
                 }
 
                 if (isId && idName == "_") {
                     if (type != ASSIGN) {
                         ctx.report("cannot use _ as value or type");
+                    }
+                    if (rightList && itRight != rightList->end()) {
+                        ++itRight;
+                    }
+                    continue;
+                }
+
+                if (leftExpr && leftExpr->getType() == ExprNode::ELEMENT_ACCESS && rightExpr) {
+                    SemanticType leftType = leftExpr->semantics(ctx);
+                    if (type == ADD_ASSIGN) {
+                        bool okString = leftType.isString() && rightType.isString();
+                        bool okNumeric = leftType.isNumeric() && rightType.isNumeric() && leftType.sameKind(rightType);
+                        if (!okString && !okNumeric) {
+                            string leftText = leftExpr ? formatExprForGoMessage(leftExpr) : "value";
+                            string rightText = rightExpr ? formatExprForGoMessage(rightExpr) : "value";
+                            string leftTypeText = formatTypeForGoMessage(leftExpr, leftType);
+                            string rightTypeText = formatTypeForGoMessage(rightExpr, rightType);
+                            ctx.report("invalid operation: " + leftText + " += " + rightText
+                                + " (mismatched types " + leftTypeText + " and " + rightTypeText + ")");
+                            if (rightList && itRight != rightList->end()) {
+                                ++itRight;
+                            }
+                            continue;
+                        }
+                    } else if (type != ASSIGN) {
+                        if (!leftType.isNumeric() || !rightType.isNumeric() || !leftType.sameKind(rightType)) {
+                            string op;
+                            switch (type) {
+                                case SUB_ASSIGN: op = "-"; break;
+                                case MUL_ASSIGN: op = "*"; break;
+                                case DIV_ASSIGN: op = "/"; break;
+                                case MOD_ASSIGN: op = "%"; break;
+                                default: op = ""; break;
+                            }
+                            string leftText = leftExpr ? formatExprForGoMessage(leftExpr) : "value";
+                            string kind = "value";
+                            if (leftExpr && leftExpr->getType() == ExprNode::ID) {
+                                kind = "variable";
+                            }
+                            ctx.report("invalid operation: operator " + op + " not defined on " + leftText
+                                + " (" + kind + " of type " + leftType.toString() + ")");
+                            if (rightList && itRight != rightList->end()) {
+                                ++itRight;
+                            }
+                            continue;
+                        }
+                    }
+
+                    ExprNode *operand = leftExpr->getOperand();
+                    ExprNode *index = leftExpr->getIndex();
+                    ExprNode *rhsExpr = rightExpr;
+                    if (type != ASSIGN) {
+                        ExprNode *accessForRhs = ExprNode::createElementAccess(operand, index);
+                        switch (type) {
+                            case ADD_ASSIGN:
+                                rhsExpr = ExprNode::createSummary(accessForRhs, rightExpr);
+                                break;
+                            case SUB_ASSIGN:
+                                rhsExpr = ExprNode::createSubtraction(accessForRhs, rightExpr);
+                                break;
+                            case MUL_ASSIGN:
+                                rhsExpr = ExprNode::createMultiplication(accessForRhs, rightExpr);
+                                break;
+                            case DIV_ASSIGN:
+                                rhsExpr = ExprNode::createDivision(accessForRhs, rightExpr);
+                                break;
+                            case MOD_ASSIGN:
+                                rhsExpr = ExprNode::createModulo(accessForRhs, rightExpr);
+                                break;
+                            default:
+                                break;
+                        }
+                    }
+                    ExprNode *assignExpr = ExprNode::createElementAssign(operand, index, rhsExpr);
+                    *itLeft = assignExpr;
+                    if (rightList && itRight != rightList->end()) {
+                        itRight = rightList->erase(itRight);
+                        erasedRight = true;
+                    }
+                    assignExpr->semantics(ctx);
+                    if (!erasedRight && rightList && itRight != rightList->end()) {
+                        ++itRight;
                     }
                     continue;
                 }
@@ -2451,6 +2599,9 @@ void SimpleStmtNode::semantics(SemanticContext &ctx) {
                         string msg;
                         buildAssignMismatch(rightExpr, rightType, leftType, msg);
                         ctx.report(msg);
+                    }
+                    if (!erasedRight && rightList && itRight != rightList->end()) {
+                        ++itRight;
                     }
                     continue;
                 }
@@ -2484,6 +2635,9 @@ void SimpleStmtNode::semantics(SemanticContext &ctx) {
                         ctx.report("invalid operation: operator " + op + " not defined on " + leftText
                             + " (" + kind + " of type " + leftType.toString() + ")");
                     }
+                }
+                if (!erasedRight && rightList && itRight != rightList->end()) {
+                    ++itRight;
                 }
             }
             if (type == SHORT_VAR_DECL && newCount == 0) {
