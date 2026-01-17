@@ -2991,8 +2991,9 @@ void ConstSpecNode::semantics(SemanticContext &ctx) {
     vector<SemanticType> exprTypes;
     if (useExprList) {
         collectExprListTypes(useExprList, ctx, exprTypes);
-        if (exprTypes.size() != idCount) {
-            ctx.report("ConstSpec: initializer count does not match identifiers.");
+        if (exprTypes.size() > idCount) {
+            ctx.report("assignment mismatch: " + to_string(idCount)
+                + " variables but " + to_string(exprTypes.size()) + " value");
         }
     }
     auto idIt = idList->getIdList()->begin();
@@ -3034,8 +3035,6 @@ void ConstSpecNode::semantics(SemanticContext &ctx) {
         } else {
             if (id && id->getString()) {
                 ctx.report("missing init expr for " + *id->getString());
-            } else {
-                ctx.report("ConstSpec: missing initializer.");
             }
             initType = SemanticType::makeBase(SemanticType::UNKNOWN);
         }
