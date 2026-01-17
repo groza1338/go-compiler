@@ -280,6 +280,7 @@ const_spec_list	:	const_spec_list const_spec ';'
 
 const_spec		:	id_list
 				|	id_list '=' expr_list
+				|	id_list type
 				|	id_list type '=' expr_list
 				;
 				
