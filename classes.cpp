@@ -181,16 +181,48 @@ static string formatExprForGoMessage(ExprNode *expr) {
     return expr->toString();
 }
 
+static string formatTypeForGoMessage(ExprNode *expr, const SemanticType &fallback) {
+    string literalText;
+    string literalType;
+    if (getLiteralTextAndType(expr, literalText, literalType)) {
+        const string suffix = " constant";
+        if (literalType.size() >= suffix.size()
+            && literalType.compare(literalType.size() - suffix.size(), suffix.size(), suffix) == 0) {
+            return literalType.substr(0, literalType.size() - suffix.size());
+        }
+        return literalType;
+    }
+    return fallback.toString();
+}
+
 static bool buildReturnMismatch(ExprNode *expr, const SemanticType &actual, const SemanticType &expected, string &outMsg) {
     if (buildLiteralReturnMismatch(expr, expected, outMsg)) {
         return true;
     }
-    string exprText = "value";
-    if (expr) {
-        exprText = expr->toString();
-    }
+    string exprText = formatExprForGoMessage(expr);
     outMsg = "cannot use " + exprText + " (" + actual.toString() + ") as " + expected.toString()
         + " value in return statement";
+    return true;
+}
+
+static bool buildLiteralAssignMismatch(ExprNode *expr, const SemanticType &expected, string &outMsg) {
+    string literalText;
+    string literalType;
+    if (!getLiteralTextAndType(expr, literalText, literalType)) {
+        return false;
+    }
+    outMsg = "cannot use " + literalText + " (" + literalType + ") as " + expected.toString()
+        + " value in assignment";
+    return true;
+}
+
+static bool buildAssignMismatch(ExprNode *expr, const SemanticType &actual, const SemanticType &expected, string &outMsg) {
+    if (buildLiteralAssignMismatch(expr, expected, outMsg)) {
+        return true;
+    }
+    string exprText = formatExprForGoMessage(expr);
+    outMsg = "cannot use " + exprText + " (" + actual.toString() + ") as " + expected.toString()
+        + " value in assignment";
     return true;
 }
 
@@ -2330,8 +2362,15 @@ void SimpleStmtNode::semantics(SemanticContext &ctx) {
             auto &leftExprs = *left->getExprList();
             vector<SemanticType> rightTypes;
             collectExprListTypes(right, ctx, rightTypes);
+            vector<ExprNode*> rightNodes;
+            if (right->getExprList()) {
+                for (ExprNode *exprNode : *right->getExprList()) {
+                    rightNodes.push_back(exprNode);
+                }
+            }
             if (leftExprs.size() != rightTypes.size()) {
-                ctx.report("Assignment list size mismatch.");
+                ctx.report("assignment mismatch: " + to_string(leftExprs.size())
+                    + " variables but " + to_string(rightTypes.size()) + " value");
             }
             auto itLeft = leftExprs.begin();
             int newCount = 0;
@@ -2339,12 +2378,13 @@ void SimpleStmtNode::semantics(SemanticContext &ctx) {
             for (size_t i = 0; i < count && itLeft != leftExprs.end(); ++i, ++itLeft) {
                 ExprNode *leftExpr = *itLeft;
                 SemanticType rightType = rightTypes[i];
+                ExprNode *rightExpr = i < rightNodes.size() ? rightNodes[i] : nullptr;
 
                 string idName;
                 bool isId = isIdentifierExpr(leftExpr, &idName);
                 if (type == SHORT_VAR_DECL) {
                     if (!isId) {
-                        ctx.report("Short variable declaration requires identifiers.");
+                        ctx.report("non-name " + leftExpr->toString() + " on left side of :=");
                         continue;
                     }
                     if (idName == "_") {
@@ -2356,7 +2396,8 @@ void SimpleStmtNode::semantics(SemanticContext &ctx) {
                     } else {
                         SemanticType existing;
                         if (ctx.lookup(idName, existing) && !isAssignable(existing, rightType)) {
-                            ctx.report("Cannot assign to " + idName + " from " + rightType.toString());
+                            ctx.report("cannot use " + rightType.toString() + " (untyped " + rightType.toString()
+                                + " constant) as " + expr->toString() + " value in assigment");
                         }
                     }
                     continue;
@@ -2366,13 +2407,13 @@ void SimpleStmtNode::semantics(SemanticContext &ctx) {
                     if (leftExpr) {
                         leftExpr->semantics(ctx);
                     }
-                    ctx.report("Left side of assignment must be addressable.");
+                    ctx.report("cannot assign to " + leftExpr->toString() + " (neither addressable nor a map index expression)");
                     continue;
                 }
 
                 if (isId && idName == "_") {
                     if (type != ASSIGN) {
-                        ctx.report("Blank identifier cannot be used in compound assignment.");
+                        ctx.report("cannot use _ as value or type");
                     }
                     continue;
                 }
@@ -2391,11 +2432,9 @@ void SimpleStmtNode::semantics(SemanticContext &ctx) {
 
                 if (type == ASSIGN) {
                     if (leftType.base != SemanticType::UNKNOWN && !isAssignable(leftType, rightType)) {
-                        if (isId) {
-                            ctx.report("Type mismatch in assignment to " + idName);
-                        } else {
-                            ctx.report("Type mismatch in assignment.");
-                        }
+                        string msg;
+                        buildAssignMismatch(rightExpr, rightType, leftType, msg);
+                        ctx.report(msg);
                     }
                     continue;
                 }
@@ -2404,11 +2443,30 @@ void SimpleStmtNode::semantics(SemanticContext &ctx) {
                     bool okString = leftType.isString() && rightType.isString();
                     bool okNumeric = leftType.isNumeric() && rightType.isNumeric() && leftType.sameKind(rightType);
                     if (!okString && !okNumeric) {
-                        ctx.report("Add assignment requires matching string or numeric operands.");
+                        string leftText = leftExpr ? formatExprForGoMessage(leftExpr) : "value";
+                        string rightText = rightExpr ? formatExprForGoMessage(rightExpr) : "value";
+                        string leftTypeText = formatTypeForGoMessage(leftExpr, leftType);
+                        string rightTypeText = formatTypeForGoMessage(rightExpr, rightType);
+                        ctx.report("invalid operation: " + leftText + " += " + rightText
+                            + " (mismatched types " + leftTypeText + " and " + rightTypeText + ")");
                     }
                 } else {
                     if (!leftType.isNumeric() || !rightType.isNumeric() || !leftType.sameKind(rightType)) {
-                        ctx.report("Compound assignment requires matching numeric operands.");
+                        string op;
+                        switch (type) {
+                            case SUB_ASSIGN: op = "-"; break;
+                            case MUL_ASSIGN: op = "*"; break;
+                            case DIV_ASSIGN: op = "/"; break;
+                            case MOD_ASSIGN: op = "%"; break;
+                            default: op = ""; break;
+                        }
+                        string leftText = leftExpr ? formatExprForGoMessage(leftExpr) : "value";
+                        string kind = "value";
+                        if (leftExpr && leftExpr->getType() == ExprNode::ID) {
+                            kind = "variable";
+                        }
+                        ctx.report("invalid operation: operator " + op + " not defined on " + leftText
+                            + " (" + kind + " of type " + leftType.toString() + ")");
                     }
                 }
             }
