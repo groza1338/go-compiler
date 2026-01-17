@@ -1873,7 +1873,7 @@ void StmtNode::semantics(SemanticContext &ctx) {
                             want += retInfo->types[i].toString();
                         }
                         want += ")";
-                        ctx.report("not enough return values\nhave ()\nwant " + want);
+                        ctx.report("not enough return values\n\thave ()\n\twant " + want);
                     }
                 } else {
                     if (exprCount != retCount) {
@@ -1894,9 +1894,9 @@ void StmtNode::semantics(SemanticContext &ctx) {
                         }
                         want += ")";
                         if (exprCount < retCount) {
-                            ctx.report("not enough return values\nhave " + have + "\nwant " + want);
+                            ctx.report("not enough return values\n\thave " + have + "\n\twant " + want);
                         } else {
-                            ctx.report("too many return values\nhave " + have + "\nwant " + want);
+                            ctx.report("too many return values\n\thave " + have + "\n\twant " + want);
                         }
                     }
                     for (size_t i = 0; i < exprCount && i < retCount; ++i) {
@@ -2604,7 +2604,7 @@ void ParamDeclNode::semantics(SemanticContext &ctx) {
             const string &name = *id->getString();
             if (ctx.isDeclaredInCurrent(name)) {
                 ctx.report(name + " redeclared in this block");
-                ctx.report("other declaration of " + name);
+                ctx.report("\tother declaration of " + name);
                 continue;
             }
             ctx.declare(name, paramType);
