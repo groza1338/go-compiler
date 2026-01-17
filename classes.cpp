@@ -820,7 +820,7 @@ bool SemanticContext::inSwitch() const {
 
 bool SemanticContext::declareFunction(const string &name, const FunctionInfo &info) {
     if (functions.count(name) != 0) {
-        report("Duplicate function: " + name);
+        report(name + " redeclared in this block\n\tother declaration of " + name);
         return false;
     }
     functions[name] = info;
