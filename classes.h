@@ -94,6 +94,8 @@ struct SemanticContext {
     vector<FunctionReturnInfo> returnStack;
     vector<SemanticType> switchStack;
     vector<string> switchExprTexts;
+    vector<unordered_set<string>> switchCaseKeys;
+    vector<int> switchDefaultCounts;
     int loopDepth = 0;
     unordered_map<string, FunctionInfo> functions;
     unordered_set<string> importNames;
@@ -132,6 +134,8 @@ struct SemanticContext {
 
     const SemanticType* currentSwitchType() const;
     string currentSwitchExprText() const;
+    bool registerSwitchCase(const string &exprText);
+    bool registerSwitchDefault();
 
     void enterLoop();
 
@@ -365,7 +369,7 @@ public:
 
     string getDotLabel() const override;
     string toDot() const override;
-    void semantics(SemanticContext &ctx); // TODO Проверить в компиляторе, что будет при двух case с одинаковыми expr и при двух или больше default
+    void semantics(SemanticContext &ctx);
 
 protected:
     list<CaseNode*> *caseList;

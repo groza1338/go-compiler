@@ -698,6 +698,8 @@ const SemanticContext::FunctionReturnInfo * SemanticContext::currentReturn() con
 void SemanticContext::enterSwitch(const SemanticType &type, const string &exprText) {
     switchStack.push_back(type);
     switchExprTexts.push_back(exprText);
+    switchCaseKeys.emplace_back();
+    switchDefaultCounts.push_back(0);
 }
 
 void SemanticContext::exitSwitch() {
@@ -706,6 +708,12 @@ void SemanticContext::exitSwitch() {
     }
     if (!switchExprTexts.empty()) {
         switchExprTexts.pop_back();
+    }
+    if (!switchCaseKeys.empty()) {
+        switchCaseKeys.pop_back();
+    }
+    if (!switchDefaultCounts.empty()) {
+        switchDefaultCounts.pop_back();
     }
 }
 
@@ -721,6 +729,27 @@ string SemanticContext::currentSwitchExprText() const {
         return "";
     }
     return switchExprTexts.back();
+}
+
+bool SemanticContext::registerSwitchCase(const string &exprText) {
+    if (switchCaseKeys.empty()) {
+        return false;
+    }
+    auto &set = switchCaseKeys.back();
+    if (set.count(exprText) != 0) {
+        return true;
+    }
+    set.insert(exprText);
+    return false;
+}
+
+bool SemanticContext::registerSwitchDefault() {
+    if (switchDefaultCounts.empty()) {
+        return false;
+    }
+    int &count = switchDefaultCounts.back();
+    count++;
+    return count > 1;
 }
 
 void SemanticContext::enterLoop() {
@@ -2070,11 +2099,20 @@ void CaseNode::semantics(SemanticContext &ctx) {
                                 ctx.report("Case type does not match switch expression type.");
                             }
                         }
+                    } else if (switchType->base != SemanticType::UNKNOWN) {
+                        string exprText = formatExprForGoMessage(expr);
+                        if (ctx.registerSwitchCase(exprText)) {
+                            ctx.report("duplicate case " + exprText + " in switch");
+                        }
                     }
                 }
             }
         } else {
             exprList->semantics(ctx);
+        }
+    } else {
+        if (ctx.registerSwitchDefault()) {
+            ctx.report("multiple defaults in switch");
         }
     }
     if (stmtList && stmtList->getStmtList()) {
