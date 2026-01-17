@@ -103,7 +103,7 @@ static string quoteGoStringLiteral(const string &value) {
     return out;
 }
 
-static bool buildLiteralReturnMismatch(ExprNode *expr, const SemanticType &expected, string &outMsg) {
+static bool getLiteralTextAndType(ExprNode *expr, string &literalText, string &literalType) {
     if (!expr || expr->getType() != ExprNode::LIT_VAL) {
         return false;
     }
@@ -111,8 +111,6 @@ static bool buildLiteralReturnMismatch(ExprNode *expr, const SemanticType &expec
     if (!lit) {
         return false;
     }
-    string literalText;
-    string literalType;
     switch (lit->getValueType()) {
         case ValueNode::LIT_BOOL:
             literalText = lit->getBool() ? "true" : "false";
@@ -141,9 +139,46 @@ static bool buildLiteralReturnMismatch(ExprNode *expr, const SemanticType &expec
         default:
             return false;
     }
+    return true;
+}
+
+static bool buildLiteralReturnMismatch(ExprNode *expr, const SemanticType &expected, string &outMsg) {
+    string literalText;
+    string literalType;
+    if (!getLiteralTextAndType(expr, literalText, literalType)) {
+        return false;
+    }
     outMsg = "cannot use " + literalText + " (" + literalType + ") as " + expected.toString()
         + " value in return statement";
     return true;
+}
+
+static bool buildLiteralConvertMismatch(ExprNode *expr, const SemanticType &target, string &outMsg) {
+    string literalText;
+    string literalType;
+    if (!getLiteralTextAndType(expr, literalText, literalType)) {
+        return false;
+    }
+    outMsg = "cannot convert " + literalText + " (" + literalType + ") to type " + target.toString();
+    return true;
+}
+
+static string formatExprForGoMessage(ExprNode *expr) {
+    if (!expr) {
+        return "value";
+    }
+    string literalText;
+    string literalType;
+    if (getLiteralTextAndType(expr, literalText, literalType)) {
+        return literalText;
+    }
+    if (expr->getType() == ExprNode::ID) {
+        ValueNode *idVal = expr->getIdentifier();
+        if (idVal && idVal->getString()) {
+            return *idVal->getString();
+        }
+    }
+    return expr->toString();
 }
 
 static bool buildReturnMismatch(ExprNode *expr, const SemanticType &actual, const SemanticType &expected, string &outMsg) {
@@ -660,13 +695,17 @@ const SemanticContext::FunctionReturnInfo * SemanticContext::currentReturn() con
     return &returnStack.back();
 }
 
-void SemanticContext::enterSwitch(const SemanticType &type) {
+void SemanticContext::enterSwitch(const SemanticType &type, const string &exprText) {
     switchStack.push_back(type);
+    switchExprTexts.push_back(exprText);
 }
 
 void SemanticContext::exitSwitch() {
     if (!switchStack.empty()) {
         switchStack.pop_back();
+    }
+    if (!switchExprTexts.empty()) {
+        switchExprTexts.pop_back();
     }
 }
 
@@ -675,6 +714,13 @@ const SemanticType * SemanticContext::currentSwitchType() const {
         return nullptr;
     }
     return &switchStack.back();
+}
+
+string SemanticContext::currentSwitchExprText() const {
+    if (switchExprTexts.empty()) {
+        return "";
+    }
+    return switchExprTexts.back();
 }
 
 void SemanticContext::enterLoop() {
@@ -1882,10 +1928,12 @@ void StmtNode::semantics(SemanticContext &ctx) {
                 ctx.enterScope();
                 if (simpleStmt) simpleStmt->semantics(ctx);
                 SemanticType switchType = SemanticType::makeBase(SemanticType::BOOL);
+                string switchExprText;
                 if (condition) {
                     switchType = condition->semantics(ctx);
+                    switchExprText = formatExprForGoMessage(condition);
                 }
-                ctx.enterSwitch(switchType);
+                ctx.enterSwitch(switchType, switchExprText);
                 if (caseList) caseList->semantics(ctx);
                 ctx.exitSwitch();
                 ctx.exitScope();
@@ -2009,7 +2057,19 @@ void CaseNode::semantics(SemanticContext &ctx) {
                 for (ExprNode *expr : *exprList->getExprList()) {
                     SemanticType exprType = expr ? expr->semantics(ctx) : SemanticType::makeBase(SemanticType::UNKNOWN);
                     if (switchType->base != SemanticType::UNKNOWN && !isAssignable(*switchType, exprType)) {
-                        ctx.report("Case type does not match switch expression type.");
+                        string msg;
+                        if (buildLiteralConvertMismatch(expr, *switchType, msg)) {
+                            ctx.report(msg);
+                        } else {
+                            string switchExprText = ctx.currentSwitchExprText();
+                            if (!switchExprText.empty()) {
+                                string exprText = formatExprForGoMessage(expr);
+                                ctx.report("invalid case " + exprText + " in switch on " + switchExprText
+                                    + " (mismatched types " + exprType.toString() + " and " + switchType->toString() + ")");
+                            } else {
+                                ctx.report("Case type does not match switch expression type.");
+                            }
+                        }
                     }
                 }
             }

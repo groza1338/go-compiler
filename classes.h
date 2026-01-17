@@ -93,6 +93,7 @@ struct SemanticContext {
     vector<string> errors;
     vector<FunctionReturnInfo> returnStack;
     vector<SemanticType> switchStack;
+    vector<string> switchExprTexts;
     int loopDepth = 0;
     unordered_map<string, FunctionInfo> functions;
     unordered_set<string> importNames;
@@ -125,11 +126,12 @@ struct SemanticContext {
 
     const FunctionReturnInfo* currentReturn() const;
 
-    void enterSwitch(const SemanticType &type);
+    void enterSwitch(const SemanticType &type, const string &exprText);
 
     void exitSwitch();
 
     const SemanticType* currentSwitchType() const;
+    string currentSwitchExprText() const;
 
     void enterLoop();
 
