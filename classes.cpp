@@ -4,6 +4,7 @@
 
 #include "classes.h"
 #include <cmath>
+#include <functional>
 #include <fstream>
 #include <optional>
 
@@ -4184,6 +4185,34 @@ bool BytecodeContext::emitExpr(ExprNode *expr) {
     if (!expr || !code) {
         return false;
     }
+    auto compareOpFromExpr = [](ExprNode::ExprType type) {
+        switch (type) {
+            case ExprNode::EQUAL:
+                return jvm::Instruction::Compare::Equal;
+            case ExprNode::NOT_EQUAL:
+                return jvm::Instruction::Compare::NotEqual;
+            case ExprNode::LESS:
+                return jvm::Instruction::Compare::LessThan;
+            case ExprNode::GREATER:
+                return jvm::Instruction::Compare::GreaterThan;
+            case ExprNode::LESS_OR_EQUAL:
+                return jvm::Instruction::Compare::LessEqual;
+            case ExprNode::GREATER_OR_EQUAL:
+                return jvm::Instruction::Compare::GreaterEqual;
+            default:
+                return jvm::Instruction::Compare::Equal;
+        }
+    };
+    auto emitBoolFromJump = [&](const std::function<void(jvm::Label*)> &emitJump) {
+        jvm::Label *labelTrue = code->CodeLabel();
+        jvm::Label *labelEnd = code->CodeLabel();
+        emitJump(labelTrue);
+        *code << code->PushInt(0);
+        *code << code->GoTo(labelEnd);
+        *code << labelTrue;
+        *code << code->PushInt(1);
+        *code << labelEnd;
+    };
     switch (expr->getType()) {
         case ExprNode::LIT_VAL:
             return emitLiteral(expr->getLiteral());
@@ -4287,6 +4316,121 @@ bool BytecodeContext::emitExpr(ExprNode *expr) {
             } else {
                 *code << code->NegInt();
             }
+            return true;
+        }
+        case ExprNode::EQUAL:
+        case ExprNode::NOT_EQUAL:
+        case ExprNode::LESS:
+        case ExprNode::GREATER:
+        case ExprNode::LESS_OR_EQUAL:
+        case ExprNode::GREATER_OR_EQUAL: {
+            ExprNode *left = expr->getLeft();
+            ExprNode *right = expr->getRight();
+            if (!left || !right) {
+                return false;
+            }
+            SemanticType leftType = inferExprType(left);
+            SemanticType rightType = inferExprType(right);
+            if (!leftType.isScalar() || !rightType.isScalar()) {
+                return false;
+            }
+            jvm::Instruction::Compare op = compareOpFromExpr(expr->getType());
+            if (leftType.isString() && rightType.isString()) {
+                if (!emitExpr(left) || !emitExpr(right)) {
+                    return false;
+                }
+                jvm::ConstantMethodref *compareToRef = clazz->getOrCreateMethodrefConstant(
+                    "java/lang/String",
+                    "compareTo",
+                    jvm::DescriptorMethod(jvm::DescriptorField(jvm::Descriptor::Int),
+                        {jvm::DescriptorField("java/lang/String")})
+                );
+                *code << code->InvokeVirtual(compareToRef);
+                emitBoolFromJump([&](jvm::Label *labelTrue) {
+                    *code << code->If(op, labelTrue);
+                });
+                return true;
+            }
+            if (leftType.base == SemanticType::FLOAT && rightType.base == SemanticType::FLOAT) {
+                if (!emitExprWithCast(left, leftType) || !emitExprWithCast(right, leftType)) {
+                    return false;
+                }
+                jvm::Instruction::StrictCompare nanResult = jvm::Instruction::StrictCompare::Greater;
+                if (expr->getType() == ExprNode::GREATER || expr->getType() == ExprNode::GREATER_OR_EQUAL) {
+                    nanResult = jvm::Instruction::StrictCompare::Less;
+                }
+                *code << code->CompareDouble(nanResult);
+                emitBoolFromJump([&](jvm::Label *labelTrue) {
+                    *code << code->If(op, labelTrue);
+                });
+                return true;
+            }
+            if (leftType.base == rightType.base
+                && (leftType.base == SemanticType::INT
+                    || leftType.base == SemanticType::RUNE
+                    || leftType.base == SemanticType::BOOL)) {
+                if (!emitExpr(left) || !emitExpr(right)) {
+                    return false;
+                }
+                emitBoolFromJump([&](jvm::Label *labelTrue) {
+                    *code << code->IfWithCompare(op, labelTrue);
+                });
+                return true;
+            }
+            return false;
+        }
+        case ExprNode::AND:
+        case ExprNode::OR: {
+            ExprNode *left = expr->getLeft();
+            ExprNode *right = expr->getRight();
+            if (!left || !right) {
+                return false;
+            }
+            jvm::Label *labelEnd = code->CodeLabel();
+            if (expr->getType() == ExprNode::AND) {
+                jvm::Label *labelFalse = code->CodeLabel();
+                if (!emitExpr(left)) {
+                    return false;
+                }
+                *code << code->If(jvm::Instruction::Compare::Equal, labelFalse);
+                if (!emitExpr(right)) {
+                    return false;
+                }
+                *code << code->If(jvm::Instruction::Compare::Equal, labelFalse);
+                *code << code->PushInt(1);
+                *code << code->GoTo(labelEnd);
+                *code << labelFalse;
+                *code << code->PushInt(0);
+                *code << labelEnd;
+            } else {
+                jvm::Label *labelTrue = code->CodeLabel();
+                if (!emitExpr(left)) {
+                    return false;
+                }
+                *code << code->If(jvm::Instruction::Compare::NotEqual, labelTrue);
+                if (!emitExpr(right)) {
+                    return false;
+                }
+                *code << code->If(jvm::Instruction::Compare::NotEqual, labelTrue);
+                *code << code->PushInt(0);
+                *code << code->GoTo(labelEnd);
+                *code << labelTrue;
+                *code << code->PushInt(1);
+                *code << labelEnd;
+            }
+            return true;
+        }
+        case ExprNode::NOT: {
+            ExprNode *operand = expr->getOperand();
+            if (!operand) {
+                return false;
+            }
+            if (!emitExpr(operand)) {
+                return false;
+            }
+            emitBoolFromJump([&](jvm::Label *labelTrue) {
+                *code << code->If(jvm::Instruction::Compare::Equal, labelTrue);
+            });
             return true;
         }
         default:
