@@ -203,6 +203,7 @@ struct BytecodeContext {
     void emitStore(const SemanticType &type, uint16_t index);
     SemanticType inferExprType(ExprNode *expr);
     bool emitExprWithCast(ExprNode *expr, const SemanticType &target);
+    bool emitStringConcat(ExprNode *left, ExprNode *right);
     jvm::ConstantMethodref* getPrintMethod(const SemanticType &type);
     void emitPrintCall(ExprNode *expr);
 };

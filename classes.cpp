@@ -4212,6 +4212,9 @@ bool BytecodeContext::emitExpr(ExprNode *expr) {
                 return false;
             }
             SemanticType resultType = expr->getSemanticType();
+            if (expr->getType() == ExprNode::SUMMARY && resultType.isScalar() && resultType.isString()) {
+                return emitStringConcat(left, right);
+            }
             if (!resultType.isScalar() || !resultType.isNumeric()) {
                 return false;
             }
@@ -4422,6 +4425,47 @@ bool BytecodeContext::emitExprWithCast(ExprNode *expr, const SemanticType &targe
     return false;
 }
 
+bool BytecodeContext::emitStringConcat(ExprNode *left, ExprNode *right) {
+    if (!left || !right || !code || !clazz) {
+        return false;
+    }
+    SemanticType leftType = inferExprType(left);
+    SemanticType rightType = inferExprType(right);
+    if (!leftType.isScalar() || !rightType.isScalar() || !leftType.isString() || !rightType.isString()) {
+        return false;
+    }
+    jvm::ConstantClass *sbClass = clazz->getOrCreateClassConstant("java/lang/StringBuilder");
+    jvm::ConstantMethodref *ctor = clazz->getOrCreateMethodrefConstant(
+        sbClass,
+        "<init>",
+        jvm::DescriptorMethod(std::nullopt, {})
+    );
+    jvm::ConstantMethodref *appendStr = clazz->getOrCreateMethodrefConstant(
+        sbClass,
+        "append",
+        jvm::DescriptorMethod(jvm::DescriptorField("java/lang/StringBuilder"), {jvm::DescriptorField("java/lang/String")})
+    );
+    jvm::ConstantMethodref *toStringRef = clazz->getOrCreateMethodrefConstant(
+        sbClass,
+        "toString",
+        jvm::DescriptorMethod(jvm::DescriptorField("java/lang/String"), {})
+    );
+
+    *code << code->New(sbClass);
+    *code << code->Duplicate();
+    *code << code->InvokeSpecial(ctor);
+    if (!emitExpr(left)) {
+        return false;
+    }
+    *code << code->InvokeVirtual(appendStr);
+    if (!emitExpr(right)) {
+        return false;
+    }
+    *code << code->InvokeVirtual(appendStr);
+    *code << code->InvokeVirtual(toStringRef);
+    return true;
+}
+
 jvm::ConstantMethodref* BytecodeContext::getPrintMethod(const SemanticType &type) {
     if (!clazz) {
         return nullptr;
@@ -4565,8 +4609,127 @@ void CaseListNode::emitBytecode(BytecodeContext &ctx) {
 }
 
 void SimpleStmtNode::emitBytecode(BytecodeContext &ctx) {
-    if (type == EXPR && expr) {
-        ctx.emitPrintCall(expr);
+    switch (type) {
+        case EXPR:
+            if (expr) {
+                ctx.emitPrintCall(expr);
+            }
+            break;
+        case ASSIGN:
+        case ADD_ASSIGN:
+        case SUB_ASSIGN:
+        case MUL_ASSIGN:
+        case DIV_ASSIGN:
+        case MOD_ASSIGN:
+        case SHORT_VAR_DECL: {
+            if (!left || !right || !left->getExprList() || !right->getExprList()) {
+                break;
+            }
+            auto &leftExprs = *left->getExprList();
+            auto &rightExprs = *right->getExprList();
+            auto itLeft = leftExprs.begin();
+            auto itRight = rightExprs.begin();
+            for (; itLeft != leftExprs.end() && itRight != rightExprs.end(); ++itLeft, ++itRight) {
+                ExprNode *leftExpr = *itLeft;
+                ExprNode *rightExpr = *itRight;
+                if (!leftExpr || !rightExpr) {
+                    continue;
+                }
+                if (leftExpr->getType() != ExprNode::ID) {
+                    continue;
+                }
+                ValueNode *idVal = leftExpr->getIdentifier();
+                if (!idVal || !idVal->getString()) {
+                    continue;
+                }
+                const string &name = *idVal->getString();
+                if (name == "_") {
+                    continue;
+                }
+                SemanticType targetType = ctx.inferExprType(leftExpr);
+                auto localIt = ctx.locals.find(name);
+                if (type == SHORT_VAR_DECL) {
+                    if (localIt == ctx.locals.end()) {
+                        targetType = ctx.inferExprType(rightExpr);
+                        ctx.allocateLocal(name, targetType);
+                        localIt = ctx.locals.find(name);
+                    } else {
+                        targetType = localIt->second.type;
+                    }
+                }
+                if (localIt == ctx.locals.end()) {
+                    continue;
+                }
+                uint16_t slot = localIt->second.index;
+                targetType = localIt->second.type;
+                if (type == ASSIGN || type == SHORT_VAR_DECL) {
+                    if (!ctx.emitExprWithCast(rightExpr, targetType)) {
+                        continue;
+                    }
+                    ctx.emitStore(targetType, slot);
+                    continue;
+                }
+                if (type == ADD_ASSIGN && targetType.isString() && targetType.isScalar()) {
+                    if (!ctx.emitStringConcat(leftExpr, rightExpr)) {
+                        continue;
+                    }
+                    ctx.emitStore(targetType, slot);
+                    continue;
+                }
+                if (type == MOD_ASSIGN && targetType.base != SemanticType::INT) {
+                    continue;
+                }
+                ctx.emitLoad(targetType, slot);
+                if (!ctx.emitExprWithCast(rightExpr, targetType)) {
+                    continue;
+                }
+                if (targetType.base == SemanticType::FLOAT) {
+                    switch (type) {
+                        case ADD_ASSIGN:
+                            *ctx.code << ctx.code->AddDouble();
+                            break;
+                        case SUB_ASSIGN:
+                            *ctx.code << ctx.code->SubDouble();
+                            break;
+                        case MUL_ASSIGN:
+                            *ctx.code << ctx.code->MulDouble();
+                            break;
+                        case DIV_ASSIGN:
+                            *ctx.code << ctx.code->DivDouble();
+                            break;
+                        case MOD_ASSIGN:
+                            *ctx.code << ctx.code->RemDouble();
+                            break;
+                        default:
+                            break;
+                    }
+                } else {
+                    switch (type) {
+                        case ADD_ASSIGN:
+                            *ctx.code << ctx.code->AddInt();
+                            break;
+                        case SUB_ASSIGN:
+                            *ctx.code << ctx.code->SubInt();
+                            break;
+                        case MUL_ASSIGN:
+                            *ctx.code << ctx.code->MulInt();
+                            break;
+                        case DIV_ASSIGN:
+                            *ctx.code << ctx.code->DivInt();
+                            break;
+                        case MOD_ASSIGN:
+                            *ctx.code << ctx.code->RemInt();
+                            break;
+                        default:
+                            break;
+                    }
+                }
+                ctx.emitStore(targetType, slot);
+            }
+            break;
+        }
+        default:
+            break;
     }
 }
 
