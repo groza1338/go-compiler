@@ -67,6 +67,6 @@ target_include_directories(golang_compiler PRIVATE
         "${GENERATED_DIR}"
 )
 
-target_link_libraries(php_compiler PRIVATE
+target_link_libraries(golang_compiler PRIVATE
         jvm::ClassBuilder
 )
