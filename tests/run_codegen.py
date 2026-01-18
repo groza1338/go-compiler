@@ -20,6 +20,27 @@ def process_golang_files(directory):
     return glob.glob(golang_files_pattern, recursive=True)
 
 
+def select_golang_file(files: list[str]) -> list[str]:
+    if not files:
+        return []
+    files = sorted(files)
+    print("Выберите файл для компиляции:")
+    print("-1) Все файлы")
+    for idx, file_path in enumerate(files, start=1):
+        print(f"{idx}) {file_path}")
+    while True:
+        choice = input("Номер файла (или Enter для отмены): ").strip()
+        if choice == "":
+            return []
+        if choice == "-1":
+            return files
+        if choice.isdigit():
+            number = int(choice)
+            if 1 <= number <= len(files):
+                return [files[number - 1]]
+        print("Некорректный выбор, попробуйте снова.")
+
+
 def build_docker_image(dockerfile_path=".", image_name=BASE_IMAGE_NAME):
     command = ["docker", "build", "-t", image_name, dockerfile_path]
 
@@ -103,17 +124,21 @@ def clear_generated_classes_dir(directory: str):
 
 if __name__ == "__main__":
     files = process_golang_files(BASE_RUN_DIRECTORY)
+    selected_files = select_golang_file(files)
+    if not selected_files:
+        print("Файл не выбран.")
+        raise SystemExit(0)
     clear_generated_classes_dir(".")
     Path(LOCAL_CLASSES_DIRECTORY).mkdir(parents=True, exist_ok=True)
     image_name = build_docker_image()
     container_name = run_docker_container(image_name=image_name)
     try:
-        for file in files:
+        for file in selected_files:
             file_path = Path(file)
             command = [EXECUTABLE_TARGET, file_path.as_posix()]
             result = run_command_inside_container(command, container_name)
             if result.returncode != 0:
-                continue
+                raise SystemExit(result.returncode)
             if DEBUG and result.stdout:
                 print(result.stdout)
 
