@@ -1207,6 +1207,10 @@ bool ExprNode::isArrayLenAuto() const {
     return arrayLenAuto;
 }
 
+SemanticType ExprNode::getSemanticType() const {
+    return semType;
+}
+
 SemanticType ExprNode::semantics(SemanticContext &ctx) {
     switch (type) {
         case ID: {
@@ -4195,6 +4199,93 @@ bool BytecodeContext::emitExpr(ExprNode *expr) {
             emitLoad(it->second.type, it->second.index);
             return true;
         }
+        case ExprNode::EXPR_IN_BRACKETS:
+            return emitExpr(expr->getOperand());
+        case ExprNode::SUMMARY:
+        case ExprNode::SUBTRACTION:
+        case ExprNode::MULTIPLICATION:
+        case ExprNode::DIVISION:
+        case ExprNode::MODULO: {
+            ExprNode *left = expr->getLeft();
+            ExprNode *right = expr->getRight();
+            if (!left || !right) {
+                return false;
+            }
+            SemanticType resultType = expr->getSemanticType();
+            if (!resultType.isScalar() || !resultType.isNumeric()) {
+                return false;
+            }
+            if (expr->getType() == ExprNode::MODULO && resultType.base != SemanticType::INT) {
+                return false;
+            }
+            if (!emitExprWithCast(left, resultType)) {
+                return false;
+            }
+            if (!emitExprWithCast(right, resultType)) {
+                return false;
+            }
+            if (resultType.base == SemanticType::FLOAT) {
+                switch (expr->getType()) {
+                    case ExprNode::SUMMARY:
+                        *code << code->AddDouble();
+                        break;
+                    case ExprNode::SUBTRACTION:
+                        *code << code->SubDouble();
+                        break;
+                    case ExprNode::MULTIPLICATION:
+                        *code << code->MulDouble();
+                        break;
+                    case ExprNode::DIVISION:
+                        *code << code->DivDouble();
+                        break;
+                    case ExprNode::MODULO:
+                        *code << code->RemDouble();
+                        break;
+                    default:
+                        return false;
+                }
+            } else {
+                switch (expr->getType()) {
+                    case ExprNode::SUMMARY:
+                        *code << code->AddInt();
+                        break;
+                    case ExprNode::SUBTRACTION:
+                        *code << code->SubInt();
+                        break;
+                    case ExprNode::MULTIPLICATION:
+                        *code << code->MulInt();
+                        break;
+                    case ExprNode::DIVISION:
+                        *code << code->DivInt();
+                        break;
+                    case ExprNode::MODULO:
+                        *code << code->RemInt();
+                        break;
+                    default:
+                        return false;
+                }
+            }
+            return true;
+        }
+        case ExprNode::UNARY_MINUS: {
+            ExprNode *operand = expr->getOperand();
+            if (!operand) {
+                return false;
+            }
+            SemanticType resultType = expr->getSemanticType();
+            if (!resultType.isScalar() || !resultType.isNumeric()) {
+                return false;
+            }
+            if (!emitExprWithCast(operand, resultType)) {
+                return false;
+            }
+            if (resultType.base == SemanticType::FLOAT) {
+                *code << code->NegDouble();
+            } else {
+                *code << code->NegInt();
+            }
+            return true;
+        }
         default:
             return false;
     }
@@ -4273,6 +4364,10 @@ SemanticType BytecodeContext::inferExprType(ExprNode *expr) {
     if (!expr) {
         return SemanticType::makeBase(SemanticType::UNKNOWN);
     }
+    SemanticType semType = expr->getSemanticType();
+    if (semType.base != SemanticType::UNKNOWN || semType.isError) {
+        return semType;
+    }
     if (expr->getType() == ExprNode::LIT_VAL) {
         ValueNode *lit = expr->getLiteral();
         if (!lit) {
@@ -4297,6 +4392,34 @@ SemanticType BytecodeContext::inferExprType(ExprNode *expr) {
         }
     }
     return SemanticType::makeBase(SemanticType::UNKNOWN);
+}
+
+bool BytecodeContext::emitExprWithCast(ExprNode *expr, const SemanticType &target) {
+    if (!expr || !code) {
+        return false;
+    }
+    if (!emitExpr(expr)) {
+        return false;
+    }
+    if (!target.isScalar()) {
+        return false;
+    }
+    SemanticType exprType = inferExprType(expr);
+    if (!exprType.isScalar()) {
+        return false;
+    }
+    if (target.base == exprType.base) {
+        return true;
+    }
+    if (target.base == SemanticType::FLOAT && exprType.base == SemanticType::INT) {
+        *code << code->IntToDouble();
+        return true;
+    }
+    if (target.base == SemanticType::INT && exprType.base == SemanticType::FLOAT) {
+        *code << code->DoubleToInt();
+        return true;
+    }
+    return false;
 }
 
 jvm::ConstantMethodref* BytecodeContext::getPrintMethod(const SemanticType &type) {

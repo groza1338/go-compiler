@@ -202,6 +202,7 @@ struct BytecodeContext {
     void emitLoad(const SemanticType &type, uint16_t index);
     void emitStore(const SemanticType &type, uint16_t index);
     SemanticType inferExprType(ExprNode *expr);
+    bool emitExprWithCast(ExprNode *expr, const SemanticType &target);
     jvm::ConstantMethodref* getPrintMethod(const SemanticType &type);
     void emitPrintCall(ExprNode *expr);
 };
@@ -283,6 +284,7 @@ public:
     ExprNode* getArrayLen() const;
     ExprListNode* getArrayElems() const;
     bool isArrayLenAuto() const;
+    SemanticType getSemanticType() const;
     SemanticType semantics(SemanticContext &ctx); // TODO Исправить, что int можно присвоить в float64, а наоборот нельзя
     void emitBytecode(BytecodeContext &ctx);
     string toString() const;
