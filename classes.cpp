@@ -4219,11 +4219,12 @@ static bool buildMethodDescriptor(const vector<SemanticType> &params,
         }
         paramFields.push_back(field);
     }
-    if (results.size() > 1) {
-        return false;
-    }
     if (results.empty()) {
         out = jvm::DescriptorMethod(std::nullopt, paramFields);
+        return true;
+    }
+    if (results.size() > 1) {
+        out = jvm::DescriptorMethod(jvm::DescriptorField("java/lang/Object", 1), paramFields);
         return true;
     }
     jvm::DescriptorField returnField(jvm::Descriptor::Int);
@@ -4624,9 +4625,6 @@ bool BytecodeContext::emitExpr(ExprNode *expr) {
                     }
                 }
             }
-            if (fnInfo->results.size() > 1) {
-                return false;
-            }
             jvm::DescriptorMethod desc(std::nullopt, {});
             if (!buildMethodDescriptor(fnInfo->params, fnInfo->results, desc)) {
                 return false;
@@ -4812,6 +4810,101 @@ bool BytecodeContext::emitStringConcat(ExprNode *left, ExprNode *right) {
     return true;
 }
 
+bool BytecodeContext::emitBoxValue(const SemanticType &type) {
+    if (!code || !clazz) {
+        return false;
+    }
+    if (!type.isScalar()) {
+        return false;
+    }
+    switch (type.base) {
+        case SemanticType::INT:
+        case SemanticType::RUNE: {
+            jvm::ConstantMethodref *valueOf = clazz->getOrCreateMethodrefConstant(
+                "java/lang/Integer",
+                "valueOf",
+                jvm::DescriptorMethod(jvm::DescriptorField("java/lang/Integer"), {jvm::DescriptorField(jvm::Descriptor::Int)})
+            );
+            *code << code->InvokeStatic(valueOf);
+            return true;
+        }
+        case SemanticType::FLOAT: {
+            jvm::ConstantMethodref *valueOf = clazz->getOrCreateMethodrefConstant(
+                "java/lang/Double",
+                "valueOf",
+                jvm::DescriptorMethod(jvm::DescriptorField("java/lang/Double"), {jvm::DescriptorField(jvm::Descriptor::Double)})
+            );
+            *code << code->InvokeStatic(valueOf);
+            return true;
+        }
+        case SemanticType::BOOL: {
+            jvm::ConstantMethodref *valueOf = clazz->getOrCreateMethodrefConstant(
+                "java/lang/Boolean",
+                "valueOf",
+                jvm::DescriptorMethod(jvm::DescriptorField("java/lang/Boolean"), {jvm::DescriptorField(jvm::Descriptor::Boolean)})
+            );
+            *code << code->InvokeStatic(valueOf);
+            return true;
+        }
+        case SemanticType::STRING:
+            return true;
+        default:
+            return false;
+    }
+}
+
+bool BytecodeContext::emitUnboxValue(const SemanticType &type) {
+    if (!code || !clazz) {
+        return false;
+    }
+    if (!type.isScalar()) {
+        return false;
+    }
+    switch (type.base) {
+        case SemanticType::INT:
+        case SemanticType::RUNE: {
+            jvm::ConstantClass *intClass = clazz->getOrCreateClassConstant("java/lang/Integer");
+            jvm::ConstantMethodref *intValue = clazz->getOrCreateMethodrefConstant(
+                intClass,
+                "intValue",
+                jvm::DescriptorMethod(jvm::DescriptorField(jvm::Descriptor::Int), {})
+            );
+            *code << code->CheckCast(intClass);
+            *code << code->InvokeVirtual(intValue);
+            return true;
+        }
+        case SemanticType::FLOAT: {
+            jvm::ConstantClass *doubleClass = clazz->getOrCreateClassConstant("java/lang/Double");
+            jvm::ConstantMethodref *doubleValue = clazz->getOrCreateMethodrefConstant(
+                doubleClass,
+                "doubleValue",
+                jvm::DescriptorMethod(jvm::DescriptorField(jvm::Descriptor::Double), {})
+            );
+            *code << code->CheckCast(doubleClass);
+            *code << code->InvokeVirtual(doubleValue);
+            return true;
+        }
+        case SemanticType::BOOL: {
+            jvm::ConstantClass *boolClass = clazz->getOrCreateClassConstant("java/lang/Boolean");
+            jvm::ConstantMethodref *boolValue = clazz->getOrCreateMethodrefConstant(
+                boolClass,
+                "booleanValue",
+                jvm::DescriptorMethod(jvm::DescriptorField(jvm::Descriptor::Boolean), {})
+            );
+            *code << code->CheckCast(boolClass);
+            *code << code->InvokeVirtual(boolValue);
+            return true;
+        }
+        case SemanticType::STRING: {
+            jvm::ConstantClass *stringClass = clazz->getOrCreateClassConstant("java/lang/String");
+            *code << code->CheckCast(stringClass);
+            return true;
+        }
+        default:
+            return false;
+    }
+}
+
 jvm::ConstantMethodref* BytecodeContext::getPrintMethod(const SemanticType &type) {
     if (!clazz) {
         return nullptr;
@@ -4977,7 +5070,31 @@ void StmtNode::emitBytecode(BytecodeContext &ctx) {
                 break;
             }
             if (ctx.currentReturnTypes.size() > 1) {
-                *ctx.code << ctx.code->ReturnVoid();
+                jvm::ConstantClass *objClass = ctx.clazz->getOrCreateClassConstant("java/lang/Object");
+                *ctx.code << ctx.code->PushInt(static_cast<int>(ctx.currentReturnTypes.size()));
+                *ctx.code << ctx.code->NewArray(objClass);
+                const list<ExprNode*> *exprs = exprList ? exprList->getExprList() : nullptr;
+                size_t idx = 0;
+                for (; idx < ctx.currentReturnTypes.size(); ++idx) {
+                    ExprNode *retExpr = nullptr;
+                    if (exprs && idx < exprs->size()) {
+                        auto it = exprs->begin();
+                        std::advance(it, static_cast<long>(idx));
+                        retExpr = *it;
+                    }
+                    *ctx.code << ctx.code->Duplicate();
+                    *ctx.code << ctx.code->PushInt(static_cast<int>(idx));
+                    if (retExpr) {
+                        if (!ctx.emitExprWithCast(retExpr, ctx.currentReturnTypes[idx])) {
+                            ctx.emitDefaultValue(ctx.currentReturnTypes[idx]);
+                        }
+                    } else {
+                        ctx.emitDefaultValue(ctx.currentReturnTypes[idx]);
+                    }
+                    ctx.emitBoxValue(ctx.currentReturnTypes[idx]);
+                    *ctx.code << ctx.code->StoreReferenceToArray();
+                }
+                *ctx.code << ctx.code->ReturnReference();
                 break;
             }
             SemanticType retType = ctx.currentReturnTypes[0];
@@ -5318,6 +5435,62 @@ void SimpleStmtNode::emitBytecode(BytecodeContext &ctx) {
             }
             auto &leftExprs = *left->getExprList();
             auto &rightExprs = *right->getExprList();
+            if (rightExprs.size() == 1) {
+                ExprNode *rightExpr = rightExprs.front();
+                const SemanticContext::FunctionInfo *fnInfo = ctx.getFunctionInfoForCall(rightExpr);
+                if (fnInfo && fnInfo->results.size() > 1) {
+                    if (leftExprs.size() != fnInfo->results.size()) {
+                        break;
+                    }
+                    if (!ctx.emitExpr(rightExpr)) {
+                        break;
+                    }
+                    SemanticType refType = SemanticType::makeBase(SemanticType::STRING);
+                    string tmpName = "$ret$" + to_string(ctx.locals.size());
+                    uint16_t tmpSlot = ctx.allocateLocal(tmpName, refType);
+                    ctx.emitStore(refType, tmpSlot);
+                    size_t idx = 0;
+                    auto itLeft = leftExprs.begin();
+                    for (; itLeft != leftExprs.end() && idx < fnInfo->results.size(); ++itLeft, ++idx) {
+                        ExprNode *leftExpr = *itLeft;
+                        if (!leftExpr || leftExpr->getType() != ExprNode::ID) {
+                            continue;
+                        }
+                        ValueNode *idVal = leftExpr->getIdentifier();
+                        if (!idVal || !idVal->getString()) {
+                            continue;
+                        }
+                        const string &name = *idVal->getString();
+                        if (name == "_") {
+                            continue;
+                        }
+                        SemanticType targetType = ctx.inferExprType(leftExpr);
+                        auto localIt = ctx.locals.find(name);
+                        if (type == SHORT_VAR_DECL) {
+                            if (localIt == ctx.locals.end()) {
+                                targetType = fnInfo->results[idx];
+                                ctx.allocateLocal(name, targetType);
+                                localIt = ctx.locals.find(name);
+                            } else {
+                                targetType = localIt->second.type;
+                            }
+                        }
+                        if (localIt == ctx.locals.end()) {
+                            continue;
+                        }
+                        uint16_t slot = localIt->second.index;
+                        targetType = localIt->second.type;
+                        ctx.emitLoad(refType, tmpSlot);
+                        *ctx.code << ctx.code->PushInt(static_cast<int>(idx));
+                        *ctx.code << ctx.code->LoadReferenceFromArray();
+                        if (!ctx.emitUnboxValue(targetType)) {
+                            continue;
+                        }
+                        ctx.emitStore(targetType, slot);
+                    }
+                    break;
+                }
+            }
             auto itLeft = leftExprs.begin();
             auto itRight = rightExprs.begin();
             for (; itLeft != leftExprs.end() && itRight != rightExprs.end(); ++itLeft, ++itRight) {

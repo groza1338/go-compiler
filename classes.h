@@ -213,6 +213,8 @@ struct BytecodeContext {
     SemanticType inferExprType(ExprNode *expr);
     bool emitExprWithCast(ExprNode *expr, const SemanticType &target);
     bool emitStringConcat(ExprNode *left, ExprNode *right);
+    bool emitBoxValue(const SemanticType &type);
+    bool emitUnboxValue(const SemanticType &type);
     void pushLoop(jvm::Label *breakLabel, jvm::Label *continueLabel);
     void popLoop();
     LoopLabels currentLoop() const;
