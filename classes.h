@@ -10,8 +10,20 @@
 #include <unordered_set>
 #include <iterator>
 #include <vector>
+#include <memory>
+#include <filesystem>
+
+#include <jvm/class.h>
 
 using namespace std;
+
+namespace jvm {
+    class Class;
+    class Method;
+    class AttributeCode;
+    class ConstantFieldref;
+    class ConstantMethodref;
+}
 
 class StmtNode;
 class SimpleStmtNode;
@@ -26,6 +38,7 @@ class ConstSpecNode;
 class DeclNode;
 class TypeNameNode;
 class TypeNode;
+class ExprNode;
 class ExprListNode;
 class ValueNode;
 
@@ -166,6 +179,33 @@ struct SemanticContext {
     void report(const string &message);
 };
 
+struct BytecodeContext {
+    struct LocalVarInfo {
+        SemanticType type;
+        uint16_t index = 0;
+    };
+
+    unique_ptr<jvm::Class> clazz;
+    jvm::Method *mainMethod = nullptr;
+    jvm::AttributeCode *code = nullptr;
+    jvm::ConstantFieldref *systemOut = nullptr;
+    unordered_map<string, LocalVarInfo> locals;
+    uint16_t nextLocalIndex = 0;
+
+    BytecodeContext();
+    void startMain();
+    void writeTo(const filesystem::path &outPath);
+    uint16_t allocateLocal(const string &name, const SemanticType &type);
+    void emitDefaultValue(const SemanticType &type);
+    bool emitExpr(ExprNode *expr);
+    bool emitLiteral(ValueNode *literal);
+    void emitLoad(const SemanticType &type, uint16_t index);
+    void emitStore(const SemanticType &type, uint16_t index);
+    SemanticType inferExprType(ExprNode *expr);
+    jvm::ConstantMethodref* getPrintMethod(const SemanticType &type);
+    void emitPrintCall(ExprNode *expr);
+};
+
 class ExprNode : public AstNode {
 public:
     enum ExprType {
@@ -244,6 +284,7 @@ public:
     ExprListNode* getArrayElems() const;
     bool isArrayLenAuto() const;
     SemanticType semantics(SemanticContext &ctx); // TODO Исправить, что int можно присвоить в float64, а наоборот нельзя
+    void emitBytecode(BytecodeContext &ctx);
     string toString() const;
 
     string getDotLabel() const override;
@@ -281,6 +322,7 @@ public:
     string getDotLabel() const override;
     string toDot() const override;
     void semantics(SemanticContext &ctx);
+    void emitBytecode(BytecodeContext &ctx);
 
 protected:
     ExprListNode(): AstNode() {exprs = nullptr;}
@@ -296,6 +338,7 @@ public:
 
     string getDotLabel() const override;
     string toDot() const override;
+    void emitBytecode(BytecodeContext &ctx);
 
 protected:
     StmtListNode(): AstNode() {stmts = nullptr;}
@@ -345,6 +388,7 @@ public:
     string getDotLabel() const override;
     string toDot() const override;
     void semantics(SemanticContext &ctx);
+    void emitBytecode(BytecodeContext &ctx);
 
 protected:
     StmtType type;
@@ -372,6 +416,7 @@ public:
     string getDotLabel() const override;
     string toDot() const override;
     void semantics(SemanticContext &ctx);
+    void emitBytecode(BytecodeContext &ctx);
 
 protected:
     ExprListNode *exprList;
@@ -390,6 +435,7 @@ public:
     string getDotLabel() const override;
     string toDot() const override;
     void semantics(SemanticContext &ctx);
+    void emitBytecode(BytecodeContext &ctx);
 
 protected:
     list<CaseNode*> *caseList;
@@ -432,6 +478,7 @@ public:
     string getDotLabel() const override;
     string toDot() const override;
     void semantics(SemanticContext &ctx);
+    void emitBytecode(BytecodeContext &ctx);
 
 protected:
     SimpleStmtType type;
@@ -570,6 +617,7 @@ public:
     string getDotLabel() const override;
     string toDot() const override;
     void semantics(SemanticContext &ctx);
+    void emitBytecode(BytecodeContext &ctx);
 
 protected:
     IdListNode *idList;
@@ -589,6 +637,7 @@ public:
     string getDotLabel() const override;
     string toDot() const override;
     void semantics(SemanticContext &ctx);
+    void emitBytecode(BytecodeContext &ctx);
 
 protected:
     list<VarSpecNode*> *varList;
@@ -607,6 +656,7 @@ public:
     string getDotLabel() const override;
     string toDot() const override;
     void semantics(SemanticContext &ctx);
+    void emitBytecode(BytecodeContext &ctx);
 
 protected:
     IdListNode *idList;
@@ -626,6 +676,7 @@ public:
     string getDotLabel() const override;
     string toDot() const override;
     void semantics(SemanticContext &ctx);
+    void emitBytecode(BytecodeContext &ctx);
 
 protected:
     list<ConstSpecNode*> *specList;
@@ -646,6 +697,7 @@ public:
     string getDotLabel() const override;
     string toDot() const override;
     void semantics(SemanticContext &ctx);
+    void emitBytecode(BytecodeContext &ctx);
 
 protected:
     ConstSpecListNode *constSpecList;
@@ -665,6 +717,7 @@ public:
     string getDotLabel() const override;
     string toDot() const override;
     void semantics(SemanticContext &ctx);
+    void emitBytecode(BytecodeContext &ctx);
 
 protected:
     ValueNode *id;
@@ -685,6 +738,7 @@ public:
     string getDotLabel() const override;
     string toDot() const override;
     void semantics(SemanticContext &ctx);
+    void emitBytecode(BytecodeContext &ctx);
 
 protected:
     DeclNode *decl;
@@ -703,6 +757,7 @@ public:
     string getDotLabel() const override;
     string toDot() const override;
     void semantics(SemanticContext &ctx);
+    void emitBytecode(BytecodeContext &ctx);
 
 protected:
     list<TopLevelDeclNode*> *elemList;
@@ -806,6 +861,7 @@ public:
     string getDotLabel() const override;
     string toDot() const override;
     void semantics(SemanticContext &ctx);
+    void emitBytecode(BytecodeContext &ctx);
 
 protected:
     PackageClauseNode *packageClause;

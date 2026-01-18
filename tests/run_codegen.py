@@ -123,7 +123,10 @@ if __name__ == "__main__":
                     print(f"No class produced for {file_path}")
                 continue
 
-            rel_path = file_path.with_suffix("")
+            try:
+                rel_path = file_path.relative_to(BASE_RUN_DIRECTORY).with_suffix("")
+            except ValueError:
+                rel_path = file_path.with_suffix("")
             dest_dir = Path(LOCAL_CLASSES_DIRECTORY) / rel_path
             dest_dir.mkdir(parents=True, exist_ok=True)
             shutil.copy2(generated, dest_dir / "Main.class")

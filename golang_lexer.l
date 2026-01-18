@@ -49,6 +49,7 @@ RUNE_LIT_BODY       ({UNICODE_VAL}|{BYTE_VAL})
 INTER_STR_LIT_BODY  ({UNICODE_VAL}|{BYTE_VAL})*
 
 %{
+#define YY_NO_UNISTD_H
 #include <iostream>
 #include <cstdio>
 #include <cstdlib>
