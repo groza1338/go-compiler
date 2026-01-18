@@ -4148,6 +4148,23 @@ void BytecodeContext::writeTo(const filesystem::path &outPath) {
     clazz->writeTo(out);
 }
 
+void BytecodeContext::pushLoop(jvm::Label *breakLabel, jvm::Label *continueLabel) {
+    loopStack.push_back({breakLabel, continueLabel});
+}
+
+void BytecodeContext::popLoop() {
+    if (!loopStack.empty()) {
+        loopStack.pop_back();
+    }
+}
+
+BytecodeContext::LoopLabels BytecodeContext::currentLoop() const {
+    if (loopStack.empty()) {
+        return {};
+    }
+    return loopStack.back();
+}
+
 uint16_t BytecodeContext::allocateLocal(const string &name, const SemanticType &type) {
     auto it = locals.find(name);
     if (it != locals.end()) {
@@ -4765,9 +4782,11 @@ void StmtNode::emitBytecode(BytecodeContext &ctx) {
             }
             jvm::Label *labelCond = ctx.code->CodeLabel();
             jvm::Label *labelEnd = ctx.code->CodeLabel();
+            ctx.pushLoop(labelEnd, labelCond);
             *ctx.code << labelCond;
             if (condition) {
                 if (!ctx.emitExpr(condition)) {
+                    ctx.popLoop();
                     break;
                 }
                 *ctx.code << ctx.code->If(jvm::Instruction::Compare::Equal, labelEnd);
@@ -4777,6 +4796,7 @@ void StmtNode::emitBytecode(BytecodeContext &ctx) {
             }
             *ctx.code << ctx.code->GoTo(labelCond);
             *ctx.code << labelEnd;
+            ctx.popLoop();
             break;
         }
         case FOR_PARAM: {
@@ -4787,10 +4807,13 @@ void StmtNode::emitBytecode(BytecodeContext &ctx) {
                 initStmt->emitBytecode(ctx);
             }
             jvm::Label *labelCond = ctx.code->CodeLabel();
+            jvm::Label *labelPost = ctx.code->CodeLabel();
             jvm::Label *labelEnd = ctx.code->CodeLabel();
+            ctx.pushLoop(labelEnd, labelPost);
             *ctx.code << labelCond;
             if (condition) {
                 if (!ctx.emitExpr(condition)) {
+                    ctx.popLoop();
                     break;
                 }
                 *ctx.code << ctx.code->If(jvm::Instruction::Compare::Equal, labelEnd);
@@ -4798,11 +4821,33 @@ void StmtNode::emitBytecode(BytecodeContext &ctx) {
             if (body) {
                 body->emitBytecode(ctx);
             }
+            *ctx.code << labelPost;
             if (postStmt) {
                 postStmt->emitBytecode(ctx);
             }
             *ctx.code << ctx.code->GoTo(labelCond);
             *ctx.code << labelEnd;
+            ctx.popLoop();
+            break;
+        }
+        case BREAK: {
+            if (!ctx.code) {
+                break;
+            }
+            BytecodeContext::LoopLabels loop = ctx.currentLoop();
+            if (loop.breakLabel) {
+                *ctx.code << ctx.code->GoTo(loop.breakLabel);
+            }
+            break;
+        }
+        case CONTINUE: {
+            if (!ctx.code) {
+                break;
+            }
+            BytecodeContext::LoopLabels loop = ctx.currentLoop();
+            if (loop.continueLabel) {
+                *ctx.code << ctx.code->GoTo(loop.continueLabel);
+            }
             break;
         }
         default:

@@ -23,6 +23,7 @@ namespace jvm {
     class AttributeCode;
     class ConstantFieldref;
     class ConstantMethodref;
+    class Label;
 }
 
 class StmtNode;
@@ -180,6 +181,10 @@ struct SemanticContext {
 };
 
 struct BytecodeContext {
+    struct LoopLabels {
+        jvm::Label *breakLabel = nullptr;
+        jvm::Label *continueLabel = nullptr;
+    };
     struct LocalVarInfo {
         SemanticType type;
         uint16_t index = 0;
@@ -191,6 +196,7 @@ struct BytecodeContext {
     jvm::ConstantFieldref *systemOut = nullptr;
     unordered_map<string, LocalVarInfo> locals;
     uint16_t nextLocalIndex = 0;
+    vector<LoopLabels> loopStack;
 
     BytecodeContext();
     void startMain();
@@ -204,6 +210,9 @@ struct BytecodeContext {
     SemanticType inferExprType(ExprNode *expr);
     bool emitExprWithCast(ExprNode *expr, const SemanticType &target);
     bool emitStringConcat(ExprNode *left, ExprNode *right);
+    void pushLoop(jvm::Label *breakLabel, jvm::Label *continueLabel);
+    void popLoop();
+    LoopLabels currentLoop() const;
     jvm::ConstantMethodref* getPrintMethod(const SemanticType &type);
     void emitPrintCall(ExprNode *expr);
 };
