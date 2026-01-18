@@ -1573,6 +1573,9 @@ SemanticType ExprNode::semantics(SemanticContext &ctx) {
                         ctx.report("multiple-value " + toString() + " (value of type (" + typeList + ")) in single-value context");
                         semType = SemanticType::makeError();
                     }
+                    if (args) {
+                        args->semantics(ctx);
+                    }
                 } else {
                     if (operand) operand->semantics(ctx);
                     if (args) args->semantics(ctx);
@@ -1999,6 +2002,42 @@ StmtNode * StmtNode::createFor(ExprListNode *exprList, ExprNode *expr, StmtNode 
     node->condition = expr;
     node->body = body;
     return node;
+}
+
+StmtNode::StmtType StmtNode::getType() const {
+    return type;
+}
+
+DeclNode* StmtNode::getDecl() const {
+    return decl;
+}
+
+ExprListNode* StmtNode::getExprList() const {
+    return exprList;
+}
+
+StmtListNode* StmtNode::getStmtList() const {
+    return stmtList;
+}
+
+SimpleStmtNode* StmtNode::getSimpleStmt() const {
+    return simpleStmt;
+}
+
+ExprNode* StmtNode::getCondition() const {
+    return condition;
+}
+
+StmtNode* StmtNode::getThenBranch() const {
+    return thenBranch;
+}
+
+StmtNode* StmtNode::getElseBranch() const {
+    return elseBranch;
+}
+
+StmtNode* StmtNode::getBody() const {
+    return body;
 }
 
 string StmtNode::getDotLabel() const {
@@ -3070,6 +3109,18 @@ VarSpecNode* VarSpecNode::createVarSpec(IdListNode *idList, TypeNode *type, Expr
     return node;
 }
 
+IdListNode* VarSpecNode::getIdList() const {
+    return idList;
+}
+
+TypeNode* VarSpecNode::getType() const {
+    return type;
+}
+
+ExprListNode* VarSpecNode::getExprList() const {
+    return exprList;
+}
+
 string VarSpecNode::getDotLabel() const {
     return "VAR_SPEC";
 }
@@ -3204,6 +3255,18 @@ ConstSpecNode* ConstSpecNode::createConstSpec(IdListNode *idList, TypeNode *type
     node->type = type;
     node->exprList = exprList;
     return node;
+}
+
+IdListNode* ConstSpecNode::getIdList() const {
+    return idList;
+}
+
+TypeNode* ConstSpecNode::getType() const {
+    return type;
+}
+
+ExprListNode* ConstSpecNode::getExprList() const {
+    return exprList;
 }
 
 string ConstSpecNode::getDotLabel() const {
@@ -3368,6 +3431,14 @@ DeclNode* DeclNode::createDecl(VarSpecListNode *varSpecList) {
     return node;
 }
 
+ConstSpecListNode* DeclNode::getConstSpecList() const {
+    return constSpecList;
+}
+
+VarSpecListNode* DeclNode::getVarSpecList() const {
+    return varSpecList;
+}
+
 string DeclNode::getDotLabel() const {
     return "DECL";
 }
@@ -3437,6 +3508,10 @@ ValueNode* FuncDeclNode::getId() const {
 
 SignatureNode* FuncDeclNode::getSignature() const {
     return signature;
+}
+
+StmtNode* FuncDeclNode::getBody() const {
+    return body;
 }
 
 FuncDeclNode::FuncDeclNode(): AstNode() {
@@ -3752,6 +3827,10 @@ ProgramNode* ProgramNode::createNode(PackageClauseNode *packageClause, ImportDec
     node->importDeclList = importDeclList;
     node->topLevelDeclList = topLevelDeclList;
     return node;
+}
+
+TopLevelDeclListNode* ProgramNode::getTopLevelDeclList() const {
+    return topLevelDeclList;
 }
 
 string ProgramNode::getDotLabel() const {

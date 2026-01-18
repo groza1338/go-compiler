@@ -1,5 +1,5 @@
 # Base Ubuntu Linux image
-FROM ubuntu:20.04
+FROM ubuntu:22.04
 
 # Install package dependences
 RUN apt-get update && \
@@ -8,9 +8,14 @@ RUN apt-get update && \
     flex \
     bison \
     cmake \
+    maven \
+    openjdk-17-jdk \
     graphviz \
     gdb \
     && rm -rf /var/lib/apt/lists/*
+
+# Java setup for jvm-class-builder
+ENV JAVA_HOME=/usr/lib/jvm/java-17-openjdk-amd64
 
 # Copy project to working directory
 WORKDIR /app

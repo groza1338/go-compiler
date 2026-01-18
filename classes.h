@@ -332,6 +332,16 @@ public:
     static StmtNode* createFor(SimpleStmtNode *initStmt, ExprNode *condition, SimpleStmtNode *postStmt, StmtNode *body);
     static StmtNode* createFor(ExprListNode *exprList, ExprNode *expr, StmtNode *body);
 
+    StmtType getType() const;
+    DeclNode* getDecl() const;
+    ExprListNode* getExprList() const;
+    StmtListNode* getStmtList() const;
+    SimpleStmtNode* getSimpleStmt() const;
+    ExprNode* getCondition() const;
+    StmtNode* getThenBranch() const;
+    StmtNode* getElseBranch() const;
+    StmtNode* getBody() const;
+
     string getDotLabel() const override;
     string toDot() const override;
     void semantics(SemanticContext &ctx);
@@ -553,6 +563,10 @@ class VarSpecNode : public AstNode {
 public:
     static VarSpecNode* createVarSpec(IdListNode *idList, TypeNode *type, ExprListNode *exprList);
 
+    IdListNode* getIdList() const;
+    TypeNode* getType() const;
+    ExprListNode* getExprList() const;
+
     string getDotLabel() const override;
     string toDot() const override;
     void semantics(SemanticContext &ctx);
@@ -585,6 +599,10 @@ protected:
 class ConstSpecNode : public AstNode {
 public:
     static ConstSpecNode* createConstSpec(IdListNode *idList, TypeNode *type, ExprListNode *exprList);
+
+    IdListNode* getIdList() const;
+    TypeNode* getType() const;
+    ExprListNode* getExprList() const;
 
     string getDotLabel() const override;
     string toDot() const override;
@@ -622,6 +640,9 @@ public:
     static DeclNode* createDecl(VarSpecNode *varSpec);
     static DeclNode* createDecl(VarSpecListNode *varSpecList);
 
+    ConstSpecListNode* getConstSpecList() const;
+    VarSpecListNode* getVarSpecList() const;
+
     string getDotLabel() const override;
     string toDot() const override;
     void semantics(SemanticContext &ctx);
@@ -639,6 +660,7 @@ public:
 
     ValueNode* getId() const;
     SignatureNode* getSignature() const;
+    StmtNode* getBody() const;
 
     string getDotLabel() const override;
     string toDot() const override;
@@ -778,6 +800,8 @@ protected:
 class ProgramNode : public AstNode {
 public:
     static ProgramNode* createNode(PackageClauseNode *packageClause, ImportDeclListNode *importDeclList, TopLevelDeclListNode *topLevelDeclList);
+
+    TopLevelDeclListNode* getTopLevelDeclList() const;
 
     string getDotLabel() const override;
     string toDot() const override;
