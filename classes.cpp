@@ -4730,6 +4730,35 @@ void StmtNode::emitBytecode(BytecodeContext &ctx) {
                 stmtList->emitBytecode(ctx);
             }
             break;
+        case IF: {
+            if (!ctx.code) {
+                break;
+            }
+            if (simpleStmt) {
+                simpleStmt->emitBytecode(ctx);
+            }
+            if (!condition) {
+                break;
+            }
+            jvm::Label *labelElse = ctx.code->CodeLabel();
+            jvm::Label *labelEnd = ctx.code->CodeLabel();
+            if (!ctx.emitExpr(condition)) {
+                break;
+            }
+            *ctx.code << ctx.code->If(jvm::Instruction::Compare::Equal, labelElse);
+            if (thenBranch) {
+                thenBranch->emitBytecode(ctx);
+            }
+            if (elseBranch) {
+                *ctx.code << ctx.code->GoTo(labelEnd);
+                *ctx.code << labelElse;
+                elseBranch->emitBytecode(ctx);
+                *ctx.code << labelEnd;
+            } else {
+                *ctx.code << labelElse;
+            }
+            break;
+        }
         default:
             break;
     }
