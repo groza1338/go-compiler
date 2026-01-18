@@ -4596,8 +4596,14 @@ bool BytecodeContext::emitExpr(ExprNode *expr) {
             if (emitPrintCall(expr)) {
                 return false;
             }
+            if (emitScanCall(expr)) {
+                return false;
+            }
             const SemanticContext::FunctionInfo *fnInfo = getFunctionInfoForCall(expr);
             if (!fnInfo) {
+                return false;
+            }
+            if (fnInfo->results.size() > 1 && !allowMultiReturnCall) {
                 return false;
             }
             ExprNode *callee = expr->getOperand();
@@ -4975,10 +4981,189 @@ bool BytecodeContext::emitPrintCall(ExprNode *expr) {
         if (!emitExpr(arg)) {
             continue;
         }
-        jvm::ConstantMethodref *printMethod = getPrintMethod(argType);
-        if (printMethod) {
-            *code << code->InvokeVirtual(printMethod);
+        if (argType.base == SemanticType::FLOAT) {
+            jvm::ConstantMethodref *floorRef = clazz->getOrCreateMethodrefConstant(
+                "java/lang/Math",
+                "floor",
+                jvm::DescriptorMethod(jvm::DescriptorField(jvm::Descriptor::Double), {jvm::DescriptorField(jvm::Descriptor::Double)})
+            );
+            SemanticType floatType = SemanticType::makeBase(SemanticType::FLOAT);
+            string tmpName = "$print$" + to_string(locals.size());
+            uint16_t tmpSlot = allocateLocal(tmpName, floatType);
+            emitStore(floatType, tmpSlot);
+            emitLoad(floatType, tmpSlot);
+            *code << code->InvokeStatic(floorRef);
+            emitLoad(floatType, tmpSlot);
+            *code << code->CompareDouble(jvm::Instruction::StrictCompare::Greater);
+            jvm::Label *labelInt = code->CodeLabel();
+            jvm::Label *labelEnd = code->CodeLabel();
+            *code << code->If(jvm::Instruction::Compare::Equal, labelInt);
+            *code << code->GetStatic(systemOut);
+            emitLoad(floatType, tmpSlot);
+            jvm::ConstantMethodref *printDouble = getPrintMethod(floatType);
+            if (printDouble) {
+                *code << code->InvokeVirtual(printDouble);
+            }
+            *code << code->GoTo(labelEnd);
+            *code << labelInt;
+            *code << code->GetStatic(systemOut);
+            emitLoad(floatType, tmpSlot);
+            *code << code->DoubleToInt();
+            jvm::ConstantMethodref *printInt = getPrintMethod(SemanticType::makeBase(SemanticType::INT));
+            if (printInt) {
+                *code << code->InvokeVirtual(printInt);
+            }
+            *code << labelEnd;
+        } else {
+            jvm::ConstantMethodref *printMethod = getPrintMethod(argType);
+            if (printMethod) {
+                *code << code->InvokeVirtual(printMethod);
+            }
         }
+    }
+    return true;
+}
+
+bool BytecodeContext::emitScanCall(ExprNode *expr) {
+    if (!expr || !code || !clazz) {
+        return false;
+    }
+    if (expr->getType() != ExprNode::FUNCTION_CALL) {
+        return false;
+    }
+    ExprNode *callee = expr->getOperand();
+    ExprListNode *args = expr->getArgs();
+    if (!callee || !args || !args->getExprList()) {
+        return false;
+    }
+    if (callee->getType() != ExprNode::SELECTOR) {
+        return false;
+    }
+    ExprNode *pkgExpr = callee->getOperand();
+    ValueNode *fnNameVal = callee->getIdentifier();
+    if (!pkgExpr || pkgExpr->getType() != ExprNode::ID || !fnNameVal || !fnNameVal->getString()) {
+        return false;
+    }
+    ValueNode *pkgNameVal = pkgExpr->getIdentifier();
+    if (!pkgNameVal || !pkgNameVal->getString()) {
+        return false;
+    }
+    if (*pkgNameVal->getString() != "fmt" || *fnNameVal->getString() != "Scan") {
+        return false;
+    }
+    jvm::ConstantClass *scannerClass = clazz->getOrCreateClassConstant("java/util/Scanner");
+    jvm::ConstantMethodref *ctor = clazz->getOrCreateMethodrefConstant(
+        scannerClass,
+        "<init>",
+        jvm::DescriptorMethod(std::nullopt, {jvm::DescriptorField("java/io/InputStream")})
+    );
+    jvm::ConstantFieldref *systemIn = clazz->getOrCreateFieldrefConstant(
+        "java/lang/System",
+        "in",
+        jvm::DescriptorField("java/io/InputStream")
+    );
+    string tmpName = "$scan$" + to_string(locals.size());
+    SemanticType refType = SemanticType::makeBase(SemanticType::STRING);
+    uint16_t scannerSlot = allocateLocal(tmpName, refType);
+    *code << code->New(scannerClass);
+    *code << code->Duplicate();
+    *code << code->GetStatic(systemIn);
+    *code << code->InvokeSpecial(ctor);
+    emitStore(refType, scannerSlot);
+
+    for (ExprNode *arg : *args->getExprList()) {
+        if (!arg) {
+            continue;
+        }
+        ValueNode *idVal = nullptr;
+        if (arg->getType() == ExprNode::ID) {
+            idVal = arg->getIdentifier();
+        } else if (arg->getType() == ExprNode::ADDRESS_OF) {
+            ExprNode *operand = arg->getOperand();
+            if (operand && operand->getType() == ExprNode::ID) {
+                idVal = operand->getIdentifier();
+            }
+        }
+        if (!idVal || !idVal->getString()) {
+            continue;
+        }
+        auto it = locals.find(*idVal->getString());
+        if (it == locals.end()) {
+            continue;
+        }
+        SemanticType targetType = it->second.type;
+        if (!targetType.isScalar()) {
+            continue;
+        }
+        jvm::ConstantMethodref *hasNext = nullptr;
+        jvm::ConstantMethodref *nextValue = nullptr;
+        switch (targetType.base) {
+            case SemanticType::FLOAT: {
+                hasNext = clazz->getOrCreateMethodrefConstant(
+                    scannerClass,
+                    "hasNextDouble",
+                    jvm::DescriptorMethod(jvm::DescriptorField(jvm::Descriptor::Boolean), {})
+                );
+                nextValue = clazz->getOrCreateMethodrefConstant(
+                    scannerClass,
+                    "nextDouble",
+                    jvm::DescriptorMethod(jvm::DescriptorField(jvm::Descriptor::Double), {})
+                );
+                break;
+            }
+            case SemanticType::BOOL: {
+                hasNext = clazz->getOrCreateMethodrefConstant(
+                    scannerClass,
+                    "hasNextBoolean",
+                    jvm::DescriptorMethod(jvm::DescriptorField(jvm::Descriptor::Boolean), {})
+                );
+                nextValue = clazz->getOrCreateMethodrefConstant(
+                    scannerClass,
+                    "nextBoolean",
+                    jvm::DescriptorMethod(jvm::DescriptorField(jvm::Descriptor::Boolean), {})
+                );
+                break;
+            }
+            case SemanticType::STRING: {
+                hasNext = clazz->getOrCreateMethodrefConstant(
+                    scannerClass,
+                    "hasNext",
+                    jvm::DescriptorMethod(jvm::DescriptorField(jvm::Descriptor::Boolean), {})
+                );
+                nextValue = clazz->getOrCreateMethodrefConstant(
+                    scannerClass,
+                    "next",
+                    jvm::DescriptorMethod(jvm::DescriptorField("java/lang/String"), {})
+                );
+                break;
+            }
+            case SemanticType::RUNE:
+            case SemanticType::INT:
+            default: {
+                hasNext = clazz->getOrCreateMethodrefConstant(
+                    scannerClass,
+                    "hasNextInt",
+                    jvm::DescriptorMethod(jvm::DescriptorField(jvm::Descriptor::Boolean), {})
+                );
+                nextValue = clazz->getOrCreateMethodrefConstant(
+                    scannerClass,
+                    "nextInt",
+                    jvm::DescriptorMethod(jvm::DescriptorField(jvm::Descriptor::Int), {})
+                );
+                break;
+            }
+        }
+        if (!hasNext || !nextValue) {
+            continue;
+        }
+        emitLoad(refType, scannerSlot);
+        *code << code->InvokeVirtual(hasNext);
+        jvm::Label *skipLabel = code->CodeLabel();
+        *code << code->If(jvm::Instruction::Compare::Equal, skipLabel);
+        emitLoad(refType, scannerSlot);
+        *code << code->InvokeVirtual(nextValue);
+        emitStore(targetType, it->second.index);
+        *code << skipLabel;
     }
     return true;
 }
@@ -5011,6 +5196,8 @@ void BytecodeContext::discardExprResult(ExprNode *expr) {
         const SemanticContext::FunctionInfo *info = getFunctionInfoForCall(expr);
         if (info && info->results.size() == 1) {
             type = info->results[0];
+        } else if (info && info->results.size() > 1) {
+            type = SemanticType::makeBase(SemanticType::STRING);
         }
     }
     if (type.base == SemanticType::UNKNOWN) {
@@ -5442,7 +5629,11 @@ void SimpleStmtNode::emitBytecode(BytecodeContext &ctx) {
                     if (leftExprs.size() != fnInfo->results.size()) {
                         break;
                     }
-                    if (!ctx.emitExpr(rightExpr)) {
+                    bool prevAllow = ctx.allowMultiReturnCall;
+                    ctx.allowMultiReturnCall = true;
+                    bool emitted = ctx.emitExpr(rightExpr);
+                    ctx.allowMultiReturnCall = prevAllow;
+                    if (!emitted) {
                         break;
                     }
                     SemanticType refType = SemanticType::makeBase(SemanticType::STRING);

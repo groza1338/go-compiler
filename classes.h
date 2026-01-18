@@ -199,6 +199,7 @@ struct BytecodeContext {
     uint16_t nextLocalIndex = 0;
     vector<LoopLabels> loopStack;
     vector<SemanticType> currentReturnTypes;
+    bool allowMultiReturnCall = false;
 
     BytecodeContext();
     void startMain();
@@ -220,6 +221,7 @@ struct BytecodeContext {
     LoopLabels currentLoop() const;
     jvm::ConstantMethodref* getPrintMethod(const SemanticType &type);
     bool emitPrintCall(ExprNode *expr);
+    bool emitScanCall(ExprNode *expr);
     const SemanticContext::FunctionInfo* getFunctionInfoForCall(ExprNode *expr) const;
     void discardExprResult(ExprNode *expr);
 };
