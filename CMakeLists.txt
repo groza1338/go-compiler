@@ -47,6 +47,8 @@ add_custom_command(
         VERBATIM
 )
 
+add_subdirectory(jvm-class-builder)
+
 # Create executable
 add_executable(golang_compiler
         main.cpp
@@ -63,4 +65,8 @@ set_source_files_properties(${GENERATED_PARSER_CPP} PROPERTIES LANGUAGE CXX)
 target_include_directories(golang_compiler PRIVATE
         "${SOURCE_DIR}"
         "${GENERATED_DIR}"
+)
+
+target_link_libraries(php_compiler PRIVATE
+        jvm::ClassBuilder
 )
