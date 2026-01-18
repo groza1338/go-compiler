@@ -290,8 +290,11 @@ static int can_insert_semi = 0;
 <<EOF>> {
     if (can_insert_semi) {
         cout << "Semicolon: ; (inserted before EOF)\n";
+        can_insert_semi = 0;
+        return ';';
+    } else {
+        return 0;
     }
-    return 0;
 }
 
 

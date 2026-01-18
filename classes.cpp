@@ -4252,6 +4252,8 @@ void BytecodeContext::startMain() {
     currentReturnTypes.clear();
     locals.clear();
     nextLocalIndex = 1;
+    tempCounter = 0;
+    loopStack.clear();
 }
 
 bool BytecodeContext::startFunction(const string &name,
@@ -4314,12 +4316,25 @@ uint16_t BytecodeContext::allocateLocal(const string &name, const SemanticType &
     }
     uint16_t slot = nextLocalIndex;
     locals[name] = {type, slot};
-    nextLocalIndex += (type.base == SemanticType::FLOAT) ? 2 : 1;
+    if (type.arrayDims > 0 || type.sliceDims > 0) {
+        nextLocalIndex += 1;
+    } else {
+        nextLocalIndex += (type.base == SemanticType::FLOAT) ? 2 : 1;
+    }
     return slot;
+}
+
+uint16_t BytecodeContext::allocateTempLocal(const SemanticType &type) {
+    string name = "$tmp" + to_string(tempCounter++);
+    return allocateLocal(name, type);
 }
 
 void BytecodeContext::emitDefaultValue(const SemanticType &type) {
     if (!code) {
+        return;
+    }
+    if (type.arrayDims > 0 || type.sliceDims > 0) {
+        *code << code->PushNull();
         return;
     }
     switch (type.base) {
@@ -4389,6 +4404,10 @@ bool BytecodeContext::emitExpr(ExprNode *expr) {
         }
         case ExprNode::EXPR_IN_BRACKETS:
             return emitExpr(expr->getOperand());
+        case ExprNode::ARRAY_LIT:
+            return emitArrayLiteral(expr);
+        case ExprNode::ELEMENT_ACCESS:
+            return emitArrayAccess(expr);
         case ExprNode::SUMMARY:
         case ExprNode::SUBTRACTION:
         case ExprNode::MULTIPLICATION:
@@ -4673,8 +4692,214 @@ bool BytecodeContext::emitLiteral(ValueNode *literal) {
     }
 }
 
+bool BytecodeContext::emitArrayNew(const SemanticType &arrayType) {
+    if (!code || !clazz) {
+        return false;
+    }
+    if (arrayType.arrayDims <= 0 || arrayType.arrayDims > 1) {
+        return false;
+    }
+    if (arrayType.base == SemanticType::STRING) {
+        jvm::ConstantClass *strClass = clazz->getOrCreateClassConstant("java/lang/String");
+        *code << code->NewArray(strClass);
+        return true;
+    }
+    jvm::Instruction::Type elemType = jvm::Instruction::Type::INT;
+    switch (arrayType.base) {
+        case SemanticType::FLOAT:
+            elemType = jvm::Instruction::Type::DOUBLE;
+            break;
+        case SemanticType::BOOL:
+            elemType = jvm::Instruction::Type::BOOLEAN;
+            break;
+        case SemanticType::INT:
+        case SemanticType::RUNE:
+        default:
+            elemType = jvm::Instruction::Type::INT;
+            break;
+    }
+    *code << code->NewArray(elemType);
+    return true;
+}
+
+bool BytecodeContext::emitArrayLiteral(ExprNode *expr) {
+    if (!expr || !code || !clazz) {
+        return false;
+    }
+    SemanticType arrayType = inferExprType(expr);
+    if (arrayType.arrayDims <= 0 || arrayType.arrayDims > 1) {
+        return false;
+    }
+    ExprNode *lenExpr = expr->getArrayLen();
+    if (!lenExpr || !emitExpr(lenExpr)) {
+        return false;
+    }
+    if (!emitArrayNew(arrayType)) {
+        return false;
+    }
+    uint16_t arrSlot = allocateTempLocal(arrayType);
+    emitStore(arrayType, arrSlot);
+    ExprListNode *elems = expr->getArrayElems();
+    if (elems && elems->getExprList()) {
+        int idx = 0;
+        for (ExprNode *elem : *elems->getExprList()) {
+            *code << code->LoadReference(arrSlot);
+            *code << code->PushInt(idx);
+            if (elem && emitExpr(elem)) {
+                SemanticType elemType = arrayType;
+                dropOuterArrayDim(elemType);
+                emitArrayStoreValue(elemType);
+            }
+            idx++;
+        }
+    }
+    emitLoad(arrayType, arrSlot);
+    return true;
+}
+
+bool BytecodeContext::emitArrayAccess(ExprNode *expr) {
+    if (!expr || !code) {
+        return false;
+    }
+    ExprNode *operand = expr->getOperand();
+    ExprNode *index = expr->getIndex();
+    if (!operand || !index) {
+        return false;
+    }
+    SemanticType arrayType = inferExprType(operand);
+    if (arrayType.arrayDims <= 0) {
+        return false;
+    }
+    SemanticType elemType = arrayType;
+    dropOuterArrayDim(elemType);
+    if (!emitExpr(operand) || !emitExpr(index)) {
+        return false;
+    }
+    emitArrayLoadValue(elemType);
+    return true;
+}
+
+void BytecodeContext::emitArrayStoreValue(const SemanticType &elemType) {
+    if (!code) {
+        return;
+    }
+    switch (elemType.base) {
+        case SemanticType::FLOAT:
+            *code << code->StoreDoubleToArray();
+            break;
+        case SemanticType::STRING:
+            *code << code->StoreReferenceToArray();
+            break;
+        case SemanticType::BOOL:
+            *code << code->StoreBooleanToArray();
+            break;
+        case SemanticType::INT:
+        case SemanticType::RUNE:
+        default:
+            *code << code->StoreIntToArray();
+            break;
+    }
+}
+
+void BytecodeContext::emitArrayLoadValue(const SemanticType &elemType) {
+    if (!code) {
+        return;
+    }
+    switch (elemType.base) {
+        case SemanticType::FLOAT:
+            *code << code->LoadDoubleFromArray();
+            break;
+        case SemanticType::STRING:
+            *code << code->LoadReferenceFromArray();
+            break;
+        case SemanticType::BOOL:
+            *code << code->LoadBooleanFromArray();
+            break;
+        case SemanticType::INT:
+        case SemanticType::RUNE:
+        default:
+            *code << code->LoadIntFromArray();
+            break;
+    }
+}
+
+bool BytecodeContext::emitArrayPrint(ExprNode *expr, const SemanticType &arrayType) {
+    if (!expr || !code || !systemOut) {
+        return false;
+    }
+    if (arrayType.arrayDims != 1) {
+        return false;
+    }
+    if (!emitExpr(expr)) {
+        return false;
+    }
+    uint16_t arrSlot = allocateTempLocal(arrayType);
+    emitStore(arrayType, arrSlot);
+    SemanticType elemType = arrayType;
+    dropOuterArrayDim(elemType);
+    SemanticType intType = SemanticType::makeBase(SemanticType::INT);
+    uint16_t idxSlot = allocateTempLocal(intType);
+
+    *code << code->GetStatic(systemOut);
+    *code << code->PushString("[");
+    jvm::ConstantMethodref *printString = getPrintMethod(SemanticType::makeBase(SemanticType::STRING));
+    if (printString) {
+        *code << code->InvokeVirtual(printString);
+    }
+
+    *code << code->PushInt(0);
+    emitStore(intType, idxSlot);
+
+    jvm::Label *labelCond = code->CodeLabel();
+    jvm::Label *labelEnd = code->CodeLabel();
+    jvm::Label *labelNoSpace = code->CodeLabel();
+
+    *code << labelCond;
+    emitLoad(intType, idxSlot);
+    emitLoad(arrayType, arrSlot);
+    *code << code->ArrayLength();
+    *code << code->IfWithCompare(jvm::Instruction::Compare::GreaterEqual, labelEnd);
+
+    emitLoad(intType, idxSlot);
+    *code << code->PushInt(0);
+    *code << code->IfWithCompare(jvm::Instruction::Compare::LessEqual, labelNoSpace);
+    *code << code->GetStatic(systemOut);
+    *code << code->PushString(" ");
+    if (printString) {
+        *code << code->InvokeVirtual(printString);
+    }
+    *code << labelNoSpace;
+
+    *code << code->GetStatic(systemOut);
+    emitLoad(arrayType, arrSlot);
+    emitLoad(intType, idxSlot);
+    emitArrayLoadValue(elemType);
+    jvm::ConstantMethodref *printElem = getPrintMethod(elemType);
+    if (printElem) {
+        *code << code->InvokeVirtual(printElem);
+    }
+
+    emitLoad(intType, idxSlot);
+    *code << code->PushInt(1);
+    *code << code->AddInt();
+    emitStore(intType, idxSlot);
+    *code << code->GoTo(labelCond);
+
+    *code << labelEnd;
+    *code << code->GetStatic(systemOut);
+    *code << code->PushString("]");
+    if (printString) {
+        *code << code->InvokeVirtual(printString);
+    }
+    return true;
+}
+
 void BytecodeContext::emitLoad(const SemanticType &type, uint16_t index) {
     if (!code) {
+        return;
+    }
+    if (type.arrayDims > 0 || type.sliceDims > 0) {
+        *code << code->LoadReference(index);
         return;
     }
     switch (type.base) {
@@ -4695,6 +4920,10 @@ void BytecodeContext::emitLoad(const SemanticType &type, uint16_t index) {
 
 void BytecodeContext::emitStore(const SemanticType &type, uint16_t index) {
     if (!code) {
+        return;
+    }
+    if (type.arrayDims > 0 || type.sliceDims > 0) {
+        *code << code->StoreReference(index);
         return;
     }
     switch (type.base) {
@@ -4743,6 +4972,33 @@ SemanticType BytecodeContext::inferExprType(ExprNode *expr) {
                 return it->second.type;
             }
         }
+    }
+    if (expr->getType() == ExprNode::ARRAY_LIT) {
+        SemanticType elemType = SemanticType::makeBase(SemanticType::UNKNOWN);
+        if (TypeNode *elemNode = expr->getArrayElemType()) {
+            elemType = elemNode->getSemanticType();
+        } else if (ExprListNode *elems = expr->getArrayElems()) {
+            if (elems->getExprList() && !elems->getExprList()->empty()) {
+                elemType = inferExprType(elems->getExprList()->front());
+            }
+        }
+        int lenValue = -1;
+        ExprNode *lenExpr = expr->getArrayLen();
+        if (lenExpr && lenExpr->getType() == ExprNode::LIT_VAL) {
+            ValueNode *lenVal = lenExpr->getLiteral();
+            if (lenVal && lenVal->getValueType() == ValueNode::LIT_INT) {
+                lenValue = lenVal->getInt();
+            }
+        }
+        addOuterArrayDim(elemType, lenValue);
+        return elemType;
+    }
+    if (expr->getType() == ExprNode::ELEMENT_ACCESS) {
+        SemanticType arrayType = inferExprType(expr->getOperand());
+        if (arrayType.arrayDims > 0) {
+            dropOuterArrayDim(arrayType);
+        }
+        return arrayType;
     }
     return SemanticType::makeBase(SemanticType::UNKNOWN);
 }
@@ -4977,6 +5233,10 @@ bool BytecodeContext::emitPrintCall(ExprNode *expr) {
             continue;
         }
         SemanticType argType = inferExprType(arg);
+        if (argType.arrayDims > 0 && argType.sliceDims == 0) {
+            emitArrayPrint(arg, argType);
+            continue;
+        }
         *code << code->GetStatic(systemOut);
         if (!emitExpr(arg)) {
             continue;
@@ -5684,10 +5944,37 @@ void SimpleStmtNode::emitBytecode(BytecodeContext &ctx) {
             }
             auto itLeft = leftExprs.begin();
             auto itRight = rightExprs.begin();
-            for (; itLeft != leftExprs.end() && itRight != rightExprs.end(); ++itLeft, ++itRight) {
-                ExprNode *leftExpr = *itLeft;
-                ExprNode *rightExpr = *itRight;
+            for (ExprNode *leftExpr : leftExprs) {
+                ExprNode *rightExpr = nullptr;
+                if (leftExpr && leftExpr->getType() == ExprNode::ELEMENT_ASSIGN) {
+                    rightExpr = leftExpr->getRight();
+                } else if (itRight != rightExprs.end()) {
+                    rightExpr = *itRight;
+                    ++itRight;
+                }
                 if (!leftExpr || !rightExpr) {
+                    continue;
+                }
+                if (leftExpr->getType() == ExprNode::ELEMENT_ASSIGN) {
+                    if (type == SHORT_VAR_DECL) {
+                        continue;
+                    }
+                    ExprNode *operand = leftExpr->getOperand();
+                    ExprNode *index = leftExpr->getIndex();
+                    if (!operand || !index) {
+                        continue;
+                    }
+                    SemanticType arrayType = ctx.inferExprType(operand);
+                    if (arrayType.arrayDims <= 0) {
+                        continue;
+                    }
+                    SemanticType elemType = arrayType;
+                    dropOuterArrayDim(elemType);
+                    if (!ctx.emitExpr(operand) || !ctx.emitExpr(index) ||
+                        !ctx.emitExprWithCast(rightExpr, elemType)) {
+                        continue;
+                    }
+                    ctx.emitArrayStoreValue(elemType);
                     continue;
                 }
                 if (leftExpr->getType() != ExprNode::ID) {
@@ -5809,6 +6096,11 @@ void VarSpecNode::emitBytecode(BytecodeContext &ctx) {
             if (!ctx.emitExpr(expr)) {
                 continue;
             }
+        } else if (type && type->getKind() == TypeNode::ARRAY) {
+            ExprNode *lenExpr = type->getArrayLenExpr();
+            if (!lenExpr || !ctx.emitExpr(lenExpr) || !ctx.emitArrayNew(semType)) {
+                continue;
+            }
         } else {
             ctx.emitDefaultValue(semType);
         }
@@ -5846,6 +6138,11 @@ void ConstSpecNode::emitBytecode(BytecodeContext &ctx) {
         uint16_t slot = ctx.allocateLocal(*id->getString(), semType);
         if (expr) {
             if (!ctx.emitExpr(expr)) {
+                continue;
+            }
+        } else if (type && type->getKind() == TypeNode::ARRAY) {
+            ExprNode *lenExpr = type->getArrayLenExpr();
+            if (!lenExpr || !ctx.emitExpr(lenExpr) || !ctx.emitArrayNew(semType)) {
                 continue;
             }
         } else {

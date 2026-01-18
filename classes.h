@@ -197,6 +197,7 @@ struct BytecodeContext {
     unordered_map<string, SemanticContext::FunctionInfo> functions;
     unordered_map<string, LocalVarInfo> locals;
     uint16_t nextLocalIndex = 0;
+    uint32_t tempCounter = 0;
     vector<LoopLabels> loopStack;
     vector<SemanticType> currentReturnTypes;
     bool allowMultiReturnCall = false;
@@ -206,9 +207,16 @@ struct BytecodeContext {
     bool startFunction(const string &name, const vector<SemanticType> &params, const vector<SemanticType> &results);
     void writeTo(const filesystem::path &outPath);
     uint16_t allocateLocal(const string &name, const SemanticType &type);
+    uint16_t allocateTempLocal(const SemanticType &type);
     void emitDefaultValue(const SemanticType &type);
     bool emitExpr(ExprNode *expr);
     bool emitLiteral(ValueNode *literal);
+    bool emitArrayNew(const SemanticType &arrayType);
+    bool emitArrayLiteral(ExprNode *expr);
+    bool emitArrayAccess(ExprNode *expr);
+    void emitArrayStoreValue(const SemanticType &elemType);
+    void emitArrayLoadValue(const SemanticType &elemType);
+    bool emitArrayPrint(ExprNode *expr, const SemanticType &arrayType);
     void emitLoad(const SemanticType &type, uint16_t index);
     void emitStore(const SemanticType &type, uint16_t index);
     SemanticType inferExprType(ExprNode *expr);
