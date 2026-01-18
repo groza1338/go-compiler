@@ -194,12 +194,15 @@ struct BytecodeContext {
     jvm::Method *mainMethod = nullptr;
     jvm::AttributeCode *code = nullptr;
     jvm::ConstantFieldref *systemOut = nullptr;
+    unordered_map<string, SemanticContext::FunctionInfo> functions;
     unordered_map<string, LocalVarInfo> locals;
     uint16_t nextLocalIndex = 0;
     vector<LoopLabels> loopStack;
+    vector<SemanticType> currentReturnTypes;
 
     BytecodeContext();
     void startMain();
+    bool startFunction(const string &name, const vector<SemanticType> &params, const vector<SemanticType> &results);
     void writeTo(const filesystem::path &outPath);
     uint16_t allocateLocal(const string &name, const SemanticType &type);
     void emitDefaultValue(const SemanticType &type);
@@ -214,7 +217,9 @@ struct BytecodeContext {
     void popLoop();
     LoopLabels currentLoop() const;
     jvm::ConstantMethodref* getPrintMethod(const SemanticType &type);
-    void emitPrintCall(ExprNode *expr);
+    bool emitPrintCall(ExprNode *expr);
+    const SemanticContext::FunctionInfo* getFunctionInfoForCall(ExprNode *expr) const;
+    void discardExprResult(ExprNode *expr);
 };
 
 class ExprNode : public AstNode {

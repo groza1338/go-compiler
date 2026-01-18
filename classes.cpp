@@ -4184,6 +4184,56 @@ BytecodeContext::BytecodeContext() {
     clazz->addFlag(jvm::Class::ACC_SUPER);
 }
 
+static bool toDescriptorField(const SemanticType &type, jvm::DescriptorField &out) {
+    if (type.arrayDims > 0 || type.sliceDims > 0) {
+        return false;
+    }
+    switch (type.base) {
+        case SemanticType::INT:
+        case SemanticType::RUNE:
+            out = jvm::DescriptorField(jvm::Descriptor::Int);
+            return true;
+        case SemanticType::FLOAT:
+            out = jvm::DescriptorField(jvm::Descriptor::Double);
+            return true;
+        case SemanticType::BOOL:
+            out = jvm::DescriptorField(jvm::Descriptor::Boolean);
+            return true;
+        case SemanticType::STRING:
+            out = jvm::DescriptorField("java/lang/String");
+            return true;
+        default:
+            return false;
+    }
+}
+
+static bool buildMethodDescriptor(const vector<SemanticType> &params,
+                                  const vector<SemanticType> &results,
+                                  jvm::DescriptorMethod &out) {
+    vector<jvm::DescriptorField> paramFields;
+    paramFields.reserve(params.size());
+    for (const SemanticType &param : params) {
+        jvm::DescriptorField field(jvm::Descriptor::Int);
+        if (!toDescriptorField(param, field)) {
+            return false;
+        }
+        paramFields.push_back(field);
+    }
+    if (results.size() > 1) {
+        return false;
+    }
+    if (results.empty()) {
+        out = jvm::DescriptorMethod(std::nullopt, paramFields);
+        return true;
+    }
+    jvm::DescriptorField returnField(jvm::Descriptor::Int);
+    if (!toDescriptorField(results[0], returnField)) {
+        return false;
+    }
+    out = jvm::DescriptorMethod(returnField, paramFields);
+    return true;
+}
+
 void BytecodeContext::startMain() {
     if (!clazz) {
         return;
@@ -4198,8 +4248,36 @@ void BytecodeContext::startMain() {
         "out",
         jvm::DescriptorField("java/io/PrintStream")
     );
+    currentReturnTypes.clear();
     locals.clear();
     nextLocalIndex = 1;
+}
+
+bool BytecodeContext::startFunction(const string &name,
+                                    const vector<SemanticType> &params,
+                                    const vector<SemanticType> &results) {
+    if (!clazz) {
+        return false;
+    }
+    jvm::DescriptorMethod desc(std::nullopt, {});
+    if (!buildMethodDescriptor(params, results, desc)) {
+        return false;
+    }
+    jvm::Method *method = clazz->getOrCreateMethod(name, desc);
+    method->addFlag(jvm::Method::ACC_PUBLIC);
+    method->addFlag(jvm::Method::ACC_STATIC);
+    code = method->getCodeAttribute();
+    if (!systemOut) {
+        systemOut = clazz->getOrCreateFieldrefConstant(
+            "java/lang/System",
+            "out",
+            jvm::DescriptorField("java/io/PrintStream")
+        );
+    }
+    currentReturnTypes = results;
+    locals.clear();
+    nextLocalIndex = 0;
+    return true;
 }
 
 void BytecodeContext::writeTo(const filesystem::path &outPath) {
@@ -4513,6 +4591,50 @@ bool BytecodeContext::emitExpr(ExprNode *expr) {
             });
             return true;
         }
+        case ExprNode::FUNCTION_CALL: {
+            if (emitPrintCall(expr)) {
+                return false;
+            }
+            const SemanticContext::FunctionInfo *fnInfo = getFunctionInfoForCall(expr);
+            if (!fnInfo) {
+                return false;
+            }
+            ExprNode *callee = expr->getOperand();
+            ValueNode *idVal = callee ? callee->getIdentifier() : nullptr;
+            if (!idVal || !idVal->getString()) {
+                return false;
+            }
+            const string &name = *idVal->getString();
+            ExprListNode *args = expr->getArgs();
+            auto *argList = args ? args->getExprList() : nullptr;
+            size_t argCount = argList ? argList->size() : 0;
+            if (argCount != fnInfo->params.size()) {
+                return false;
+            }
+            if (argList) {
+                auto argIt = argList->begin();
+                auto paramIt = fnInfo->params.begin();
+                for (; argIt != argList->end() && paramIt != fnInfo->params.end(); ++argIt, ++paramIt) {
+                    ExprNode *arg = *argIt;
+                    if (!arg) {
+                        return false;
+                    }
+                    if (!emitExprWithCast(arg, *paramIt)) {
+                        return false;
+                    }
+                }
+            }
+            if (fnInfo->results.size() > 1) {
+                return false;
+            }
+            jvm::DescriptorMethod desc(std::nullopt, {});
+            if (!buildMethodDescriptor(fnInfo->params, fnInfo->results, desc)) {
+                return false;
+            }
+            jvm::ConstantMethodref *methodRef = clazz->getOrCreateMethodrefConstant("Main", name, desc);
+            *code << code->InvokeStatic(methodRef);
+            return true;
+        }
         default:
             return false;
     }
@@ -4724,32 +4846,32 @@ jvm::ConstantMethodref* BytecodeContext::getPrintMethod(const SemanticType &type
     }
 }
 
-void BytecodeContext::emitPrintCall(ExprNode *expr) {
+bool BytecodeContext::emitPrintCall(ExprNode *expr) {
     if (!expr || !code || !systemOut) {
-        return;
+        return false;
     }
     if (expr->getType() != ExprNode::FUNCTION_CALL) {
-        return;
+        return false;
     }
     ExprNode *callee = expr->getOperand();
     ExprListNode *args = expr->getArgs();
     if (!callee || !args || !args->getExprList()) {
-        return;
+        return false;
     }
     if (callee->getType() != ExprNode::SELECTOR) {
-        return;
+        return false;
     }
     ExprNode *pkgExpr = callee->getOperand();
     ValueNode *fnNameVal = callee->getIdentifier();
     if (!pkgExpr || pkgExpr->getType() != ExprNode::ID || !fnNameVal || !fnNameVal->getString()) {
-        return;
+        return false;
     }
     ValueNode *pkgNameVal = pkgExpr->getIdentifier();
     if (!pkgNameVal || !pkgNameVal->getString()) {
-        return;
+        return false;
     }
     if (*pkgNameVal->getString() != "fmt" || *fnNameVal->getString() != "Print") {
-        return;
+        return false;
     }
     for (ExprNode *arg : *args->getExprList()) {
         if (!arg) {
@@ -4764,6 +4886,47 @@ void BytecodeContext::emitPrintCall(ExprNode *expr) {
         if (printMethod) {
             *code << code->InvokeVirtual(printMethod);
         }
+    }
+    return true;
+}
+
+const SemanticContext::FunctionInfo* BytecodeContext::getFunctionInfoForCall(ExprNode *expr) const {
+    if (!expr || expr->getType() != ExprNode::FUNCTION_CALL) {
+        return nullptr;
+    }
+    ExprNode *callee = expr->getOperand();
+    if (!callee || callee->getType() != ExprNode::ID) {
+        return nullptr;
+    }
+    ValueNode *idVal = callee->getIdentifier();
+    if (!idVal || !idVal->getString()) {
+        return nullptr;
+    }
+    auto it = functions.find(*idVal->getString());
+    if (it == functions.end()) {
+        return nullptr;
+    }
+    return &it->second;
+}
+
+void BytecodeContext::discardExprResult(ExprNode *expr) {
+    if (!expr || !code) {
+        return;
+    }
+    SemanticType type = inferExprType(expr);
+    if (type.base == SemanticType::UNKNOWN) {
+        const SemanticContext::FunctionInfo *info = getFunctionInfoForCall(expr);
+        if (info && info->results.size() == 1) {
+            type = info->results[0];
+        }
+    }
+    if (type.base == SemanticType::UNKNOWN) {
+        return;
+    }
+    if (type.base == SemanticType::FLOAT) {
+        *code << code->PopTwo();
+    } else {
+        *code << code->PopOne();
     }
 }
 
@@ -4805,6 +4968,48 @@ void StmtNode::emitBytecode(BytecodeContext &ctx) {
                 simpleStmt->emitBytecode(ctx);
             }
             break;
+        case RETURN: {
+            if (!ctx.code) {
+                break;
+            }
+            if (ctx.currentReturnTypes.empty()) {
+                *ctx.code << ctx.code->ReturnVoid();
+                break;
+            }
+            if (ctx.currentReturnTypes.size() > 1) {
+                *ctx.code << ctx.code->ReturnVoid();
+                break;
+            }
+            SemanticType retType = ctx.currentReturnTypes[0];
+            ExprNode *retExpr = nullptr;
+            if (exprList && exprList->getExprList() && !exprList->getExprList()->empty()) {
+                retExpr = exprList->getExprList()->front();
+            }
+            if (retExpr) {
+                if (!ctx.emitExprWithCast(retExpr, retType)) {
+                    ctx.emitDefaultValue(retType);
+                }
+            } else {
+                ctx.emitDefaultValue(retType);
+            }
+            switch (retType.base) {
+                case SemanticType::FLOAT:
+                    *ctx.code << ctx.code->ReturnDouble();
+                    break;
+                case SemanticType::STRING:
+                    *ctx.code << ctx.code->ReturnReference();
+                    break;
+                case SemanticType::BOOL:
+                    *ctx.code << ctx.code->ReturnBoolean();
+                    break;
+                case SemanticType::RUNE:
+                case SemanticType::INT:
+                default:
+                    *ctx.code << ctx.code->ReturnInt();
+                    break;
+            }
+            break;
+        }
         case BLOCK:
             if (stmtList) {
                 stmtList->emitBytecode(ctx);
@@ -5058,7 +5263,11 @@ void SimpleStmtNode::emitBytecode(BytecodeContext &ctx) {
     switch (type) {
         case EXPR:
             if (expr) {
-                ctx.emitPrintCall(expr);
+                if (!ctx.emitPrintCall(expr)) {
+                    if (ctx.emitExpr(expr)) {
+                        ctx.discardExprResult(expr);
+                    }
+                }
             }
             break;
         case INC:
@@ -5303,8 +5512,60 @@ void DeclNode::emitBytecode(BytecodeContext &ctx) {
 }
 
 void FuncDeclNode::emitBytecode(BytecodeContext &ctx) {
+    bool isMain = false;
+    if (id && id->getString()) {
+        isMain = *id->getString() == "main";
+    }
+    if (signature && !isMain) {
+        ParamDeclListNode *paramList = signature->getParamList();
+        if (paramList && paramList->getParamList()) {
+            for (ParamDeclNode *param : *paramList->getParamList()) {
+                if (!param || !param->getIdList() || !param->getIdList()->getIdList() || !param->getType()) {
+                    continue;
+                }
+                SemanticType paramType = param->getType()->getSemanticType();
+                for (ValueNode *idVal : *param->getIdList()->getIdList()) {
+                    if (isBlankIdentifier(idVal)) {
+                        continue;
+                    }
+                    if (idVal && idVal->getString()) {
+                        ctx.allocateLocal(*idVal->getString(), paramType);
+                    }
+                }
+            }
+        }
+    }
     if (body) {
         body->emitBytecode(ctx);
+    }
+    if (!ctx.code) {
+        return;
+    }
+    if (ctx.currentReturnTypes.empty()) {
+        *ctx.code << ctx.code->ReturnVoid();
+        return;
+    }
+    if (ctx.currentReturnTypes.size() > 1) {
+        *ctx.code << ctx.code->ReturnVoid();
+        return;
+    }
+    SemanticType retType = ctx.currentReturnTypes[0];
+    ctx.emitDefaultValue(retType);
+    switch (retType.base) {
+        case SemanticType::FLOAT:
+            *ctx.code << ctx.code->ReturnDouble();
+            break;
+        case SemanticType::STRING:
+            *ctx.code << ctx.code->ReturnReference();
+            break;
+        case SemanticType::BOOL:
+            *ctx.code << ctx.code->ReturnBoolean();
+            break;
+        case SemanticType::RUNE:
+        case SemanticType::INT:
+        default:
+            *ctx.code << ctx.code->ReturnInt();
+            break;
     }
 }
 
@@ -5332,27 +5593,43 @@ void ProgramNode::emitBytecode(BytecodeContext &ctx) {
     if (!topLevelDeclList || !topLevelDeclList->getList()) {
         return;
     }
-    FuncDeclNode *mainFunc = nullptr;
+    ctx.functions.clear();
+    vector<FuncDeclNode*> funcs;
     for (TopLevelDeclNode *elem : *topLevelDeclList->getList()) {
         if (!elem) {
             continue;
         }
         FuncDeclNode *func = elem->getFuncDecl();
-        if (!func || !func->getId()) {
+        if (!func || !func->getId() || !func->getId()->getString()) {
             continue;
         }
-        ValueNode *id = func->getId();
-        if (id->getString() && *id->getString() == "main") {
-            mainFunc = func;
-            break;
+        const string &name = *func->getId()->getString();
+        SemanticContext::FunctionInfo fnInfo;
+        if (SignatureNode *sig = func->getSignature()) {
+            fnInfo.params = collectParamTypes(sig->getParamList());
+            bool allowBare = false;
+            fnInfo.results = collectResultTypes(sig->getResult(), allowBare);
         }
+        ctx.functions[name] = fnInfo;
+        funcs.push_back(func);
     }
-    if (!mainFunc) {
-        return;
-    }
-    ctx.startMain();
-    mainFunc->emitBytecode(ctx);
-    if (ctx.code) {
-        *ctx.code << ctx.code->ReturnVoid();
+    for (FuncDeclNode *func : funcs) {
+        if (!func || !func->getId() || !func->getId()->getString()) {
+            continue;
+        }
+        const string &name = *func->getId()->getString();
+        const auto it = ctx.functions.find(name);
+        const vector<SemanticType> empty;
+        const vector<SemanticType> &params = (it != ctx.functions.end()) ? it->second.params : empty;
+        const vector<SemanticType> &results = (it != ctx.functions.end()) ? it->second.results : empty;
+        if (name == "main") {
+            ctx.startMain();
+            ctx.currentReturnTypes = results;
+        } else {
+            if (!ctx.startFunction(name, params, results)) {
+                continue;
+            }
+        }
+        func->emitBytecode(ctx);
     }
 }
