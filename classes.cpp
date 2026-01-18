@@ -4776,6 +4776,125 @@ void StmtNode::emitBytecode(BytecodeContext &ctx) {
             }
             break;
         }
+        case SWITCH: {
+            if (!ctx.code) {
+                break;
+            }
+            if (simpleStmt) {
+                simpleStmt->emitBytecode(ctx);
+            }
+            jvm::Label *labelEnd = ctx.code->CodeLabel();
+            ctx.pushLoop(labelEnd, nullptr);
+            auto *cases = caseList ? caseList->getCaseList() : nullptr;
+            if (!cases || cases->empty()) {
+                ctx.popLoop();
+                break;
+            }
+
+            SemanticType condType = SemanticType::makeBase(SemanticType::BOOL);
+            uint16_t condSlot = 0;
+            bool hasCond = (condition != nullptr);
+            if (hasCond) {
+                condType = ctx.inferExprType(condition);
+                string tmpName = "$switch$" + to_string(ctx.locals.size());
+                condSlot = ctx.allocateLocal(tmpName, condType);
+                if (!ctx.emitExprWithCast(condition, condType)) {
+                    ctx.popLoop();
+                    break;
+                }
+                ctx.emitStore(condType, condSlot);
+            }
+
+            jvm::Label *labelDefault = nullptr;
+            vector<pair<CaseNode*, jvm::Label*>> caseLabels;
+            caseLabels.reserve(cases->size());
+            for (CaseNode *caseNode : *cases) {
+                if (!caseNode) {
+                    continue;
+                }
+                ExprListNode *exprList = caseNode->getExprList();
+                if (!exprList || !exprList->getExprList()) {
+                    labelDefault = ctx.code->CodeLabel();
+                    caseLabels.emplace_back(caseNode, labelDefault);
+                } else {
+                    caseLabels.emplace_back(caseNode, ctx.code->CodeLabel());
+                }
+            }
+
+            for (auto &entry : caseLabels) {
+                CaseNode *caseNode = entry.first;
+                jvm::Label *caseLabel = entry.second;
+                ExprListNode *exprList = caseNode ? caseNode->getExprList() : nullptr;
+                auto *exprs = exprList ? exprList->getExprList() : nullptr;
+                if (!exprs || exprs->empty()) {
+                    continue;
+                }
+                for (ExprNode *expr : *exprs) {
+                    if (!expr) {
+                        continue;
+                    }
+                    if (!hasCond) {
+                        if (!ctx.emitExpr(expr)) {
+                            continue;
+                        }
+                        *ctx.code << ctx.code->If(jvm::Instruction::Compare::NotEqual, caseLabel);
+                        continue;
+                    }
+                    if (condType.isString() && condType.isScalar()) {
+                        ctx.emitLoad(condType, condSlot);
+                        if (!ctx.emitExpr(expr)) {
+                            continue;
+                        }
+                        jvm::ConstantMethodref *compareToRef = ctx.clazz->getOrCreateMethodrefConstant(
+                            "java/lang/String",
+                            "compareTo",
+                            jvm::DescriptorMethod(jvm::DescriptorField(jvm::Descriptor::Int),
+                                {jvm::DescriptorField("java/lang/String")})
+                        );
+                        *ctx.code << ctx.code->InvokeVirtual(compareToRef);
+                        *ctx.code << ctx.code->If(jvm::Instruction::Compare::Equal, caseLabel);
+                        continue;
+                    }
+                    if (condType.base == SemanticType::FLOAT && condType.isScalar()) {
+                        ctx.emitLoad(condType, condSlot);
+                        if (!ctx.emitExprWithCast(expr, condType)) {
+                            continue;
+                        }
+                        *ctx.code << ctx.code->CompareDouble(jvm::Instruction::StrictCompare::Greater);
+                        *ctx.code << ctx.code->If(jvm::Instruction::Compare::Equal, caseLabel);
+                        continue;
+                    }
+                    if (condType.isScalar()) {
+                        ctx.emitLoad(condType, condSlot);
+                        if (!ctx.emitExprWithCast(expr, condType)) {
+                            continue;
+                        }
+                        *ctx.code << ctx.code->IfWithCompare(jvm::Instruction::Compare::Equal, caseLabel);
+                        continue;
+                    }
+                }
+            }
+
+            if (labelDefault) {
+                *ctx.code << ctx.code->GoTo(labelDefault);
+            } else {
+                *ctx.code << ctx.code->GoTo(labelEnd);
+            }
+
+            for (auto &entry : caseLabels) {
+                CaseNode *caseNode = entry.first;
+                jvm::Label *caseLabel = entry.second;
+                *ctx.code << caseLabel;
+                if (caseNode) {
+                    caseNode->emitBytecode(ctx);
+                }
+                *ctx.code << ctx.code->GoTo(labelEnd);
+            }
+
+            *ctx.code << labelEnd;
+            ctx.popLoop();
+            break;
+        }
         case FOR: {
             if (!ctx.code) {
                 break;
