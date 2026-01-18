@@ -307,6 +307,43 @@ static bool isIdentifierExpr(ExprNode *expr, string *outName) {
     return true;
 }
 
+static bool isConstArrayLenExpr(ExprNode *expr, SemanticContext &ctx) {
+    if (!expr) {
+        return false;
+    }
+    switch (expr->getType()) {
+        case ExprNode::LIT_VAL: {
+            ValueNode *lit = expr->getLiteral();
+            return lit && lit->getValueType() == ValueNode::LIT_INT;
+        }
+        case ExprNode::ID: {
+            ValueNode *idVal = expr->getIdentifier();
+            if (!idVal || !idVal->getString()) {
+                return false;
+            }
+            return ctx.isConst(*idVal->getString());
+        }
+        case ExprNode::EXPR_IN_BRACKETS:
+            return isConstArrayLenExpr(expr->getOperand(), ctx);
+        default:
+            return false;
+    }
+}
+
+static void validateArrayLenExpr(ExprNode *lenExpr, SemanticContext &ctx) {
+    if (!lenExpr) {
+        return;
+    }
+    SemanticType lenType = lenExpr->semantics(ctx);
+    if (!lenType.isError && lenType.base != SemanticType::INT) {
+        ctx.report("array length " + formatExprForGoMessage(lenExpr) + " must be integer");
+        return;
+    }
+    if (!isConstArrayLenExpr(lenExpr, ctx)) {
+        ctx.report("invalid array length " + formatExprForGoMessage(lenExpr));
+    }
+}
+
 static bool isAddressableExpr(ExprNode *expr, SemanticContext &ctx) {
     if (!expr) {
         return false;
@@ -1304,10 +1341,7 @@ SemanticType ExprNode::semantics(SemanticContext &ctx) {
             }
 
             if (arrayLen) {
-                SemanticType lenType = arrayLen->semantics(ctx);
-                if (!lenType.isError && lenType.base != SemanticType::INT) {
-                    ctx.report("array length " + *arrayLen->getLiteral()->getValueString() + " must be integer");
-                }
+                validateArrayLenExpr(arrayLen, ctx);
                 if (arrayElems && arrayElems->getExprList() && arrayLen->getType() == LIT_VAL) {
                     ValueNode *lenVal = arrayLen->getLiteral();
                     if (lenVal && lenVal->getValueType() == ValueNode::LIT_INT) {
@@ -2892,6 +2926,25 @@ string TypeNode::toDot() const {
     return res;
 }
 
+TypeNode::Kind TypeNode::getKind() const {
+    return kind;
+}
+
+ExprNode* TypeNode::getArrayLenExpr() const {
+    return arrayLen;
+}
+
+TypeNode* TypeNode::getElemType() const {
+    return elemType;
+}
+
+void TypeNode::validateArrayLen(SemanticContext &ctx) const {
+    if (kind != ARRAY) {
+        return;
+    }
+    validateArrayLenExpr(arrayLen, ctx);
+}
+
 SemanticType TypeNode::getSemanticType() const {
     switch (kind) {
         case NAMED: {
@@ -2960,6 +3013,7 @@ void ParamDeclNode::semantics(SemanticContext &ctx) {
     if (!type) {
         return;
     }
+    type->validateArrayLen(ctx);
     SemanticType paramType = type->getSemanticType();
     if (!idList || !idList->getIdList()) {
         return;
@@ -3098,7 +3152,10 @@ string ResultNode::toDot() const {
 
 void ResultNode::semantics(SemanticContext &ctx) {
     if (paramList) paramList->semantics(ctx);
-    if (type) type->getSemanticType();
+    if (type) {
+        type->validateArrayLen(ctx);
+        type->getSemanticType();
+    }
 }
 
 ParamDeclListNode* ResultNode::getParamList() const {
@@ -3150,6 +3207,9 @@ string VarSpecNode::toDot() const {
 void VarSpecNode::semantics(SemanticContext &ctx) {
     if (!idList || !idList->getIdList()) {
         return;
+    }
+    if (type) {
+        type->validateArrayLen(ctx);
     }
     SemanticType declaredType = type ? type->getSemanticType() : SemanticType::makeBase(SemanticType::UNKNOWN);
     size_t idCount = idList->getIdList()->size();
@@ -3298,6 +3358,9 @@ string ConstSpecNode::toDot() const {
 void ConstSpecNode::semantics(SemanticContext &ctx) {
     if (!idList || !idList->getIdList()) {
         return;
+    }
+    if (type) {
+        type->validateArrayLen(ctx);
     }
     SemanticType declaredType = type ? type->getSemanticType() : SemanticType::makeBase(SemanticType::UNKNOWN);
     ExprListNode *useExprList = exprList;

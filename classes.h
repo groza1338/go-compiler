@@ -532,8 +532,13 @@ public:
     static TypeNode* createFuncType(SignatureNode *signature);
     static TypeNode* createSliceType(TypeNode *elemType);
 
+    Kind getKind() const;
+    ExprNode* getArrayLenExpr() const;
+    TypeNode* getElemType() const;
+
     string getDotLabel() const override;
     string toDot() const override;
+    void validateArrayLen(SemanticContext &ctx) const;
     SemanticType getSemanticType() const;
 
 private:
