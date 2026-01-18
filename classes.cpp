@@ -4759,6 +4759,52 @@ void StmtNode::emitBytecode(BytecodeContext &ctx) {
             }
             break;
         }
+        case FOR: {
+            if (!ctx.code) {
+                break;
+            }
+            jvm::Label *labelCond = ctx.code->CodeLabel();
+            jvm::Label *labelEnd = ctx.code->CodeLabel();
+            *ctx.code << labelCond;
+            if (condition) {
+                if (!ctx.emitExpr(condition)) {
+                    break;
+                }
+                *ctx.code << ctx.code->If(jvm::Instruction::Compare::Equal, labelEnd);
+            }
+            if (body) {
+                body->emitBytecode(ctx);
+            }
+            *ctx.code << ctx.code->GoTo(labelCond);
+            *ctx.code << labelEnd;
+            break;
+        }
+        case FOR_PARAM: {
+            if (!ctx.code) {
+                break;
+            }
+            if (initStmt) {
+                initStmt->emitBytecode(ctx);
+            }
+            jvm::Label *labelCond = ctx.code->CodeLabel();
+            jvm::Label *labelEnd = ctx.code->CodeLabel();
+            *ctx.code << labelCond;
+            if (condition) {
+                if (!ctx.emitExpr(condition)) {
+                    break;
+                }
+                *ctx.code << ctx.code->If(jvm::Instruction::Compare::Equal, labelEnd);
+            }
+            if (body) {
+                body->emitBytecode(ctx);
+            }
+            if (postStmt) {
+                postStmt->emitBytecode(ctx);
+            }
+            *ctx.code << ctx.code->GoTo(labelCond);
+            *ctx.code << labelEnd;
+            break;
+        }
         default:
             break;
     }
@@ -4788,6 +4834,42 @@ void SimpleStmtNode::emitBytecode(BytecodeContext &ctx) {
                 ctx.emitPrintCall(expr);
             }
             break;
+        case INC:
+        case DEC: {
+            if (!expr || expr->getType() != ExprNode::ID) {
+                break;
+            }
+            ValueNode *idVal = expr->getIdentifier();
+            if (!idVal || !idVal->getString()) {
+                break;
+            }
+            auto it = ctx.locals.find(*idVal->getString());
+            if (it == ctx.locals.end()) {
+                break;
+            }
+            SemanticType varType = it->second.type;
+            if (!varType.isNumeric() || !varType.isScalar()) {
+                break;
+            }
+            ctx.emitLoad(varType, it->second.index);
+            if (varType.base == SemanticType::FLOAT) {
+                *ctx.code << ctx.code->PushDouble(1.0);
+                if (type == INC) {
+                    *ctx.code << ctx.code->AddDouble();
+                } else {
+                    *ctx.code << ctx.code->SubDouble();
+                }
+            } else {
+                *ctx.code << ctx.code->PushInt(1);
+                if (type == INC) {
+                    *ctx.code << ctx.code->AddInt();
+                } else {
+                    *ctx.code << ctx.code->SubInt();
+                }
+            }
+            ctx.emitStore(varType, it->second.index);
+            break;
+        }
         case ASSIGN:
         case ADD_ASSIGN:
         case SUB_ASSIGN:
