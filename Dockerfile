@@ -41,6 +41,8 @@ ENV PATH="${JAVA_HOME}/bin:${PATH}"
 WORKDIR /app
 
 COPY --from=builder /src/build/golang_compiler /app/golang_compiler
+RUN mkdir -p /src/build/java
+COPY --from=builder /src/build/java/fix_code_attribute.jar /src/build/java/fix_code_attribute.jar
 COPY . /app
 
 # Run command
