@@ -1,5 +1,5 @@
-# Build stage (only rebuilds when core sources change)
-FROM ubuntu:22.04 AS builder
+# Single-stage image (build cache only invalidates on core sources)
+FROM ubuntu:22.04
 RUN apt-get update && \
     DEBIAN_FRONTEND=noninteractive apt-get install -y --no-install-recommends \
     build-essential \
@@ -8,6 +8,8 @@ RUN apt-get update && \
     cmake \
     maven \
     openjdk-17-jdk-headless \
+    graphviz \
+    ca-certificates \
     && rm -rf /var/lib/apt/lists/*
 
 # Java setup for jvm-class-builder
@@ -26,24 +28,9 @@ COPY ./classes.* /src/
 
 RUN cmake -S /src -B /src/build && cmake --build /src/build
 
-# Runtime stage
-FROM ubuntu:22.04 AS runtime
-RUN apt-get update && \
-    DEBIAN_FRONTEND=noninteractive apt-get install -y --no-install-recommends \
-    openjdk-17-jre-headless \
-    graphviz \
-    ca-certificates \
-    && rm -rf /var/lib/apt/lists/*
-
-RUN ln -s /usr/lib/jvm/java-17-openjdk-$(dpkg --print-architecture) /usr/lib/jvm/java-17-openjdk
-ENV JAVA_HOME=/usr/lib/jvm/java-17-openjdk
-ENV PATH="${JAVA_HOME}/bin:${PATH}"
 WORKDIR /app
-
-COPY --from=builder /src/build/golang_compiler /app/golang_compiler
-RUN mkdir -p /src/build/java
-COPY --from=builder /src/build/java/fix_code_attribute.jar /src/build/java/fix_code_attribute.jar
 COPY . /app
+RUN cp /src/build/golang_compiler /app/golang_compiler
 
 # Run command
 CMD ["./golang_compiler"]
