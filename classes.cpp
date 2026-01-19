@@ -5667,6 +5667,23 @@ bool BytecodeContext::emitScanCall(ExprNode *expr) {
     *code << code->InvokeSpecial(ctor);
     emitStore(refType, scannerSlot);
 
+    jvm::ConstantFieldref *localeUS = clazz->getOrCreateFieldrefConstant(
+        "java/util/Locale",
+        "US",
+        jvm::DescriptorField("java/util/Locale")
+    );
+    jvm::ConstantMethodref *useLocale = clazz->getOrCreateMethodrefConstant(
+        scannerClass,
+        "useLocale",
+        jvm::DescriptorMethod(jvm::DescriptorField("java/util/Scanner"), {jvm::DescriptorField("java/util/Locale")})
+    );
+    if (localeUS && useLocale) {
+        emitLoad(refType, scannerSlot);
+        *code << code->GetStatic(localeUS);
+        *code << code->InvokeVirtual(useLocale);
+        *code << code->PopOne();
+    }
+
     for (ExprNode *arg : *args->getExprList()) {
         if (!arg) {
             continue;
