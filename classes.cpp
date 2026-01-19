@@ -5077,13 +5077,58 @@ bool BytecodeContext::emitArrayPrint(ExprNode *expr, const SemanticType &arrayTy
     }
     *code << labelNoSpace;
 
-    *code << code->GetStatic(systemOut);
-    emitLoad(arrayType, arrSlot);
-    emitLoad(intType, idxSlot);
-    emitArrayLoadValue(elemType);
-    jvm::ConstantMethodref *printElem = getPrintMethod(elemType);
-    if (printElem) {
-        *code << code->InvokeVirtual(printElem);
+    if (elemType.base == SemanticType::FLOAT && elemType.isScalar()) {
+        SemanticType floatType = SemanticType::makeBase(SemanticType::FLOAT);
+        emitLoad(arrayType, arrSlot);
+        emitLoad(intType, idxSlot);
+        emitArrayLoadValue(elemType);
+        string tmpName = "$arr_print$" + to_string(locals.size());
+        uint16_t tmpSlot = allocateLocal(tmpName, floatType);
+        emitStore(floatType, tmpSlot);
+        emitLoad(floatType, tmpSlot);
+        jvm::ConstantMethodref *floorRef = clazz->getOrCreateMethodrefConstant(
+            "java/lang/Math",
+            "floor",
+            jvm::DescriptorMethod(jvm::DescriptorField(jvm::Descriptor::Double), {jvm::DescriptorField(jvm::Descriptor::Double)})
+        );
+        *code << code->InvokeStatic(floorRef);
+        emitLoad(floatType, tmpSlot);
+        *code << code->CompareDouble(jvm::Instruction::StrictCompare::Greater);
+        jvm::Label *labelInt = code->CodeLabel();
+        jvm::Label *labelEnd = code->CodeLabel();
+        *code << code->If(jvm::Instruction::Compare::Equal, labelInt);
+        *code << code->GetStatic(systemOut);
+        emitLoad(floatType, tmpSlot);
+        *code << code->DoubleToFloat();
+        jvm::ConstantMethodref *floatToString = clazz->getOrCreateMethodrefConstant(
+            "java/lang/Float",
+            "toString",
+            jvm::DescriptorMethod(jvm::DescriptorField("java/lang/String"), {jvm::DescriptorField(jvm::Descriptor::Float)})
+        );
+        *code << code->InvokeStatic(floatToString);
+        jvm::ConstantMethodref *printString = getPrintMethod(SemanticType::makeBase(SemanticType::STRING));
+        if (printString) {
+            *code << code->InvokeVirtual(printString);
+        }
+        *code << code->GoTo(labelEnd);
+        *code << labelInt;
+        *code << code->GetStatic(systemOut);
+        emitLoad(floatType, tmpSlot);
+        *code << code->DoubleToInt();
+        jvm::ConstantMethodref *printInt = getPrintMethod(SemanticType::makeBase(SemanticType::INT));
+        if (printInt) {
+            *code << code->InvokeVirtual(printInt);
+        }
+        *code << labelEnd;
+    } else {
+        *code << code->GetStatic(systemOut);
+        emitLoad(arrayType, arrSlot);
+        emitLoad(intType, idxSlot);
+        emitArrayLoadValue(elemType);
+        jvm::ConstantMethodref *printElem = getPrintMethod(elemType);
+        if (printElem) {
+            *code << code->InvokeVirtual(printElem);
+        }
     }
 
     emitLoad(intType, idxSlot);
@@ -5524,10 +5569,17 @@ bool BytecodeContext::emitPrintCall(ExprNode *expr) {
             *code << code->If(jvm::Instruction::Compare::Equal, labelInt);
             *code << code->GetStatic(systemOut);
             emitLoad(floatType, tmpSlot);
-            jvm::ConstantMethodref *printDouble = getPrintMethod(floatType);
-            if (printDouble) {
-                *code << code->InvokeVirtual(printDouble);
-            }
+        *code << code->DoubleToFloat();
+        jvm::ConstantMethodref *floatToString = clazz->getOrCreateMethodrefConstant(
+            "java/lang/Float",
+            "toString",
+            jvm::DescriptorMethod(jvm::DescriptorField("java/lang/String"), {jvm::DescriptorField(jvm::Descriptor::Float)})
+        );
+        *code << code->InvokeStatic(floatToString);
+        jvm::ConstantMethodref *printString = getPrintMethod(SemanticType::makeBase(SemanticType::STRING));
+        if (printString) {
+            *code << code->InvokeVirtual(printString);
+        }
             *code << code->GoTo(labelEnd);
             *code << labelInt;
             *code << code->GetStatic(systemOut);
