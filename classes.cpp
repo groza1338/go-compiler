@@ -4734,19 +4734,9 @@ bool BytecodeContext::emitArrayNew(const SemanticType &arrayType) {
         return false;
     }
     if (dims > 1) {
-        if (arrayType.arrayDims < dims || arrayType.arrayLengths.size() < static_cast<size_t>(dims)) {
-            return false;
-        }
-        for (int i = 0; i < dims; ++i) {
-            int lenValue = arrayType.arrayLengths[static_cast<size_t>(i)];
-            if (lenValue < 0) {
-                return false;
-            }
-            *code << code->PushInt(lenValue);
-        }
-        string descriptor = buildArrayDescriptor(arrayType, dims);
-        jvm::ConstantClass *arrayClass = clazz->getOrCreateClassConstant(descriptor);
-        *code << code->MultiNewArray(arrayClass, static_cast<uint8_t>(dims));
+        string innerDescriptor = buildArrayDescriptor(arrayType, dims - 1);
+        jvm::ConstantClass *innerClass = clazz->getOrCreateClassConstant(innerDescriptor);
+        *code << code->NewArray(innerClass);
         return true;
     }
     if (arrayType.base == SemanticType::STRING) {
@@ -4780,69 +4770,30 @@ bool BytecodeContext::emitArrayLiteral(ExprNode *expr) {
     if (arrayType.arrayDims <= 0) {
         return false;
     }
-    if (arrayType.arrayDims > 1) {
-        if (!emitArrayNew(arrayType)) {
-            return false;
-        }
-    } else {
-        ExprNode *lenExpr = expr->getArrayLen();
-        if (!lenExpr || !emitExpr(lenExpr)) {
-            return false;
-        }
-        if (!emitArrayNew(arrayType)) {
-            return false;
-        }
+    ExprNode *lenExpr = expr->getArrayLen();
+    if (!lenExpr || !emitExpr(lenExpr)) {
+        return false;
+    }
+    if (!emitArrayNew(arrayType)) {
+        return false;
     }
     uint16_t arrSlot = allocateTempLocal(arrayType);
     emitStore(arrayType, arrSlot);
-    if (!emitArrayLiteralFill(expr, arrayType, arrSlot)) {
-        return false;
-    }
-    emitLoad(arrayType, arrSlot);
-    return true;
-}
-
-bool BytecodeContext::emitArrayLiteralFill(ExprNode *expr, const SemanticType &arrayType, uint16_t arraySlot) {
-    if (!expr || !code) {
-        return false;
-    }
     ExprListNode *elems = expr->getArrayElems();
-    if (!elems || !elems->getExprList()) {
-        return true;
-    }
-    int dims = arrayType.arrayDims + arrayType.sliceDims;
-    if (dims <= 0) {
-        return false;
-    }
-    SemanticType elemType = arrayType;
-    if (arrayType.arrayDims > 0) {
+    if (elems && elems->getExprList()) {
+        int idx = 0;
+        SemanticType elemType = arrayType;
         dropOuterArrayDim(elemType);
-    } else if (arrayType.sliceDims > 0) {
-        elemType.sliceDims -= 1;
-    }
-    int idx = 0;
-    for (ExprNode *elem : *elems->getExprList()) {
-        if (!elem) {
-            idx++;
-            continue;
-        }
-        if ((elemType.arrayDims + elemType.sliceDims) > 0
-            && (elem->getType() == ExprNode::COMPOSITE_LIT || elem->getType() == ExprNode::ARRAY_LIT)) {
-            *code << code->LoadReference(arraySlot);
+        for (ExprNode *elem : *elems->getExprList()) {
+            *code << code->LoadReference(arrSlot);
             *code << code->PushInt(idx);
-            emitArrayLoadValue(elemType);
-            uint16_t subSlot = allocateTempLocal(elemType);
-            emitStore(elemType, subSlot);
-            emitArrayLiteralFill(elem, elemType, subSlot);
-        } else {
-            *code << code->LoadReference(arraySlot);
-            *code << code->PushInt(idx);
-            if (emitExprWithCast(elem, elemType)) {
+            if (elem && emitExprWithCast(elem, elemType)) {
                 emitArrayStoreValue(elemType);
             }
+            idx++;
         }
-        idx++;
     }
+    emitLoad(arrayType, arrSlot);
     return true;
 }
 
@@ -5079,18 +5030,14 @@ bool BytecodeContext::emitArrayPrint(ExprNode *expr, const SemanticType &arrayTy
     if (!expr || !code || !systemOut) {
         return false;
     }
+    if (arrayType.arrayDims + arrayType.sliceDims != 1) {
+        return false;
+    }
     if (!emitExpr(expr)) {
         return false;
     }
     uint16_t arrSlot = allocateTempLocal(arrayType);
     emitStore(arrayType, arrSlot);
-    return emitArrayPrintFromSlot(arrayType, arrSlot);
-}
-
-bool BytecodeContext::emitArrayPrintFromSlot(const SemanticType &arrayType, uint16_t arraySlot) {
-    if (!code || !systemOut) {
-        return false;
-    }
     SemanticType intType = SemanticType::makeBase(SemanticType::INT);
     uint16_t idxSlot = allocateTempLocal(intType);
     jvm::ConstantMethodref *printString = getPrintMethod(SemanticType::makeBase(SemanticType::STRING));
@@ -5110,7 +5057,7 @@ bool BytecodeContext::emitArrayPrintFromSlot(const SemanticType &arrayType, uint
 
     *code << labelCond;
     emitLoad(intType, idxSlot);
-    emitLoad(arrayType, arraySlot);
+    emitLoad(arrayType, arrSlot);
     *code << code->ArrayLength();
     *code << code->IfWithCompare(jvm::Instruction::Compare::GreaterEqual, labelEnd);
 
@@ -5127,65 +5074,60 @@ bool BytecodeContext::emitArrayPrintFromSlot(const SemanticType &arrayType, uint
     SemanticType elemType = arrayType;
     if (arrayType.arrayDims > 0) {
         dropOuterArrayDim(elemType);
-    } else if (arrayType.sliceDims > 0) {
+    } else {
         elemType.sliceDims -= 1;
     }
-    if (elemType.arrayDims > 0 || elemType.sliceDims > 0) {
-        emitLoad(arrayType, arraySlot);
+    if (elemType.base == SemanticType::FLOAT && elemType.isScalar()) {
+        SemanticType floatType = SemanticType::makeBase(SemanticType::FLOAT);
+        emitLoad(arrayType, arrSlot);
         emitLoad(intType, idxSlot);
         emitArrayLoadValue(elemType);
-        uint16_t subSlot = allocateTempLocal(elemType);
-        emitStore(elemType, subSlot);
-        emitArrayPrintFromSlot(elemType, subSlot);
+        string tmpName = "$arr_print$" + to_string(locals.size());
+        uint16_t tmpSlot = allocateLocal(tmpName, floatType);
+        emitStore(floatType, tmpSlot);
+        emitLoad(floatType, tmpSlot);
+        jvm::ConstantMethodref *floorRef = clazz->getOrCreateMethodrefConstant(
+            "java/lang/Math",
+            "floor",
+            jvm::DescriptorMethod(jvm::DescriptorField(jvm::Descriptor::Double), {jvm::DescriptorField(jvm::Descriptor::Double)})
+        );
+        *code << code->InvokeStatic(floorRef);
+        emitLoad(floatType, tmpSlot);
+        *code << code->CompareDouble(jvm::Instruction::StrictCompare::Greater);
+        jvm::Label *labelInt = code->CodeLabel();
+        jvm::Label *labelEnd = code->CodeLabel();
+        *code << code->If(jvm::Instruction::Compare::Equal, labelInt);
+        *code << code->GetStatic(systemOut);
+        emitLoad(floatType, tmpSlot);
+        *code << code->DoubleToFloat();
+        jvm::ConstantMethodref *floatToString = clazz->getOrCreateMethodrefConstant(
+            "java/lang/Float",
+            "toString",
+            jvm::DescriptorMethod(jvm::DescriptorField("java/lang/String"), {jvm::DescriptorField(jvm::Descriptor::Float)})
+        );
+        *code << code->InvokeStatic(floatToString);
+        jvm::ConstantMethodref *printString = getPrintMethod(SemanticType::makeBase(SemanticType::STRING));
+        if (printString) {
+            *code << code->InvokeVirtual(printString);
+        }
+        *code << code->GoTo(labelEnd);
+        *code << labelInt;
+        *code << code->GetStatic(systemOut);
+        emitLoad(floatType, tmpSlot);
+        *code << code->DoubleToInt();
+        jvm::ConstantMethodref *printInt = getPrintMethod(SemanticType::makeBase(SemanticType::INT));
+        if (printInt) {
+            *code << code->InvokeVirtual(printInt);
+        }
+        *code << labelEnd;
     } else {
         *code << code->GetStatic(systemOut);
-        emitLoad(arrayType, arraySlot);
+        emitLoad(arrayType, arrSlot);
         emitLoad(intType, idxSlot);
         emitArrayLoadValue(elemType);
-        if (elemType.base == SemanticType::FLOAT) {
-            jvm::ConstantMethodref *floorRef = clazz->getOrCreateMethodrefConstant(
-                "java/lang/Math",
-                "floor",
-                jvm::DescriptorMethod(jvm::DescriptorField(jvm::Descriptor::Double),
-                                      {jvm::DescriptorField(jvm::Descriptor::Double)})
-            );
-            uint16_t tmpSlot = allocateTempLocal(elemType);
-            emitStore(elemType, tmpSlot);
-            emitLoad(elemType, tmpSlot);
-            *code << code->InvokeStatic(floorRef);
-            emitLoad(elemType, tmpSlot);
-            *code << code->CompareDouble(jvm::Instruction::StrictCompare::Greater);
-            jvm::Label *labelInt = code->CodeLabel();
-            jvm::Label *labelDone = code->CodeLabel();
-            *code << code->If(jvm::Instruction::Compare::Equal, labelInt);
-            *code << code->GetStatic(systemOut);
-            emitLoad(elemType, tmpSlot);
-            *code << code->DoubleToFloat();
-            jvm::ConstantMethodref *floatToString = clazz->getOrCreateMethodrefConstant(
-                "java/lang/Float",
-                "toString",
-                jvm::DescriptorMethod(jvm::DescriptorField("java/lang/String"),
-                                      {jvm::DescriptorField(jvm::Descriptor::Float)})
-            );
-            *code << code->InvokeStatic(floatToString);
-            if (printString) {
-                *code << code->InvokeVirtual(printString);
-            }
-            *code << code->GoTo(labelDone);
-            *code << labelInt;
-            *code << code->GetStatic(systemOut);
-            emitLoad(elemType, tmpSlot);
-            *code << code->DoubleToInt();
-            jvm::ConstantMethodref *printInt = getPrintMethod(SemanticType::makeBase(SemanticType::INT));
-            if (printInt) {
-                *code << code->InvokeVirtual(printInt);
-            }
-            *code << labelDone;
-        } else {
-            jvm::ConstantMethodref *printElem = getPrintMethod(elemType);
-            if (printElem) {
-                *code << code->InvokeVirtual(printElem);
-            }
+        jvm::ConstantMethodref *printElem = getPrintMethod(elemType);
+        if (printElem) {
+            *code << code->InvokeVirtual(printElem);
         }
     }
 
@@ -6495,15 +6437,9 @@ void VarSpecNode::emitBytecode(BytecodeContext &ctx) {
                 continue;
             }
         } else if (type && type->getKind() == TypeNode::ARRAY) {
-            if (semType.arrayDims > 1) {
-                if (!ctx.emitArrayNew(semType)) {
-                    continue;
-                }
-            } else {
-                ExprNode *lenExpr = type->getArrayLenExpr();
-                if (!lenExpr || !ctx.emitExpr(lenExpr) || !ctx.emitArrayNew(semType)) {
-                    continue;
-                }
+            ExprNode *lenExpr = type->getArrayLenExpr();
+            if (!lenExpr || !ctx.emitExpr(lenExpr) || !ctx.emitArrayNew(semType)) {
+                continue;
             }
         } else {
             ctx.emitDefaultValue(semType);
@@ -6545,15 +6481,9 @@ void ConstSpecNode::emitBytecode(BytecodeContext &ctx) {
                 continue;
             }
         } else if (type && type->getKind() == TypeNode::ARRAY) {
-            if (semType.arrayDims > 1) {
-                if (!ctx.emitArrayNew(semType)) {
-                    continue;
-                }
-            } else {
-                ExprNode *lenExpr = type->getArrayLenExpr();
-                if (!lenExpr || !ctx.emitExpr(lenExpr) || !ctx.emitArrayNew(semType)) {
-                    continue;
-                }
+            ExprNode *lenExpr = type->getArrayLenExpr();
+            if (!lenExpr || !ctx.emitExpr(lenExpr) || !ctx.emitArrayNew(semType)) {
+                continue;
             }
         } else {
             ctx.emitDefaultValue(semType);

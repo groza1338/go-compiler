@@ -213,7 +213,6 @@ struct BytecodeContext {
     bool emitLiteral(ValueNode *literal);
     bool emitArrayNew(const SemanticType &arrayType);
     bool emitArrayLiteral(ExprNode *expr);
-    bool emitArrayLiteralFill(ExprNode *expr, const SemanticType &arrayType, uint16_t arraySlot);
     bool emitArrayAccess(ExprNode *expr);
     bool emitSliceLiteral(ExprNode *expr);
     bool emitSliceExpr(ExprNode *expr);
@@ -221,7 +220,6 @@ struct BytecodeContext {
     void emitArrayStoreValue(const SemanticType &elemType);
     void emitArrayLoadValue(const SemanticType &elemType);
     bool emitArrayPrint(ExprNode *expr, const SemanticType &arrayType);
-    bool emitArrayPrintFromSlot(const SemanticType &arrayType, uint16_t arraySlot);
     void emitLoad(const SemanticType &type, uint16_t index);
     void emitStore(const SemanticType &type, uint16_t index);
     SemanticType inferExprType(ExprNode *expr);
