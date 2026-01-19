@@ -1572,7 +1572,9 @@ SemanticType ExprNode::semantics(SemanticContext &ctx) {
                 ctx.report("cannot index " + toString() + " (variable of type " + operandType.toString() + ")");
             }
             SemanticType rightType = right ? right->semantics(ctx) : SemanticType::makeBase(SemanticType::UNKNOWN);
-            if (elemType.base != SemanticType::UNKNOWN && !isAssignable(elemType, rightType)) {
+            if (elemType.base != SemanticType::UNKNOWN
+                && !isAssignable(elemType, rightType)
+                && !isLiteralAssignableToType(right, elemType)) {
                 string msg;
                 buildAssignMismatch(right, rightType, elemType, msg);
                 ctx.report(msg);
@@ -2769,7 +2771,9 @@ void SimpleStmtNode::semantics(SemanticContext &ctx) {
                 }
 
                 if (type == ASSIGN) {
-                    if (leftType.base != SemanticType::UNKNOWN && !isAssignable(leftType, rightType)) {
+                    if (leftType.base != SemanticType::UNKNOWN
+                        && !isAssignable(leftType, rightType)
+                        && !isLiteralAssignableToType(rightExpr, leftType)) {
                         string msg;
                         buildAssignMismatch(rightExpr, rightType, leftType, msg);
                         ctx.report(msg);
