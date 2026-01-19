@@ -4696,13 +4696,44 @@ bool BytecodeContext::emitLiteral(ValueNode *literal) {
     }
 }
 
+static string buildArrayDescriptor(const SemanticType &type, int totalDims) {
+    string desc;
+    desc.reserve(static_cast<size_t>(totalDims) + 2);
+    for (int i = 0; i < totalDims; i++) {
+        desc.push_back('[');
+    }
+    switch (type.base) {
+        case SemanticType::FLOAT:
+            desc.push_back('D');
+            break;
+        case SemanticType::BOOL:
+            desc.push_back('Z');
+            break;
+        case SemanticType::STRING:
+            desc += "Ljava/lang/String;";
+            break;
+        case SemanticType::RUNE:
+        case SemanticType::INT:
+        default:
+            desc.push_back('I');
+            break;
+    }
+    return desc;
+}
+
 bool BytecodeContext::emitArrayNew(const SemanticType &arrayType) {
     if (!code || !clazz) {
         return false;
     }
     int dims = arrayType.arrayDims + arrayType.sliceDims;
-    if (dims <= 0 || dims > 1) {
+    if (dims <= 0) {
         return false;
+    }
+    if (dims > 1) {
+        string innerDescriptor = buildArrayDescriptor(arrayType, dims - 1);
+        jvm::ConstantClass *innerClass = clazz->getOrCreateClassConstant(innerDescriptor);
+        *code << code->NewArray(innerClass);
+        return true;
     }
     if (arrayType.base == SemanticType::STRING) {
         jvm::ConstantClass *strClass = clazz->getOrCreateClassConstant("java/lang/String");
@@ -4732,7 +4763,7 @@ bool BytecodeContext::emitArrayLiteral(ExprNode *expr) {
         return false;
     }
     SemanticType arrayType = inferExprType(expr);
-    if (arrayType.arrayDims <= 0 || arrayType.arrayDims > 1) {
+    if (arrayType.arrayDims <= 0) {
         return false;
     }
     ExprNode *lenExpr = expr->getArrayLen();
@@ -4767,7 +4798,7 @@ bool BytecodeContext::emitSliceLiteral(ExprNode *expr) {
         return false;
     }
     SemanticType sliceType = inferExprType(expr);
-    if (sliceType.sliceDims <= 0 || sliceType.arrayDims > 0 || sliceType.sliceDims > 1) {
+    if (sliceType.sliceDims <= 0 || sliceType.arrayDims > 0) {
         return false;
     }
     ExprListNode *elems = expr->getArrayElems();
@@ -4943,6 +4974,10 @@ void BytecodeContext::emitArrayStoreValue(const SemanticType &elemType) {
     if (!code) {
         return;
     }
+    if (elemType.arrayDims > 0 || elemType.sliceDims > 0) {
+        *code << code->StoreReferenceToArray();
+        return;
+    }
     switch (elemType.base) {
         case SemanticType::FLOAT:
             *code << code->StoreDoubleToArray();
@@ -4963,6 +4998,10 @@ void BytecodeContext::emitArrayStoreValue(const SemanticType &elemType) {
 
 void BytecodeContext::emitArrayLoadValue(const SemanticType &elemType) {
     if (!code) {
+        return;
+    }
+    if (elemType.arrayDims > 0 || elemType.sliceDims > 0) {
+        *code << code->LoadReferenceFromArray();
         return;
     }
     switch (elemType.base) {
@@ -5062,21 +5101,22 @@ jvm::ConstantMethodref* BytecodeContext::getArrayCopyRangeMethod(const SemanticT
     if (!clazz) {
         return nullptr;
     }
-    jvm::DescriptorField arrayDesc(jvm::Descriptor::Int, 1);
+    int arrayDepth = 1 + elemType.arrayDims + elemType.sliceDims;
+    jvm::DescriptorField arrayDesc(jvm::Descriptor::Int, static_cast<uint8_t>(arrayDepth));
     switch (elemType.base) {
         case SemanticType::FLOAT:
-            arrayDesc = jvm::DescriptorField(jvm::Descriptor::Double, 1);
+            arrayDesc = jvm::DescriptorField(jvm::Descriptor::Double, static_cast<uint8_t>(arrayDepth));
             break;
         case SemanticType::BOOL:
-            arrayDesc = jvm::DescriptorField(jvm::Descriptor::Boolean, 1);
+            arrayDesc = jvm::DescriptorField(jvm::Descriptor::Boolean, static_cast<uint8_t>(arrayDepth));
             break;
         case SemanticType::STRING:
-            arrayDesc = jvm::DescriptorField("java/lang/String", 1);
+            arrayDesc = jvm::DescriptorField("java/lang/String", static_cast<uint8_t>(arrayDepth));
             break;
         case SemanticType::RUNE:
         case SemanticType::INT:
         default:
-            arrayDesc = jvm::DescriptorField(jvm::Descriptor::Int, 1);
+            arrayDesc = jvm::DescriptorField(jvm::Descriptor::Int, static_cast<uint8_t>(arrayDepth));
             break;
     }
     return clazz->getOrCreateMethodrefConstant(
