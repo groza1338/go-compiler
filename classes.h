@@ -214,6 +214,9 @@ struct BytecodeContext {
     bool emitArrayNew(const SemanticType &arrayType);
     bool emitArrayLiteral(ExprNode *expr);
     bool emitArrayAccess(ExprNode *expr);
+    bool emitSliceLiteral(ExprNode *expr);
+    bool emitSliceExpr(ExprNode *expr);
+    jvm::ConstantMethodref* getArrayCopyRangeMethod(const SemanticType &elemType);
     void emitArrayStoreValue(const SemanticType &elemType);
     void emitArrayLoadValue(const SemanticType &elemType);
     bool emitArrayPrint(ExprNode *expr, const SemanticType &arrayType);

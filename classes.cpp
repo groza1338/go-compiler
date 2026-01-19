@@ -4406,6 +4406,10 @@ bool BytecodeContext::emitExpr(ExprNode *expr) {
             return emitExpr(expr->getOperand());
         case ExprNode::ARRAY_LIT:
             return emitArrayLiteral(expr);
+        case ExprNode::SLICE_LIT:
+            return emitSliceLiteral(expr);
+        case ExprNode::SLICE:
+            return emitSliceExpr(expr);
         case ExprNode::ELEMENT_ACCESS:
             return emitArrayAccess(expr);
         case ExprNode::SUMMARY:
@@ -4696,7 +4700,8 @@ bool BytecodeContext::emitArrayNew(const SemanticType &arrayType) {
     if (!code || !clazz) {
         return false;
     }
-    if (arrayType.arrayDims <= 0 || arrayType.arrayDims > 1) {
+    int dims = arrayType.arrayDims + arrayType.sliceDims;
+    if (dims <= 0 || dims > 1) {
         return false;
     }
     if (arrayType.base == SemanticType::STRING) {
@@ -4745,9 +4750,9 @@ bool BytecodeContext::emitArrayLiteral(ExprNode *expr) {
         for (ExprNode *elem : *elems->getExprList()) {
             *code << code->LoadReference(arrSlot);
             *code << code->PushInt(idx);
-            if (elem && emitExpr(elem)) {
-                SemanticType elemType = arrayType;
-                dropOuterArrayDim(elemType);
+            SemanticType elemType = arrayType;
+            dropOuterArrayDim(elemType);
+            if (elem && emitExprWithCast(elem, elemType)) {
                 emitArrayStoreValue(elemType);
             }
             idx++;
@@ -4757,8 +4762,44 @@ bool BytecodeContext::emitArrayLiteral(ExprNode *expr) {
     return true;
 }
 
+bool BytecodeContext::emitSliceLiteral(ExprNode *expr) {
+    if (!expr || !code || !clazz) {
+        return false;
+    }
+    SemanticType sliceType = inferExprType(expr);
+    if (sliceType.sliceDims <= 0 || sliceType.arrayDims > 0 || sliceType.sliceDims > 1) {
+        return false;
+    }
+    ExprListNode *elems = expr->getArrayElems();
+    int elemCount = 0;
+    if (elems && elems->getExprList()) {
+        elemCount = static_cast<int>(elems->getExprList()->size());
+    }
+    *code << code->PushInt(elemCount);
+    if (!emitArrayNew(sliceType)) {
+        return false;
+    }
+    uint16_t arrSlot = allocateTempLocal(sliceType);
+    emitStore(sliceType, arrSlot);
+    if (elems && elems->getExprList()) {
+        int idx = 0;
+        SemanticType elemType = sliceType;
+        elemType.sliceDims -= 1;
+        for (ExprNode *elem : *elems->getExprList()) {
+            *code << code->LoadReference(arrSlot);
+            *code << code->PushInt(idx);
+            if (elem && emitExprWithCast(elem, elemType)) {
+                emitArrayStoreValue(elemType);
+            }
+            idx++;
+        }
+    }
+    emitLoad(sliceType, arrSlot);
+    return true;
+}
+
 bool BytecodeContext::emitArrayAccess(ExprNode *expr) {
-    if (!expr || !code) {
+    if (!expr || !code || !clazz) {
         return false;
     }
     ExprNode *operand = expr->getOperand();
@@ -4767,15 +4808,134 @@ bool BytecodeContext::emitArrayAccess(ExprNode *expr) {
         return false;
     }
     SemanticType arrayType = inferExprType(operand);
-    if (arrayType.arrayDims <= 0) {
+    if (arrayType.arrayDims > 0 || arrayType.sliceDims > 0) {
+        SemanticType elemType = arrayType;
+        if (arrayType.arrayDims > 0) {
+            dropOuterArrayDim(elemType);
+        } else {
+            elemType.sliceDims -= 1;
+        }
+        if (!emitExpr(operand) || !emitExpr(index)) {
+            return false;
+        }
+        emitArrayLoadValue(elemType);
+        return true;
+    }
+    if (arrayType.isString() && arrayType.isScalar()) {
+        if (!emitExpr(operand) || !emitExpr(index)) {
+            return false;
+        }
+        jvm::ConstantMethodref *charAtRef = clazz->getOrCreateMethodrefConstant(
+            "java/lang/String",
+            "charAt",
+            jvm::DescriptorMethod(jvm::DescriptorField(jvm::Descriptor::Char), {jvm::DescriptorField(jvm::Descriptor::Int)})
+        );
+        *code << code->InvokeVirtual(charAtRef);
+        return true;
+    }
+    return false;
+}
+
+bool BytecodeContext::emitSliceExpr(ExprNode *expr) {
+    if (!expr || !code || !clazz) {
         return false;
     }
-    SemanticType elemType = arrayType;
-    dropOuterArrayDim(elemType);
-    if (!emitExpr(operand) || !emitExpr(index)) {
+    ExprNode *operand = expr->getOperand();
+    if (!operand) {
         return false;
     }
-    emitArrayLoadValue(elemType);
+    SemanticType operandType = inferExprType(operand);
+    ExprNode *lowExpr = expr->getLow();
+    ExprNode *highExpr = expr->getHigh();
+    SemanticType intType = SemanticType::makeBase(SemanticType::INT);
+    if (operandType.isString() && operandType.isScalar()) {
+        if (!emitExpr(operand)) {
+            return false;
+        }
+        uint16_t strSlot = allocateTempLocal(operandType);
+        emitStore(operandType, strSlot);
+        uint16_t lowSlot = allocateTempLocal(intType);
+        if (lowExpr) {
+            if (!emitExpr(lowExpr)) {
+                return false;
+            }
+        } else {
+            *code << code->PushInt(0);
+        }
+        emitStore(intType, lowSlot);
+        uint16_t highSlot = allocateTempLocal(intType);
+        if (highExpr) {
+            if (!emitExpr(highExpr)) {
+                return false;
+            }
+        } else {
+            emitLoad(operandType, strSlot);
+            jvm::ConstantMethodref *lenRef = clazz->getOrCreateMethodrefConstant(
+                "java/lang/String",
+                "length",
+                jvm::DescriptorMethod(jvm::DescriptorField(jvm::Descriptor::Int), {})
+            );
+            *code << code->InvokeVirtual(lenRef);
+        }
+        emitStore(intType, highSlot);
+        emitLoad(operandType, strSlot);
+        emitLoad(intType, lowSlot);
+        emitLoad(intType, highSlot);
+        jvm::ConstantMethodref *substrRef = clazz->getOrCreateMethodrefConstant(
+            "java/lang/String",
+            "substring",
+            jvm::DescriptorMethod(jvm::DescriptorField("java/lang/String"), {
+                jvm::DescriptorField(jvm::Descriptor::Int),
+                jvm::DescriptorField(jvm::Descriptor::Int)
+            })
+        );
+        *code << code->InvokeVirtual(substrRef);
+        return true;
+    }
+    if (operandType.arrayDims <= 0 && operandType.sliceDims <= 0) {
+        return false;
+    }
+    if (operandType.arrayDims + operandType.sliceDims != 1) {
+        return false;
+    }
+    SemanticType elemType = operandType;
+    if (operandType.arrayDims > 0) {
+        dropOuterArrayDim(elemType);
+    } else {
+        elemType.sliceDims -= 1;
+    }
+    jvm::ConstantMethodref *copyRef = getArrayCopyRangeMethod(elemType);
+    if (!copyRef) {
+        return false;
+    }
+    if (!emitExpr(operand)) {
+        return false;
+    }
+    uint16_t arrSlot = allocateTempLocal(operandType);
+    emitStore(operandType, arrSlot);
+    uint16_t lowSlot = allocateTempLocal(intType);
+    if (lowExpr) {
+        if (!emitExpr(lowExpr)) {
+            return false;
+        }
+    } else {
+        *code << code->PushInt(0);
+    }
+    emitStore(intType, lowSlot);
+    uint16_t highSlot = allocateTempLocal(intType);
+    if (highExpr) {
+        if (!emitExpr(highExpr)) {
+            return false;
+        }
+    } else {
+        emitLoad(operandType, arrSlot);
+        *code << code->ArrayLength();
+    }
+    emitStore(intType, highSlot);
+    emitLoad(operandType, arrSlot);
+    emitLoad(intType, lowSlot);
+    emitLoad(intType, highSlot);
+    *code << code->InvokeStatic(copyRef);
     return true;
 }
 
@@ -4827,7 +4987,7 @@ bool BytecodeContext::emitArrayPrint(ExprNode *expr, const SemanticType &arrayTy
     if (!expr || !code || !systemOut) {
         return false;
     }
-    if (arrayType.arrayDims != 1) {
+    if (arrayType.arrayDims + arrayType.sliceDims != 1) {
         return false;
     }
     if (!emitExpr(expr)) {
@@ -4836,7 +4996,11 @@ bool BytecodeContext::emitArrayPrint(ExprNode *expr, const SemanticType &arrayTy
     uint16_t arrSlot = allocateTempLocal(arrayType);
     emitStore(arrayType, arrSlot);
     SemanticType elemType = arrayType;
-    dropOuterArrayDim(elemType);
+    if (arrayType.arrayDims > 0) {
+        dropOuterArrayDim(elemType);
+    } else {
+        elemType.sliceDims -= 1;
+    }
     SemanticType intType = SemanticType::makeBase(SemanticType::INT);
     uint16_t idxSlot = allocateTempLocal(intType);
 
@@ -4892,6 +5056,41 @@ bool BytecodeContext::emitArrayPrint(ExprNode *expr, const SemanticType &arrayTy
         *code << code->InvokeVirtual(printString);
     }
     return true;
+}
+
+jvm::ConstantMethodref* BytecodeContext::getArrayCopyRangeMethod(const SemanticType &elemType) {
+    if (!clazz) {
+        return nullptr;
+    }
+    jvm::DescriptorField arrayDesc(jvm::Descriptor::Int, 1);
+    switch (elemType.base) {
+        case SemanticType::FLOAT:
+            arrayDesc = jvm::DescriptorField(jvm::Descriptor::Double, 1);
+            break;
+        case SemanticType::BOOL:
+            arrayDesc = jvm::DescriptorField(jvm::Descriptor::Boolean, 1);
+            break;
+        case SemanticType::STRING:
+            arrayDesc = jvm::DescriptorField("java/lang/String", 1);
+            break;
+        case SemanticType::RUNE:
+        case SemanticType::INT:
+        default:
+            arrayDesc = jvm::DescriptorField(jvm::Descriptor::Int, 1);
+            break;
+    }
+    return clazz->getOrCreateMethodrefConstant(
+        "java/util/Arrays",
+        "copyOfRange",
+        jvm::DescriptorMethod(
+            arrayDesc,
+            {
+                arrayDesc,
+                jvm::DescriptorField(jvm::Descriptor::Int),
+                jvm::DescriptorField(jvm::Descriptor::Int)
+            }
+        )
+    );
 }
 
 void BytecodeContext::emitLoad(const SemanticType &type, uint16_t index) {
@@ -4993,10 +5192,29 @@ SemanticType BytecodeContext::inferExprType(ExprNode *expr) {
         addOuterArrayDim(elemType, lenValue);
         return elemType;
     }
+    if (expr->getType() == ExprNode::SLICE_LIT) {
+        SemanticType elemType = SemanticType::makeBase(SemanticType::UNKNOWN);
+        if (TypeNode *elemNode = expr->getArrayElemType()) {
+            elemType = elemNode->getSemanticType();
+        } else if (ExprListNode *elems = expr->getArrayElems()) {
+            if (elems->getExprList() && !elems->getExprList()->empty()) {
+                elemType = inferExprType(elems->getExprList()->front());
+            }
+        }
+        elemType.sliceDims += 1;
+        return elemType;
+    }
+    if (expr->getType() == ExprNode::SLICE) {
+        return expr->getSemanticType();
+    }
     if (expr->getType() == ExprNode::ELEMENT_ACCESS) {
         SemanticType arrayType = inferExprType(expr->getOperand());
         if (arrayType.arrayDims > 0) {
             dropOuterArrayDim(arrayType);
+        } else if (arrayType.sliceDims > 0) {
+            arrayType.sliceDims -= 1;
+        } else if (arrayType.isString() && arrayType.isScalar()) {
+            return SemanticType::makeBase(SemanticType::INT);
         }
         return arrayType;
     }
@@ -5010,10 +5228,12 @@ bool BytecodeContext::emitExprWithCast(ExprNode *expr, const SemanticType &targe
     if (!emitExpr(expr)) {
         return false;
     }
-    if (!target.isScalar()) {
-        return false;
-    }
     SemanticType exprType = inferExprType(expr);
+    if (!target.isScalar()) {
+        return exprType.base == target.base
+            && exprType.arrayDims == target.arrayDims
+            && exprType.sliceDims == target.sliceDims;
+    }
     if (!exprType.isScalar()) {
         return false;
     }
@@ -5233,7 +5453,7 @@ bool BytecodeContext::emitPrintCall(ExprNode *expr) {
             continue;
         }
         SemanticType argType = inferExprType(arg);
-        if (argType.arrayDims > 0 && argType.sliceDims == 0) {
+        if (argType.arrayDims > 0 || argType.sliceDims > 0) {
             emitArrayPrint(arg, argType);
             continue;
         }
@@ -5965,11 +6185,15 @@ void SimpleStmtNode::emitBytecode(BytecodeContext &ctx) {
                         continue;
                     }
                     SemanticType arrayType = ctx.inferExprType(operand);
-                    if (arrayType.arrayDims <= 0) {
+                    if (arrayType.arrayDims <= 0 && arrayType.sliceDims <= 0) {
                         continue;
                     }
                     SemanticType elemType = arrayType;
-                    dropOuterArrayDim(elemType);
+                    if (arrayType.arrayDims > 0) {
+                        dropOuterArrayDim(elemType);
+                    } else {
+                        elemType.sliceDims -= 1;
+                    }
                     if (!ctx.emitExpr(operand) || !ctx.emitExpr(index) ||
                         !ctx.emitExprWithCast(rightExpr, elemType)) {
                         continue;
