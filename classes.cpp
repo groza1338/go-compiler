@@ -5534,7 +5534,16 @@ bool BytecodeContext::emitPrintCall(ExprNode *expr) {
     if (!pkgNameVal || !pkgNameVal->getString()) {
         return false;
     }
-    if (*pkgNameVal->getString() != "fmt" || *fnNameVal->getString() != "Print") {
+    if (*pkgNameVal->getString() != "fmt") {
+        return false;
+    }
+    const string &fnName = *fnNameVal->getString();
+    bool addNewline = false;
+    if (fnName == "Print") {
+        addNewline = false;
+    } else if (fnName == "Println") {
+        addNewline = true;
+    } else {
         return false;
     }
     for (ExprNode *arg : *args->getExprList()) {
@@ -5595,6 +5604,17 @@ bool BytecodeContext::emitPrintCall(ExprNode *expr) {
             if (printMethod) {
                 *code << code->InvokeVirtual(printMethod);
             }
+        }
+    }
+    if (addNewline) {
+        *code << code->GetStatic(systemOut);
+        jvm::ConstantMethodref *printlnVoid = clazz->getOrCreateMethodrefConstant(
+            "java/io/PrintStream",
+            "println",
+            jvm::DescriptorMethod(std::nullopt, {})
+        );
+        if (printlnVoid) {
+            *code << code->InvokeVirtual(printlnVoid);
         }
     }
     return true;
