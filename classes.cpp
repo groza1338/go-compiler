@@ -2752,7 +2752,8 @@ void SimpleStmtNode::semantics(SemanticContext &ctx) {
                     SemanticType leftType = leftExpr->semantics(ctx);
                     if (type == ADD_ASSIGN) {
                         bool okString = leftType.isString() && rightType.isString();
-                        bool okNumeric = leftType.isNumeric() && rightType.isNumeric() && leftType.sameKind(rightType);
+                        bool okNumeric = leftType.isNumeric() && rightType.isNumeric()
+                            && (leftType.sameKind(rightType) || isLiteralAssignableToType(rightExpr, leftType));
                         if (!okString && !okNumeric) {
                             string leftText = leftExpr ? formatExprForGoMessage(leftExpr) : "value";
                             string rightText = rightExpr ? formatExprForGoMessage(rightExpr) : "value";
@@ -2766,7 +2767,22 @@ void SimpleStmtNode::semantics(SemanticContext &ctx) {
                             continue;
                         }
                     } else if (type != ASSIGN) {
-                        if (!leftType.isNumeric() || !rightType.isNumeric() || !leftType.sameKind(rightType)) {
+                        if (type == MOD_ASSIGN && leftType.base != SemanticType::INT) {
+                            string leftText = leftExpr ? formatExprForGoMessage(leftExpr) : "value";
+                            string kind = "value";
+                            if (leftExpr && leftExpr->getType() == ExprNode::ID) {
+                                kind = "variable";
+                            }
+                            ctx.report("invalid operation: operator % not defined on " + leftText
+                                + " (" + kind + " of type " + leftType.toString() + ")");
+                            if (rightList && itRight != rightList->end()) {
+                                ++itRight;
+                            }
+                            continue;
+                        }
+                        bool okNumeric = leftType.isNumeric() && rightType.isNumeric()
+                            && (leftType.sameKind(rightType) || isLiteralAssignableToType(rightExpr, leftType));
+                        if (!okNumeric) {
                             string op;
                             switch (type) {
                                 case SUB_ASSIGN: op = "-"; break;
@@ -2855,7 +2871,8 @@ void SimpleStmtNode::semantics(SemanticContext &ctx) {
 
                 if (type == ADD_ASSIGN) {
                     bool okString = leftType.isString() && rightType.isString();
-                    bool okNumeric = leftType.isNumeric() && rightType.isNumeric() && leftType.sameKind(rightType);
+                    bool okNumeric = leftType.isNumeric() && rightType.isNumeric()
+                        && (leftType.sameKind(rightType) || isLiteralAssignableToType(rightExpr, leftType));
                     if (!okString && !okNumeric) {
                         string leftText = leftExpr ? formatExprForGoMessage(leftExpr) : "value";
                         string rightText = rightExpr ? formatExprForGoMessage(rightExpr) : "value";
@@ -2865,7 +2882,22 @@ void SimpleStmtNode::semantics(SemanticContext &ctx) {
                             + " (mismatched types " + leftTypeText + " and " + rightTypeText + ")");
                     }
                 } else {
-                    if (!leftType.isNumeric() || !rightType.isNumeric() || !leftType.sameKind(rightType)) {
+                    if (type == MOD_ASSIGN && leftType.base != SemanticType::INT) {
+                        string leftText = leftExpr ? formatExprForGoMessage(leftExpr) : "value";
+                        string kind = "value";
+                        if (leftExpr && leftExpr->getType() == ExprNode::ID) {
+                            kind = "variable";
+                        }
+                        ctx.report("invalid operation: operator % not defined on " + leftText
+                            + " (" + kind + " of type " + leftType.toString() + ")");
+                        if (!erasedRight && rightList && itRight != rightList->end()) {
+                            ++itRight;
+                        }
+                        continue;
+                    }
+                    bool okNumeric = leftType.isNumeric() && rightType.isNumeric()
+                        && (leftType.sameKind(rightType) || isLiteralAssignableToType(rightExpr, leftType));
+                    if (!okNumeric) {
                         string op;
                         switch (type) {
                             case SUB_ASSIGN: op = "-"; break;
