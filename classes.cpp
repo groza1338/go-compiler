@@ -507,6 +507,30 @@ static bool checkPackageCallResults(ExprNode *expr, SemanticContext &ctx, vector
     return false;
 }
 
+static bool isFmtScanCall(ExprNode *expr, SemanticContext &ctx) {
+    if (!expr || expr->getType() != ExprNode::FUNCTION_CALL) {
+        return false;
+    }
+    ExprNode *callee = expr->getOperand();
+    if (!callee || callee->getType() != ExprNode::SELECTOR) {
+        return false;
+    }
+    ExprNode *pkgExpr = callee->getOperand();
+    ValueNode *funcNameVal = callee->getIdentifier();
+    if (!pkgExpr || pkgExpr->getType() != ExprNode::ID || !funcNameVal || !funcNameVal->getString()) {
+        return false;
+    }
+    ValueNode *pkgNameVal = pkgExpr->getIdentifier();
+    if (!pkgNameVal || !pkgNameVal->getString()) {
+        return false;
+    }
+    string target = ctx.getImportTarget(*pkgNameVal->getString());
+    if (target.empty()) {
+        return false;
+    }
+    return target == "fmt" && *funcNameVal->getString() == "Scan";
+}
+
 static void checkRangeTarget(ExprNode *leftExpr, const SemanticType &expectedType, SemanticContext &ctx) {
     if (!leftExpr || expectedType.base == SemanticType::UNKNOWN) {
         return;
@@ -1624,6 +1648,20 @@ SemanticType ExprNode::semantics(SemanticContext &ctx) {
                     }
                     if (args) {
                         args->semantics(ctx);
+                        if (isFmtScanCall(this, ctx)) {
+                            for (ExprNode *arg : *args->getExprList()) {
+                                if (!arg) {
+                                    continue;
+                                }
+                                ExprNode *target = arg;
+                                if (arg->getType() == ExprNode::ADDRESS_OF) {
+                                    target = arg->getOperand();
+                                }
+                                if (!isAddressableExpr(target, ctx)) {
+                                    ctx.report("Scan argument must be addressable.");
+                                }
+                            }
+                        }
                     }
                 } else {
                     if (operand) operand->semantics(ctx);
