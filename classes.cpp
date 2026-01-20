@@ -1653,12 +1653,13 @@ SemanticType ExprNode::semantics(SemanticContext &ctx) {
                                 if (!arg) {
                                     continue;
                                 }
-                                ExprNode *target = arg;
-                                if (arg->getType() == ExprNode::ADDRESS_OF) {
-                                    target = arg->getOperand();
+                                if (arg->getType() != ExprNode::ADDRESS_OF) {
+                                    ctx.report(arg->toString() + " is no address-of expression");
+                                    continue;
                                 }
+                                ExprNode *target = arg->getOperand();
                                 if (!isAddressableExpr(target, ctx)) {
-                                    ctx.report("Scan argument must be addressable.");
+                                    ctx.report(arg->toString() + " is no addressable");
                                 }
                             }
                         }
