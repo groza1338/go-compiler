@@ -1478,20 +1478,37 @@ SemanticType ExprNode::semantics(SemanticContext &ctx) {
             SemanticType leftType = left ? left->semantics(ctx) : SemanticType::makeBase(SemanticType::UNKNOWN);
             SemanticType rightType = right ? right->semantics(ctx) : SemanticType::makeBase(SemanticType::UNKNOWN);
             string exprStr = (left ? left->toString() : "nil") + " " + getDotLabel() + " " + (right ? right->toString() : "nil");
-            string typeName = comparisonTypeName(leftType);
+            bool leftIntLit = isIntLiteralExpr(left);
+            bool rightIntLit = isIntLiteralExpr(right);
+            bool leftFloatLit = isFloatLiteralExpr(left);
+            bool rightFloatLit = isFloatLiteralExpr(right);
+            bool allowMixedNumericLiteralCompare = false;
+            SemanticType effectiveType = leftType;
+            if (leftType.isScalar() && rightType.isScalar() && leftType.isNumeric() && rightType.isNumeric()) {
+                bool leftNumericLiteral = leftIntLit || leftFloatLit;
+                bool rightNumericLiteral = rightIntLit || rightFloatLit;
+                if ((leftType.base == SemanticType::INT && rightType.base == SemanticType::FLOAT
+                        && (leftNumericLiteral || rightNumericLiteral))
+                    || (leftType.base == SemanticType::FLOAT && rightType.base == SemanticType::INT
+                        && (leftNumericLiteral || rightNumericLiteral))) {
+                    allowMixedNumericLiteralCompare = true;
+                    effectiveType = SemanticType::makeBase(SemanticType::FLOAT);
+                }
+            }
+            string typeName = comparisonTypeName(effectiveType);
             if (leftType.isError || rightType.isError) {
                 semType = SemanticType::makeBase(SemanticType::BOOL);
                 break;
             }
-            if (!leftType.sameKind(rightType)) {
+            if (!leftType.sameKind(rightType) && !allowMixedNumericLiteralCompare) {
                 ctx.report("invalid operation: " + exprStr + " (mismatched types " + leftType.toString() + " and " + rightType.toString() + ")");
-            } else if ((type == EQUAL || type == NOT_EQUAL) && !isComparableType(leftType)) {
+            } else if ((type == EQUAL || type == NOT_EQUAL) && !isComparableType(effectiveType)) {
                 if (leftType.sliceDims > 0) {
                     ctx.report("invalid operation: " + exprStr + " (slice can only be compared to nil)");
                 } else {
                     ctx.report("invalid operation: " + exprStr + " (operator " + getDotLabel() + " not defined on " + typeName + ")");
                 }
-            } else if ((type != EQUAL && type != NOT_EQUAL) && !isOrderable(leftType)) {
+            } else if ((type != EQUAL && type != NOT_EQUAL) && !isOrderable(effectiveType)) {
                 ctx.report("invalid operation: " + exprStr + " (operator " + getDotLabel() + " not defined on " + typeName + ")");
             }
             semType = SemanticType::makeBase(SemanticType::BOOL);
