@@ -25,7 +25,7 @@ using namespace std;
 	int rune_lit;
     string *identifier;
 	string *str_lit;
-    float float_lit;
+    double float_lit;
 	bool bool_lit;
 	ExprNode *expr_node;
 	ExprListNode *expr_list_node;

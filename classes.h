@@ -947,14 +947,14 @@ public:
     };
 
     static ValueNode* createInt(int value);
-    static ValueNode* createFloat(float value);
+    static ValueNode* createFloat(double value);
     static ValueNode* createBool(bool value);
     static ValueNode* createString(string *value);
     static ValueNode* createRune(int value);
 
     ValueType getValueType() const;
     int getInt() const;
-    float getFloat() const;
+    double getFloat() const;
     bool getBool() const;
     string* getString() const;
     int getRune() const;
@@ -966,7 +966,7 @@ public:
 protected:
     ValueType valueType;
     int intValue;
-    float floatValue;
+    double floatValue;
     bool boolValue;
     string *stringValue;
 

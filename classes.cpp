@@ -4087,7 +4087,7 @@ ValueNode* ValueNode::createInt(int value) {
     return node;
 }
 
-ValueNode* ValueNode::createFloat(float value) {
+ValueNode* ValueNode::createFloat(double value) {
     ValueNode *node = new ValueNode();
     node->valueType = LIT_FLOAT;
     node->floatValue = value;
@@ -4123,7 +4123,7 @@ int ValueNode::getInt() const {
     return intValue;
 }
 
-float ValueNode::getFloat() const {
+double ValueNode::getFloat() const {
     return floatValue;
 }
 
@@ -4589,6 +4589,12 @@ bool BytecodeContext::emitExpr(ExprNode *expr) {
             if (!leftType.isScalar() || !rightType.isScalar()) {
                 return false;
             }
+            bool leftIntLit = isIntLiteralExpr(left);
+            bool rightIntLit = isIntLiteralExpr(right);
+            bool leftFloatLit = isFloatLiteralExpr(left);
+            bool rightFloatLit = isFloatLiteralExpr(right);
+            bool leftNumericLiteral = leftIntLit || leftFloatLit;
+            bool rightNumericLiteral = rightIntLit || rightFloatLit;
             jvm::Instruction::Compare op = compareOpFromExpr(expr->getType());
             if (leftType.isString() && rightType.isString()) {
                 if (!emitExpr(left) || !emitExpr(right)) {
@@ -4605,6 +4611,24 @@ bool BytecodeContext::emitExpr(ExprNode *expr) {
                     *code << code->If(op, labelTrue);
                 });
                 return true;
+            }
+            if (leftType.isNumeric() && rightType.isNumeric()) {
+                if ((leftType.base == SemanticType::INT && rightType.base == SemanticType::FLOAT && (leftNumericLiteral || rightNumericLiteral))
+                    || (leftType.base == SemanticType::FLOAT && rightType.base == SemanticType::INT && (leftNumericLiteral || rightNumericLiteral))) {
+                    SemanticType floatType = SemanticType::makeBase(SemanticType::FLOAT);
+                    if (!emitExprWithCast(left, floatType) || !emitExprWithCast(right, floatType)) {
+                        return false;
+                    }
+                    jvm::Instruction::StrictCompare nanResult = jvm::Instruction::StrictCompare::Greater;
+                    if (expr->getType() == ExprNode::GREATER || expr->getType() == ExprNode::GREATER_OR_EQUAL) {
+                        nanResult = jvm::Instruction::StrictCompare::Less;
+                    }
+                    *code << code->CompareDouble(nanResult);
+                    emitBoolFromJump([&](jvm::Label *labelTrue) {
+                        *code << code->If(op, labelTrue);
+                    });
+                    return true;
+                }
             }
             if (leftType.base == SemanticType::FLOAT && rightType.base == SemanticType::FLOAT) {
                 if (!emitExprWithCast(left, leftType) || !emitExprWithCast(right, leftType)) {
@@ -5168,13 +5192,12 @@ bool BytecodeContext::emitArrayPrint(ExprNode *expr, const SemanticType &arrayTy
         *code << code->If(jvm::Instruction::Compare::Equal, labelInt);
         *code << code->GetStatic(systemOut);
         emitLoad(floatType, tmpSlot);
-        *code << code->DoubleToFloat();
-        jvm::ConstantMethodref *floatToString = clazz->getOrCreateMethodrefConstant(
-            "java/lang/Float",
+        jvm::ConstantMethodref *doubleToString = clazz->getOrCreateMethodrefConstant(
+            "java/lang/Double",
             "toString",
-            jvm::DescriptorMethod(jvm::DescriptorField("java/lang/String"), {jvm::DescriptorField(jvm::Descriptor::Float)})
+            jvm::DescriptorMethod(jvm::DescriptorField("java/lang/String"), {jvm::DescriptorField(jvm::Descriptor::Double)})
         );
-        *code << code->InvokeStatic(floatToString);
+        *code << code->InvokeStatic(doubleToString);
         jvm::ConstantMethodref *printString = getPrintMethod(SemanticType::makeBase(SemanticType::STRING));
         if (printString) {
             *code << code->InvokeVirtual(printString);
@@ -5588,7 +5611,7 @@ bool BytecodeContext::emitPrintCall(ExprNode *expr) {
     }
     ExprNode *callee = expr->getOperand();
     ExprListNode *args = expr->getArgs();
-    if (!callee || !args || !args->getExprList()) {
+    if (!callee) {
         return false;
     }
     if (callee->getType() != ExprNode::SELECTOR) {
@@ -5615,10 +5638,34 @@ bool BytecodeContext::emitPrintCall(ExprNode *expr) {
     } else {
         return false;
     }
+    if (!args || !args->getExprList()) {
+        if (addNewline) {
+            *code << code->GetStatic(systemOut);
+            jvm::ConstantMethodref *printlnVoid = clazz->getOrCreateMethodrefConstant(
+                "java/io/PrintStream",
+                "println",
+                jvm::DescriptorMethod(std::nullopt, {})
+            );
+            if (printlnVoid) {
+                *code << code->InvokeVirtual(printlnVoid);
+            }
+        }
+        return true;
+    }
+    bool firstArg = true;
     for (ExprNode *arg : *args->getExprList()) {
         if (!arg) {
             continue;
         }
+        if (addNewline && !firstArg) {
+            *code << code->GetStatic(systemOut);
+            *code << code->PushString(" ");
+            jvm::ConstantMethodref *printString = getPrintMethod(SemanticType::makeBase(SemanticType::STRING));
+            if (printString) {
+                *code << code->InvokeVirtual(printString);
+            }
+        }
+        firstArg = false;
         SemanticType argType = inferExprType(arg);
         if (argType.arrayDims > 0 || argType.sliceDims > 0) {
             emitArrayPrint(arg, argType);
@@ -5647,17 +5694,16 @@ bool BytecodeContext::emitPrintCall(ExprNode *expr) {
             *code << code->If(jvm::Instruction::Compare::Equal, labelInt);
             *code << code->GetStatic(systemOut);
             emitLoad(floatType, tmpSlot);
-        *code << code->DoubleToFloat();
-        jvm::ConstantMethodref *floatToString = clazz->getOrCreateMethodrefConstant(
-            "java/lang/Float",
-            "toString",
-            jvm::DescriptorMethod(jvm::DescriptorField("java/lang/String"), {jvm::DescriptorField(jvm::Descriptor::Float)})
-        );
-        *code << code->InvokeStatic(floatToString);
-        jvm::ConstantMethodref *printString = getPrintMethod(SemanticType::makeBase(SemanticType::STRING));
-        if (printString) {
-            *code << code->InvokeVirtual(printString);
-        }
+            jvm::ConstantMethodref *doubleToString = clazz->getOrCreateMethodrefConstant(
+                "java/lang/Double",
+                "toString",
+                jvm::DescriptorMethod(jvm::DescriptorField("java/lang/String"), {jvm::DescriptorField(jvm::Descriptor::Double)})
+            );
+            *code << code->InvokeStatic(doubleToString);
+            jvm::ConstantMethodref *printString = getPrintMethod(SemanticType::makeBase(SemanticType::STRING));
+            if (printString) {
+                *code << code->InvokeVirtual(printString);
+            }
             *code << code->GoTo(labelEnd);
             *code << labelInt;
             *code << code->GetStatic(systemOut);
