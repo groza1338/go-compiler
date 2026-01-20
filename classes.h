@@ -84,7 +84,7 @@ struct SemanticType {
 
     static SemanticType makeError();
 
-    bool isNumeric() const { return base == INT || base == FLOAT; }
+    bool isNumeric() const { return base == INT || base == FLOAT || base == RUNE; }
     bool isBool() const { return base == BOOL; }
     bool isString() const { return base == STRING; }
     bool isScalar() const { return arrayDims == 0 && sliceDims == 0; }

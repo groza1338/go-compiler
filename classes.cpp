@@ -90,6 +90,9 @@ static bool isLiteralAssignableToType(ExprNode *expr, const SemanticType &target
     if (target.base == SemanticType::INT) {
         return lit->getValueType() == ValueNode::LIT_FLOAT && isFloatLiteralIntegral(expr);
     }
+    if (target.base == SemanticType::RUNE) {
+        return lit->getValueType() == ValueNode::LIT_INT;
+    }
     return false;
 }
 
@@ -1454,9 +1457,25 @@ SemanticType ExprNode::semantics(SemanticContext &ctx) {
                         break;
                     }
                 }
+                if (leftType.base == SemanticType::RUNE && rightType.base == SemanticType::INT) {
+                    if (rightIntLit) {
+                        semType = leftType;
+                        break;
+                    }
+                } else if (leftType.base == SemanticType::INT && rightType.base == SemanticType::RUNE) {
+                    if (leftIntLit) {
+                        semType = rightType;
+                        break;
+                    }
+                } else if (leftType.base == SemanticType::RUNE && rightType.base == SemanticType::RUNE) {
+                    semType = leftType;
+                    break;
+                }
             }
             if (type == MODULO) {
-                if (leftType.base != SemanticType::INT || rightType.base != SemanticType::INT || !leftType.isScalar() || !rightType.isScalar()) {
+                bool leftOk = (leftType.base == SemanticType::INT || leftType.base == SemanticType::RUNE) && leftType.isScalar();
+                bool rightOk = (rightType.base == SemanticType::INT || rightType.base == SemanticType::RUNE) && rightType.isScalar();
+                if (!leftOk || !rightOk) {
                     ctx.report("invalid operation: " + exprStr + " (mismatched types " + leftType.toString() + " and " + rightType.toString() + ")");
                     semType = SemanticType::makeBase(SemanticType::UNKNOWN);
                     break;
@@ -2767,7 +2786,9 @@ void SimpleStmtNode::semantics(SemanticContext &ctx) {
                             continue;
                         }
                     } else if (type != ASSIGN) {
-                        if (type == MOD_ASSIGN && leftType.base != SemanticType::INT) {
+                        if (type == MOD_ASSIGN
+                            && leftType.base != SemanticType::INT
+                            && leftType.base != SemanticType::RUNE) {
                             string leftText = leftExpr ? formatExprForGoMessage(leftExpr) : "value";
                             string kind = "value";
                             if (leftExpr && leftExpr->getType() == ExprNode::ID) {
@@ -2882,7 +2903,9 @@ void SimpleStmtNode::semantics(SemanticContext &ctx) {
                             + " (mismatched types " + leftTypeText + " and " + rightTypeText + ")");
                     }
                 } else {
-                    if (type == MOD_ASSIGN && leftType.base != SemanticType::INT) {
+                    if (type == MOD_ASSIGN
+                        && leftType.base != SemanticType::INT
+                        && leftType.base != SemanticType::RUNE) {
                         string leftText = leftExpr ? formatExprForGoMessage(leftExpr) : "value";
                         string kind = "value";
                         if (leftExpr && leftExpr->getType() == ExprNode::ID) {
@@ -4534,7 +4557,9 @@ bool BytecodeContext::emitExpr(ExprNode *expr) {
             if (!resultType.isScalar() || !resultType.isNumeric()) {
                 return false;
             }
-            if (expr->getType() == ExprNode::MODULO && resultType.base != SemanticType::INT) {
+            if (expr->getType() == ExprNode::MODULO
+                && resultType.base != SemanticType::INT
+                && resultType.base != SemanticType::RUNE) {
                 return false;
             }
             if (!emitExprWithCast(left, resultType)) {
@@ -5453,6 +5478,12 @@ bool BytecodeContext::emitExprWithCast(ExprNode *expr, const SemanticType &targe
     if (target.base == exprType.base) {
         return true;
     }
+    if (target.base == SemanticType::RUNE && exprType.base == SemanticType::INT) {
+        if (isIntLiteralExpr(expr)) {
+            return true;
+        }
+        return false;
+    }
     if (target.base == SemanticType::FLOAT && exprType.base == SemanticType::INT) {
         *code << code->IntToDouble();
         return true;
@@ -5685,6 +5716,7 @@ bool BytecodeContext::emitPrintCall(ExprNode *expr) {
         return true;
     }
     bool firstArg = true;
+    bool prevWasString = false;
     for (ExprNode *arg : *args->getExprList()) {
         if (!arg) {
             continue;
@@ -5704,7 +5736,9 @@ bool BytecodeContext::emitPrintCall(ExprNode *expr) {
                 uint16_t tmpSlot = allocateLocal(tmpName, refType);
                 emitStore(refType, tmpSlot);
                 for (size_t idx = 0; idx < fnInfo->results.size(); ++idx) {
-                    if (addNewline && !firstArg) {
+                    SemanticType argType = fnInfo->results[idx];
+                    bool currIsString = argType.isScalar() && argType.isString();
+                    if (!firstArg && (addNewline || (!prevWasString && !currIsString))) {
                         *code << code->GetStatic(systemOut);
                         *code << code->PushString(" ");
                         jvm::ConstantMethodref *printString = getPrintMethod(SemanticType::makeBase(SemanticType::STRING));
@@ -5713,7 +5747,7 @@ bool BytecodeContext::emitPrintCall(ExprNode *expr) {
                         }
                     }
                     firstArg = false;
-                    SemanticType argType = fnInfo->results[idx];
+                    prevWasString = currIsString;
                     emitLoad(refType, tmpSlot);
                     *code << code->PushInt(static_cast<int>(idx));
                     *code << code->LoadReferenceFromArray();
@@ -5770,7 +5804,9 @@ bool BytecodeContext::emitPrintCall(ExprNode *expr) {
                 continue;
             }
         }
-        if (addNewline && !firstArg) {
+        SemanticType argType = inferExprType(arg);
+        bool currIsString = argType.isScalar() && argType.isString();
+        if (!firstArg && (addNewline || (!prevWasString && !currIsString))) {
             *code << code->GetStatic(systemOut);
             *code << code->PushString(" ");
             jvm::ConstantMethodref *printString = getPrintMethod(SemanticType::makeBase(SemanticType::STRING));
@@ -5779,7 +5815,7 @@ bool BytecodeContext::emitPrintCall(ExprNode *expr) {
             }
         }
         firstArg = false;
-        SemanticType argType = inferExprType(arg);
+        prevWasString = currIsString;
         if (argType.arrayDims > 0 || argType.sliceDims > 0) {
             emitArrayPrint(arg, argType);
             continue;
@@ -6647,7 +6683,9 @@ void SimpleStmtNode::emitBytecode(BytecodeContext &ctx) {
                     ctx.emitStore(targetType, slot);
                     continue;
                 }
-                if (type == MOD_ASSIGN && targetType.base != SemanticType::INT) {
+                if (type == MOD_ASSIGN
+                    && targetType.base != SemanticType::INT
+                    && targetType.base != SemanticType::RUNE) {
                     continue;
                 }
                 ctx.emitLoad(targetType, slot);
