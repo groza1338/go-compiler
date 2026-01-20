@@ -6,11 +6,13 @@ from pathlib import Path, PurePosixPath
 
 DEBUG = True
 
-BASE_RUN_DIRECTORY = "code_examples"
+BASE_RUN_DIRECTORY = "main_code_examples"
 BASE_IMAGE_NAME = "golang_flex_project"
 EXECUTABLE_TARGET = "./golang_compiler"
 LOCAL_CLASSES_DIRECTORY = "./generated_classes"
 DOCKER_CLASSES_DIRECTORY = "/app/generated_classes"
+LOCAL_SEM_DIRECTORY = os.path.join(LOCAL_CLASSES_DIRECTORY, "sem")
+DOCKER_SEM_DIRECTORY = "/app/generated_classes/sem"
 
 ENDLESS_LOOP_COMMAND = ["tail", "-f", "/dev/null"]
 
@@ -108,6 +110,8 @@ def run_command_inside_container(command: list[str], container_name: str, extra_
         print(f"SUCCESS: Exec command {" ".join(command)} successfully.")
     else:
         print(f"FAILED: Exec command {" ".join(command)} failed with code {result.returncode}:\n {result.stderr}")
+        if result.stdout:
+            print(result.stdout)
 
     return result
 
@@ -130,17 +134,25 @@ if __name__ == "__main__":
         raise SystemExit(0)
     clear_generated_classes_dir(".")
     Path(LOCAL_CLASSES_DIRECTORY).mkdir(parents=True, exist_ok=True)
+    Path(LOCAL_SEM_DIRECTORY).mkdir(parents=True, exist_ok=True)
     image_name = build_docker_image()
     container_name = run_docker_container(image_name=image_name)
     try:
         for file in selected_files:
             file_path = Path(file)
             command = [EXECUTABLE_TARGET, file_path.as_posix()]
-            result = run_command_inside_container(command, container_name)
+            result = run_command_inside_container(
+                command,
+                container_name,
+                extra_env={"SEMANTIC_OUT_DIR": DOCKER_SEM_DIRECTORY}
+            )
             if result.returncode != 0:
                 raise SystemExit(result.returncode)
             if DEBUG and result.stdout:
                 print(result.stdout)
+            sem_file = Path(LOCAL_SEM_DIRECTORY) / (file_path.name + ".sem.txt")
+            if sem_file.exists():
+                print(sem_file.read_text(encoding="utf-8", errors="replace"))
 
             generated = Path(LOCAL_CLASSES_DIRECTORY) / "Main.class"
             if not generated.exists():
