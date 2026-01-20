@@ -6,11 +6,12 @@ func main() {
 	var n int
 	fmt.Print("Enter array len: ")
 	fmt.Scan(&n)
-	if n > 10 || n < 1 {
+	const array_len int = 100
+	if n > array_len || n < 1 {
 	    fmt.Print("Incorrect len")
 	    return
 	}
-	arr := [10]int{}
+	arr := [array_len]int{}
 	for x := 0; x < n; x++ {
 		fmt.Scan(&arr[x])
 	}
@@ -24,10 +25,5 @@ func main() {
 		}
 	}
 
-    fmt.Print("[")
-	for i := 0; i < n; i++ {
-		fmt.Print(arr[i])
-		fmt.Print(" ")
-	}
-    fmt.Print("]")
+    fmt.Print(arr[:n])
 }
