@@ -243,6 +243,15 @@ static int can_insert_semi = 0;
         BEGIN(INITIAL);
         return RUNE_LIT;
     }
+    if (str_buf[0] != '\0' && str_buf[1] == '\0') {
+        unsigned char byte_val = static_cast<unsigned char>(str_buf[0]);
+        cout << "Rune literal: " << str_buf << '\n';
+        yylval.rune_lit = static_cast<int>(byte_val);
+        set_semi_on(&can_insert_semi);
+        str_reset(str_buf);
+        BEGIN(INITIAL);
+        return RUNE_LIT;
+    }
 
     cout << "ERROR: invalid rune literal: " << str_buf << "\n";
     str_reset(str_buf);
