@@ -2184,6 +2184,9 @@ void StmtNode::semantics(SemanticContext &ctx) {
                 size_t exprCount = exprTypes.size();
                 size_t retCount = retInfo->types.size();
                 if (exprCount == 0) {
+                    if (retCount == 0) {
+                        break;
+                    }
                     if (!retInfo->allowBareReturn) {
                         string want = "(";
                         for (size_t i = 0; i < retInfo->types.size(); ++i) {
@@ -2196,7 +2199,17 @@ void StmtNode::semantics(SemanticContext &ctx) {
                         ctx.report("not enough return values\n\thave ()\n\twant " + want);
                     }
                 } else {
-                    if (exprCount != retCount) {
+                    if (retCount == 0) {
+                        string have = "(";
+                        for (size_t i = 0; i < exprTypes.size(); ++i) {
+                            if (i > 0) {
+                                have += ", ";
+                            }
+                            have += exprTypes[i].toString();
+                        }
+                        have += ")";
+                        ctx.report("too many return values\n\thave " + have + "\n\twant ()");
+                    } else if (exprCount != retCount) {
                         string have = "(";
                         for (size_t i = 0; i < exprTypes.size(); ++i) {
                             if (i > 0) {
