@@ -5689,6 +5689,87 @@ bool BytecodeContext::emitPrintCall(ExprNode *expr) {
         if (!arg) {
             continue;
         }
+        if (arg->getType() == ExprNode::FUNCTION_CALL) {
+            const SemanticContext::FunctionInfo *fnInfo = getFunctionInfoForCall(arg);
+            if (fnInfo && fnInfo->results.size() > 1) {
+                bool prevAllow = allowMultiReturnCall;
+                allowMultiReturnCall = true;
+                bool emitted = emitExpr(arg);
+                allowMultiReturnCall = prevAllow;
+                if (!emitted) {
+                    continue;
+                }
+                SemanticType refType = SemanticType::makeBase(SemanticType::STRING);
+                string tmpName = "$print$ret$" + to_string(locals.size());
+                uint16_t tmpSlot = allocateLocal(tmpName, refType);
+                emitStore(refType, tmpSlot);
+                for (size_t idx = 0; idx < fnInfo->results.size(); ++idx) {
+                    if (addNewline && !firstArg) {
+                        *code << code->GetStatic(systemOut);
+                        *code << code->PushString(" ");
+                        jvm::ConstantMethodref *printString = getPrintMethod(SemanticType::makeBase(SemanticType::STRING));
+                        if (printString) {
+                            *code << code->InvokeVirtual(printString);
+                        }
+                    }
+                    firstArg = false;
+                    SemanticType argType = fnInfo->results[idx];
+                    emitLoad(refType, tmpSlot);
+                    *code << code->PushInt(static_cast<int>(idx));
+                    *code << code->LoadReferenceFromArray();
+                    if (!emitUnboxValue(argType)) {
+                        continue;
+                    }
+                    uint16_t valueSlot = allocateTempLocal(argType);
+                    emitStore(argType, valueSlot);
+                    if (argType.base == SemanticType::FLOAT) {
+                        jvm::ConstantMethodref *floorRef = clazz->getOrCreateMethodrefConstant(
+                            "java/lang/Math",
+                            "floor",
+                            jvm::DescriptorMethod(jvm::DescriptorField(jvm::Descriptor::Double), {jvm::DescriptorField(jvm::Descriptor::Double)})
+                        );
+                        SemanticType floatType = SemanticType::makeBase(SemanticType::FLOAT);
+                        emitLoad(floatType, valueSlot);
+                        *code << code->InvokeStatic(floorRef);
+                        emitLoad(floatType, valueSlot);
+                        *code << code->CompareDouble(jvm::Instruction::StrictCompare::Greater);
+                        jvm::Label *labelInt = code->CodeLabel();
+                        jvm::Label *labelEnd = code->CodeLabel();
+                        *code << code->If(jvm::Instruction::Compare::Equal, labelInt);
+                        *code << code->GetStatic(systemOut);
+                        emitLoad(floatType, valueSlot);
+                        jvm::ConstantMethodref *doubleToString = clazz->getOrCreateMethodrefConstant(
+                            "java/lang/Double",
+                            "toString",
+                            jvm::DescriptorMethod(jvm::DescriptorField("java/lang/String"), {jvm::DescriptorField(jvm::Descriptor::Double)})
+                        );
+                        *code << code->InvokeStatic(doubleToString);
+                        jvm::ConstantMethodref *printString = getPrintMethod(SemanticType::makeBase(SemanticType::STRING));
+                        if (printString) {
+                            *code << code->InvokeVirtual(printString);
+                        }
+                        *code << code->GoTo(labelEnd);
+                        *code << labelInt;
+                        *code << code->GetStatic(systemOut);
+                        emitLoad(floatType, valueSlot);
+                        *code << code->DoubleToInt();
+                        jvm::ConstantMethodref *printInt = getPrintMethod(SemanticType::makeBase(SemanticType::INT));
+                        if (printInt) {
+                            *code << code->InvokeVirtual(printInt);
+                        }
+                        *code << labelEnd;
+                    } else {
+                        *code << code->GetStatic(systemOut);
+                        emitLoad(argType, valueSlot);
+                        jvm::ConstantMethodref *printMethod = getPrintMethod(argType);
+                        if (printMethod) {
+                            *code << code->InvokeVirtual(printMethod);
+                        }
+                    }
+                }
+                continue;
+            }
+        }
         if (addNewline && !firstArg) {
             *code << code->GetStatic(systemOut);
             *code << code->PushString(" ");
