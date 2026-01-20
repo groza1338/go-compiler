@@ -5727,26 +5727,53 @@ bool BytecodeContext::emitScanCall(ExprNode *expr) {
         if (!arg) {
             continue;
         }
-        ValueNode *idVal = nullptr;
-        if (arg->getType() == ExprNode::ID) {
-            idVal = arg->getIdentifier();
-        } else if (arg->getType() == ExprNode::ADDRESS_OF) {
-            ExprNode *operand = arg->getOperand();
-            if (operand && operand->getType() == ExprNode::ID) {
-                idVal = operand->getIdentifier();
+        ExprNode *target = arg;
+        bool isAddressOf = arg->getType() == ExprNode::ADDRESS_OF;
+        if (isAddressOf) {
+            target = arg->getOperand();
+        }
+        if (!target) {
+            continue;
+        }
+
+        SemanticType targetType = SemanticType::makeBase(SemanticType::UNKNOWN);
+        bool isDirectLocal = false;
+        uint16_t targetSlot = 0;
+        ExprNode *arrayExpr = nullptr;
+        ExprNode *indexExpr = nullptr;
+        SemanticType arrayType;
+
+        if (target->getType() == ExprNode::ID) {
+            ValueNode *idVal = target->getIdentifier();
+            if (!idVal || !idVal->getString()) {
+                continue;
             }
-        }
-        if (!idVal || !idVal->getString()) {
+            auto it = locals.find(*idVal->getString());
+            if (it == locals.end()) {
+                continue;
+            }
+            targetType = it->second.type;
+            targetSlot = it->second.index;
+            isDirectLocal = true;
+        } else if (isAddressOf && target->getType() == ExprNode::ELEMENT_ACCESS) {
+            arrayExpr = target->getOperand();
+            indexExpr = target->getIndex();
+            if (!arrayExpr || !indexExpr) {
+                continue;
+            }
+            arrayType = inferExprType(arrayExpr);
+            if (arrayType.arrayDims <= 0 && arrayType.sliceDims <= 0) {
+                continue;
+            }
+            targetType = inferExprType(target);
+        } else {
             continue;
         }
-        auto it = locals.find(*idVal->getString());
-        if (it == locals.end()) {
-            continue;
-        }
-        SemanticType targetType = it->second.type;
+
         if (!targetType.isScalar()) {
             continue;
         }
+
         jvm::ConstantMethodref *hasNext = nullptr;
         jvm::ConstantMethodref *nextValue = nullptr;
         switch (targetType.base) {
@@ -5812,9 +5839,26 @@ bool BytecodeContext::emitScanCall(ExprNode *expr) {
         *code << code->InvokeVirtual(hasNext);
         jvm::Label *skipLabel = code->CodeLabel();
         *code << code->If(jvm::Instruction::Compare::Equal, skipLabel);
-        emitLoad(refType, scannerSlot);
-        *code << code->InvokeVirtual(nextValue);
-        emitStore(targetType, it->second.index);
+        if (isDirectLocal) {
+            emitLoad(refType, scannerSlot);
+            *code << code->InvokeVirtual(nextValue);
+            emitStore(targetType, targetSlot);
+        } else {
+            if (!emitExpr(arrayExpr) || !emitExpr(indexExpr)) {
+                *code << skipLabel;
+                continue;
+            }
+            SemanticType intType = SemanticType::makeBase(SemanticType::INT);
+            uint16_t idxSlot = allocateTempLocal(intType);
+            emitStore(intType, idxSlot);
+            uint16_t arrSlot = allocateTempLocal(arrayType);
+            emitStore(arrayType, arrSlot);
+            emitLoad(arrayType, arrSlot);
+            emitLoad(intType, idxSlot);
+            emitLoad(refType, scannerSlot);
+            *code << code->InvokeVirtual(nextValue);
+            emitArrayStoreValue(targetType);
+        }
         *code << skipLabel;
     }
     return true;
