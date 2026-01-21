@@ -4937,13 +4937,73 @@ bool BytecodeContext::emitArrayLiteral(ExprNode *expr) {
         for (ExprNode *elem : *elems->getExprList()) {
             *code << code->LoadReference(arrSlot);
             *code << code->PushInt(idx);
-            if (elem && emitExprWithCast(elem, elemType)) {
-                emitArrayStoreValue(elemType);
+            if (elem) {
+                if (elem->getType() == ExprNode::COMPOSITE_LIT) {
+                    if (!emitCompositeLiteralWithExpected(elem, elemType)) {
+                        return false;
+                    }
+                    emitArrayStoreValue(elemType);
+                } else if (emitExprWithCast(elem, elemType)) {
+                    emitArrayStoreValue(elemType);
+                }
             }
             idx++;
         }
     }
     emitLoad(arrayType, arrSlot);
+    return true;
+}
+
+bool BytecodeContext::emitCompositeLiteralWithExpected(ExprNode *expr, const SemanticType &expected) {
+    if (!expr || !code || !clazz) {
+        return false;
+    }
+    if (expected.arrayDims <= 0 && expected.sliceDims <= 0) {
+        return false;
+    }
+    ExprListNode *elems = expr->getArrayElems();
+    int elemCount = 0;
+    if (elems && elems->getExprList()) {
+        elemCount = static_cast<int>(elems->getExprList()->size());
+    }
+    int length = elemCount;
+    if (expected.arrayDims > 0 && !expected.arrayLengths.empty()) {
+        int expectedLen = expected.arrayLengths.front();
+        if (expectedLen >= 0) {
+            length = expectedLen;
+        }
+    }
+    *code << code->PushInt(length);
+    if (!emitArrayNew(expected)) {
+        return false;
+    }
+    uint16_t arrSlot = allocateTempLocal(expected);
+    emitStore(expected, arrSlot);
+    if (elems && elems->getExprList()) {
+        int idx = 0;
+        SemanticType elemType = expected;
+        if (expected.arrayDims > 0) {
+            dropOuterArrayDim(elemType);
+        } else {
+            elemType.sliceDims -= 1;
+        }
+        for (ExprNode *elem : *elems->getExprList()) {
+            *code << code->LoadReference(arrSlot);
+            *code << code->PushInt(idx);
+            if (elem) {
+                if (elem->getType() == ExprNode::COMPOSITE_LIT) {
+                    if (!emitCompositeLiteralWithExpected(elem, elemType)) {
+                        return false;
+                    }
+                } else if (!emitExprWithCast(elem, elemType)) {
+                    return false;
+                }
+                emitArrayStoreValue(elemType);
+            }
+            idx++;
+        }
+    }
+    emitLoad(expected, arrSlot);
     return true;
 }
 
@@ -4973,8 +5033,15 @@ bool BytecodeContext::emitSliceLiteral(ExprNode *expr) {
         for (ExprNode *elem : *elems->getExprList()) {
             *code << code->LoadReference(arrSlot);
             *code << code->PushInt(idx);
-            if (elem && emitExprWithCast(elem, elemType)) {
-                emitArrayStoreValue(elemType);
+            if (elem) {
+                if (elem->getType() == ExprNode::COMPOSITE_LIT) {
+                    if (!emitCompositeLiteralWithExpected(elem, elemType)) {
+                        return false;
+                    }
+                    emitArrayStoreValue(elemType);
+                } else if (emitExprWithCast(elem, elemType)) {
+                    emitArrayStoreValue(elemType);
+                }
             }
             idx++;
         }
@@ -5180,14 +5247,21 @@ bool BytecodeContext::emitArrayPrint(ExprNode *expr, const SemanticType &arrayTy
     if (!expr || !code || !systemOut) {
         return false;
     }
-    if (arrayType.arrayDims + arrayType.sliceDims != 1) {
-        return false;
-    }
     if (!emitExpr(expr)) {
         return false;
     }
     uint16_t arrSlot = allocateTempLocal(arrayType);
     emitStore(arrayType, arrSlot);
+    return emitArrayPrintFromLocal(arrayType, arrSlot);
+}
+
+bool BytecodeContext::emitArrayPrintFromLocal(const SemanticType &arrayType, uint16_t arrSlot) {
+    if (!code || !systemOut) {
+        return false;
+    }
+    if (arrayType.arrayDims + arrayType.sliceDims <= 0) {
+        return false;
+    }
     SemanticType intType = SemanticType::makeBase(SemanticType::INT);
     uint16_t idxSlot = allocateTempLocal(intType);
     jvm::ConstantMethodref *printString = getPrintMethod(SemanticType::makeBase(SemanticType::STRING));
@@ -5227,7 +5301,16 @@ bool BytecodeContext::emitArrayPrint(ExprNode *expr, const SemanticType &arrayTy
     } else {
         elemType.sliceDims -= 1;
     }
-    if (elemType.base == SemanticType::FLOAT && elemType.isScalar()) {
+    if (elemType.arrayDims > 0 || elemType.sliceDims > 0) {
+        emitLoad(arrayType, arrSlot);
+        emitLoad(intType, idxSlot);
+        emitArrayLoadValue(elemType);
+        uint16_t elemSlot = allocateTempLocal(elemType);
+        emitStore(elemType, elemSlot);
+        if (!emitArrayPrintFromLocal(elemType, elemSlot)) {
+            return false;
+        }
+    } else if (elemType.base == SemanticType::FLOAT) {
         SemanticType floatType = SemanticType::makeBase(SemanticType::FLOAT);
         emitLoad(arrayType, arrSlot);
         emitLoad(intType, idxSlot);
@@ -5245,7 +5328,7 @@ bool BytecodeContext::emitArrayPrint(ExprNode *expr, const SemanticType &arrayTy
         emitLoad(floatType, tmpSlot);
         *code << code->CompareDouble(jvm::Instruction::StrictCompare::Greater);
         jvm::Label *labelInt = code->CodeLabel();
-        jvm::Label *labelEnd = code->CodeLabel();
+        jvm::Label *labelFloatEnd = code->CodeLabel();
         *code << code->If(jvm::Instruction::Compare::Equal, labelInt);
         *code << code->GetStatic(systemOut);
         emitLoad(floatType, tmpSlot);
@@ -5259,7 +5342,7 @@ bool BytecodeContext::emitArrayPrint(ExprNode *expr, const SemanticType &arrayTy
         if (printString) {
             *code << code->InvokeVirtual(printString);
         }
-        *code << code->GoTo(labelEnd);
+        *code << code->GoTo(labelFloatEnd);
         *code << labelInt;
         *code << code->GetStatic(systemOut);
         emitLoad(floatType, tmpSlot);
@@ -5268,7 +5351,7 @@ bool BytecodeContext::emitArrayPrint(ExprNode *expr, const SemanticType &arrayTy
         if (printInt) {
             *code << code->InvokeVirtual(printInt);
         }
-        *code << labelEnd;
+        *code << labelFloatEnd;
     } else {
         *code << code->GetStatic(systemOut);
         emitLoad(arrayType, arrSlot);
