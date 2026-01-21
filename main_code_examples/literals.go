@@ -3,7 +3,6 @@ package main
 import "fmt"
 
 func main() {
-	// Integer literals
 	fmt.Println("DEC:", 42)
 	fmt.Println("OCT 0o755:", 0o755)
 	fmt.Println("OCT 0755:", 0755)
@@ -13,7 +12,6 @@ func main() {
 
 	fmt.Println()
 
-	// Rune literals
 	fmt.Println("RUNE A:", 'A')
 	fmt.Println("RUNE Ж:", 'Ж')
 	fmt.Println("ESC \\n:", '\n')
@@ -32,7 +30,6 @@ func main() {
 
 	fmt.Println()
 
-	// Strings
 	fmt.Println("STR interp:", "строка\n\t\"кавычки\"")
 	fmt.Println("STR raw:", `как есть \n без экранирования многострочно`)
 }
