@@ -4382,6 +4382,44 @@ void BytecodeContext::startMain() {
     nextLocalIndex = 1;
     tempCounter = 0;
     loopStack.clear();
+    scannerInitialized = false;
+
+    jvm::ConstantClass *scannerClass = clazz->getOrCreateClassConstant("java/util/Scanner");
+    jvm::ConstantMethodref *ctor = clazz->getOrCreateMethodrefConstant(
+        scannerClass,
+        "<init>",
+        jvm::DescriptorMethod(std::nullopt, {jvm::DescriptorField("java/io/InputStream")})
+    );
+    jvm::ConstantFieldref *systemIn = clazz->getOrCreateFieldrefConstant(
+        "java/lang/System",
+        "in",
+        jvm::DescriptorField("java/io/InputStream")
+    );
+    SemanticType refType = SemanticType::makeBase(SemanticType::STRING);
+    scannerSlot = allocateLocal("$scan$", refType);
+    *code << code->New(scannerClass);
+    *code << code->Duplicate();
+    *code << code->GetStatic(systemIn);
+    *code << code->InvokeSpecial(ctor);
+    emitStore(refType, scannerSlot);
+
+    jvm::ConstantFieldref *localeUS = clazz->getOrCreateFieldrefConstant(
+        "java/util/Locale",
+        "US",
+        jvm::DescriptorField("java/util/Locale")
+    );
+    jvm::ConstantMethodref *useLocale = clazz->getOrCreateMethodrefConstant(
+        scannerClass,
+        "useLocale",
+        jvm::DescriptorMethod(jvm::DescriptorField("java/util/Scanner"), {jvm::DescriptorField("java/util/Locale")})
+    );
+    if (localeUS && useLocale) {
+        emitLoad(refType, scannerSlot);
+        *code << code->GetStatic(localeUS);
+        *code << code->InvokeVirtual(useLocale);
+        *code << code->PopOne();
+    }
+    scannerInitialized = true;
 }
 
 bool BytecodeContext::startFunction(const string &name,
@@ -4408,6 +4446,44 @@ bool BytecodeContext::startFunction(const string &name,
     currentReturnTypes = results;
     locals.clear();
     nextLocalIndex = 0;
+    scannerInitialized = false;
+
+    jvm::ConstantClass *scannerClass = clazz->getOrCreateClassConstant("java/util/Scanner");
+    jvm::ConstantMethodref *ctor = clazz->getOrCreateMethodrefConstant(
+        scannerClass,
+        "<init>",
+        jvm::DescriptorMethod(std::nullopt, {jvm::DescriptorField("java/io/InputStream")})
+    );
+    jvm::ConstantFieldref *systemIn = clazz->getOrCreateFieldrefConstant(
+        "java/lang/System",
+        "in",
+        jvm::DescriptorField("java/io/InputStream")
+    );
+    SemanticType refType = SemanticType::makeBase(SemanticType::STRING);
+    scannerSlot = allocateLocal("$scan$", refType);
+    *code << code->New(scannerClass);
+    *code << code->Duplicate();
+    *code << code->GetStatic(systemIn);
+    *code << code->InvokeSpecial(ctor);
+    emitStore(refType, scannerSlot);
+
+    jvm::ConstantFieldref *localeUS = clazz->getOrCreateFieldrefConstant(
+        "java/util/Locale",
+        "US",
+        jvm::DescriptorField("java/util/Locale")
+    );
+    jvm::ConstantMethodref *useLocale = clazz->getOrCreateMethodrefConstant(
+        scannerClass,
+        "useLocale",
+        jvm::DescriptorMethod(jvm::DescriptorField("java/util/Scanner"), {jvm::DescriptorField("java/util/Locale")})
+    );
+    if (localeUS && useLocale) {
+        emitLoad(refType, scannerSlot);
+        *code << code->GetStatic(localeUS);
+        *code << code->InvokeVirtual(useLocale);
+        *code << code->PopOne();
+    }
+    scannerInitialized = true;
     return true;
 }
 
@@ -4879,6 +4955,37 @@ static string buildArrayDescriptor(const SemanticType &type, int totalDims) {
             break;
     }
     return desc;
+}
+
+static bool emitArrayAllocationFromType(BytecodeContext &ctx, TypeNode *type, const SemanticType &semType) {
+    if (!type || type->getKind() != TypeNode::ARRAY || !ctx.code || !ctx.clazz) {
+        return false;
+    }
+    vector<ExprNode*> lengths;
+    TypeNode *cursor = type;
+    while (cursor && cursor->getKind() == TypeNode::ARRAY) {
+        lengths.push_back(cursor->getArrayLenExpr());
+        cursor = cursor->getElemType();
+    }
+    if (lengths.empty()) {
+        return false;
+    }
+    if (lengths.size() == 1) {
+        ExprNode *lenExpr = lengths.front();
+        if (!lenExpr || !ctx.emitExpr(lenExpr)) {
+            return false;
+        }
+        return ctx.emitArrayNew(semType);
+    }
+    for (ExprNode *lenExpr : lengths) {
+        if (!lenExpr || !ctx.emitExpr(lenExpr)) {
+            return false;
+        }
+    }
+    string desc = buildArrayDescriptor(semType, static_cast<int>(lengths.size()));
+    jvm::ConstantClass *arrayClass = ctx.clazz->getOrCreateClassConstant(desc);
+    *ctx.code << ctx.code->MultiNewArray(arrayClass, static_cast<uint8_t>(lengths.size()));
+    return true;
 }
 
 bool BytecodeContext::emitArrayNew(const SemanticType &arrayType) {
@@ -6014,30 +6121,9 @@ bool BytecodeContext::emitScanCall(ExprNode *expr) {
         "in",
         jvm::DescriptorField("java/io/InputStream")
     );
-    string tmpName = "$scan$" + to_string(locals.size());
     SemanticType refType = SemanticType::makeBase(SemanticType::STRING);
-    uint16_t scannerSlot = allocateLocal(tmpName, refType);
-    *code << code->New(scannerClass);
-    *code << code->Duplicate();
-    *code << code->GetStatic(systemIn);
-    *code << code->InvokeSpecial(ctor);
-    emitStore(refType, scannerSlot);
-
-    jvm::ConstantFieldref *localeUS = clazz->getOrCreateFieldrefConstant(
-        "java/util/Locale",
-        "US",
-        jvm::DescriptorField("java/util/Locale")
-    );
-    jvm::ConstantMethodref *useLocale = clazz->getOrCreateMethodrefConstant(
-        scannerClass,
-        "useLocale",
-        jvm::DescriptorMethod(jvm::DescriptorField("java/util/Scanner"), {jvm::DescriptorField("java/util/Locale")})
-    );
-    if (localeUS && useLocale) {
-        emitLoad(refType, scannerSlot);
-        *code << code->GetStatic(localeUS);
-        *code << code->InvokeVirtual(useLocale);
-        *code << code->PopOne();
+    if (!scannerInitialized) {
+        return false;
     }
 
     for (ExprNode *arg : *args->getExprList()) {
@@ -6856,8 +6942,7 @@ void VarSpecNode::emitBytecode(BytecodeContext &ctx) {
                 continue;
             }
         } else if (type && type->getKind() == TypeNode::ARRAY) {
-            ExprNode *lenExpr = type->getArrayLenExpr();
-            if (!lenExpr || !ctx.emitExpr(lenExpr) || !ctx.emitArrayNew(semType)) {
+            if (!emitArrayAllocationFromType(ctx, type, semType)) {
                 continue;
             }
         } else {
@@ -6910,8 +6995,7 @@ void ConstSpecNode::emitBytecode(BytecodeContext &ctx) {
                 continue;
             }
         } else if (type && type->getKind() == TypeNode::ARRAY) {
-            ExprNode *lenExpr = type->getArrayLenExpr();
-            if (!lenExpr || !ctx.emitExpr(lenExpr) || !ctx.emitArrayNew(semType)) {
+            if (!emitArrayAllocationFromType(ctx, type, semType)) {
                 continue;
             }
         } else {

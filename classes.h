@@ -201,6 +201,8 @@ struct BytecodeContext {
     vector<LoopLabels> loopStack;
     vector<SemanticType> currentReturnTypes;
     bool allowMultiReturnCall = false;
+    bool scannerInitialized = false;
+    uint16_t scannerSlot = 0;
     ExprListNode *constPrevExprs = nullptr;
     int iotaValue = 0;
     bool inConstBlock = false;
