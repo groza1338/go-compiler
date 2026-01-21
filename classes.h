@@ -77,6 +77,7 @@ struct SemanticType {
     BaseType base = UNKNOWN;
     int arrayDims = 0;
     int sliceDims = 0;
+    int pointerDepth = 0;
     vector<int> arrayLengths;
     bool isError = false;
 
@@ -84,10 +85,11 @@ struct SemanticType {
 
     static SemanticType makeError();
 
-    bool isNumeric() const { return base == INT || base == FLOAT || base == RUNE; }
-    bool isBool() const { return base == BOOL; }
-    bool isString() const { return base == STRING; }
-    bool isScalar() const { return arrayDims == 0 && sliceDims == 0; }
+    bool isNumeric() const { return pointerDepth == 0 && (base == INT || base == FLOAT || base == RUNE); }
+    bool isBool() const { return pointerDepth == 0 && base == BOOL; }
+    bool isString() const { return pointerDepth == 0 && base == STRING; }
+    bool isPointer() const { return pointerDepth > 0; }
+    bool isScalar() const { return arrayDims == 0 && sliceDims == 0 && pointerDepth == 0; }
 
     bool sameKind(const SemanticType &other) const;
 
@@ -98,6 +100,7 @@ struct SemanticContext {
     struct SymbolInfo {
         SemanticType type;
         bool isConst = false;
+        bool addressTaken = false;
     };
     struct FunctionReturnInfo {
         vector<SemanticType> types;
@@ -125,6 +128,7 @@ struct SemanticContext {
     int iotaValue = 0;
     ExprListNode *constPrevExprs = nullptr;
     bool allowMultiValue = false;
+    unordered_set<string> addressTakenNames;
 
     SemanticContext();
 
@@ -142,6 +146,7 @@ struct SemanticContext {
 
     bool isConst(const string &name) const;
     void declare(const string &name, const SemanticType &type, bool isConst);
+    void markAddressTaken(const string &name);
     void markUsed(const string &name);
 
     void enterFunction(const FunctionReturnInfo &info);
@@ -188,6 +193,7 @@ struct BytecodeContext {
     struct LocalVarInfo {
         SemanticType type;
         uint16_t index = 0;
+        bool boxed = false;
     };
 
     unique_ptr<jvm::Class> clazz;
@@ -196,6 +202,8 @@ struct BytecodeContext {
     jvm::ConstantFieldref *systemOut = nullptr;
     unordered_map<string, SemanticContext::FunctionInfo> functions;
     unordered_map<string, LocalVarInfo> locals;
+    unordered_set<string> addressTakenNames;
+    unordered_map<uint16_t, SemanticType> boxedSlots;
     uint16_t nextLocalIndex = 0;
     uint32_t tempCounter = 0;
     vector<LoopLabels> loopStack;
@@ -211,9 +219,10 @@ struct BytecodeContext {
     void startMain();
     bool startFunction(const string &name, const vector<SemanticType> &params, const vector<SemanticType> &results);
     void writeTo(const filesystem::path &outPath);
-    uint16_t allocateLocal(const string &name, const SemanticType &type);
+    uint16_t allocateLocal(const string &name, const SemanticType &type, bool boxed = false);
     uint16_t allocateTempLocal(const SemanticType &type);
     void emitDefaultValue(const SemanticType &type);
+    void ensureScanner();
     bool emitExpr(ExprNode *expr);
     bool emitLiteral(ValueNode *literal);
     bool emitArrayNew(const SemanticType &arrayType);
@@ -271,6 +280,7 @@ public:
         NOT,
         UNARY_MINUS,
         ADDRESS_OF,
+        DEREFERENCE,
         ELEMENT_ACCESS,
         ELEMENT_ASSIGN,
         SELECTOR,
@@ -298,6 +308,7 @@ public:
     static ExprNode* createNot(ExprNode *operand);
     static ExprNode* createUnaryMinus(ExprNode *operand);
     static ExprNode* createAddressOf(ExprNode *operand);
+    static ExprNode* createDereference(ExprNode *operand);
     static ExprNode* createElementAccess(ExprNode *operand, ExprNode *index);
     static ExprNode* createElementAssign(ExprNode *operand, ExprNode *index, ExprNode *value);
     static ExprNode* createSelector(ExprNode *operand, ValueNode *field);
@@ -551,13 +562,15 @@ public:
         NAMED,
         ARRAY,
         SLICE,
-        FUNC
+        FUNC,
+        POINTER
     };
 
     static TypeNode* createNamedType(TypeNameNode *name);
     static TypeNode* createArrayType(ExprNode *len, TypeNode *elemType);
     static TypeNode* createFuncType(SignatureNode *signature);
     static TypeNode* createSliceType(TypeNode *elemType);
+    static TypeNode* createPointerType(TypeNode *elemType);
 
     Kind getKind() const;
     ExprNode* getArrayLenExpr() const;

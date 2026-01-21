@@ -375,6 +375,12 @@ static bool isAddressableExpr(ExprNode *expr, SemanticContext &ctx) {
             return false;
         case ExprNode::EXPR_IN_BRACKETS:
             return isAddressableExpr(expr->getOperand(), ctx);
+        case ExprNode::DEREFERENCE:
+            if (ExprNode *operand = expr->getOperand()) {
+                SemanticType operandType = operand->semantics(ctx);
+                return operandType.isPointer();
+            }
+            return false;
         default:
             return false;
     }
@@ -732,7 +738,8 @@ SemanticType SemanticType::makeError() {
 }
 
 bool SemanticType::sameKind(const SemanticType &other) const {
-    if (base != other.base || arrayDims != other.arrayDims || sliceDims != other.sliceDims) {
+    if (base != other.base || arrayDims != other.arrayDims || sliceDims != other.sliceDims
+        || pointerDepth != other.pointerDepth) {
         return false;
     }
     size_t lenCount = min(arrayLengths.size(), other.arrayLengths.size());
@@ -758,6 +765,9 @@ string SemanticType::toString() const {
         default: baseStr = "unknown"; break;
     }
     string prefix;
+    for (int i = 0; i < pointerDepth; i++) {
+        prefix += "*";
+    }
     for (int i = 0; i < arrayDims; i++) {
         int len = -1;
         if (i < static_cast<int>(arrayLengths.size())) {
@@ -843,7 +853,18 @@ bool SemanticContext::isConst(const string &name) const {
 
 void SemanticContext::declare(const string &name, const SemanticType &type, bool isConst) {
     if (!scopes.empty()) {
-        scopes.back()[name] = {type, isConst};
+        scopes.back()[name] = {type, isConst, false};
+    }
+}
+
+void SemanticContext::markAddressTaken(const string &name) {
+    for (auto it = scopes.rbegin(); it != scopes.rend(); ++it) {
+        auto found = it->find(name);
+        if (found != it->end()) {
+            found->second.addressTaken = true;
+            addressTakenNames.insert(name);
+            return;
+        }
     }
 }
 
@@ -1143,6 +1164,13 @@ ExprNode* ExprNode::createUnaryMinus(ExprNode *operand) {
 ExprNode* ExprNode::createAddressOf(ExprNode *operand) {
     ExprNode *node = new ExprNode();
     node->type = ADDRESS_OF;
+    node->operand = operand;
+    return node;
+}
+
+ExprNode* ExprNode::createDereference(ExprNode *operand) {
+    ExprNode *node = new ExprNode();
+    node->type = DEREFERENCE;
     node->operand = operand;
     return node;
 }
@@ -1567,7 +1595,30 @@ SemanticType ExprNode::semantics(SemanticContext &ctx) {
                 ctx.report("invalid operation: cannot take address of " + toString());
             }
             semType = operand ? operand->semantics(ctx) : SemanticType::makeBase(SemanticType::UNKNOWN);
+            if (!semType.isScalar()) {
+                ctx.report("invalid operation: cannot take address of " + toString());
+                semType = SemanticType::makeBase(SemanticType::UNKNOWN);
+            } else {
+                semType.pointerDepth += 1;
+                if (operand && operand->getType() == ID) {
+                    ValueNode *idVal = operand->getIdentifier();
+                    if (idVal && idVal->getString()) {
+                        ctx.markAddressTaken(*idVal->getString());
+                    }
+                }
+            }
             break;
+        case DEREFERENCE: {
+            SemanticType operandType = operand ? operand->semantics(ctx) : SemanticType::makeBase(SemanticType::UNKNOWN);
+            if (operandType.pointerDepth <= 0 || !operandType.isPointer()) {
+                ctx.report("invalid operation: cannot dereference " + toString());
+                semType = SemanticType::makeBase(SemanticType::UNKNOWN);
+                break;
+            }
+            semType = operandType;
+            semType.pointerDepth -= 1;
+            break;
+        }
         case ELEMENT_ACCESS: {
             SemanticType operandType = operand ? operand->semantics(ctx) : SemanticType::makeBase(SemanticType::UNKNOWN);
             SemanticType indexType = index ? index->semantics(ctx) : SemanticType::makeBase(SemanticType::UNKNOWN);
@@ -1586,7 +1637,10 @@ SemanticType ExprNode::semantics(SemanticContext &ctx) {
                         + indexType.toString() + ")");
                 }
             }
-            if (operandType.arrayDims > 0) {
+            if (operandType.pointerDepth > 0) {
+                semType = operandType;
+                semType.pointerDepth -= 1;
+            } else if (operandType.arrayDims > 0) {
                 semType = operandType;
                 dropOuterArrayDim(semType);
             } else if (operandType.sliceDims > 0) {
@@ -1619,7 +1673,10 @@ SemanticType ExprNode::semantics(SemanticContext &ctx) {
                 }
             }
             SemanticType elemType = SemanticType::makeBase(SemanticType::UNKNOWN);
-            if (operandType.arrayDims > 0) {
+            if (operandType.pointerDepth > 0) {
+                elemType = operandType;
+                elemType.pointerDepth -= 1;
+            } else if (operandType.arrayDims > 0) {
                 elemType = operandType;
                 dropOuterArrayDim(elemType);
             } else if (operandType.sliceDims > 0) {
@@ -1689,13 +1746,16 @@ SemanticType ExprNode::semantics(SemanticContext &ctx) {
                                 if (!arg) {
                                     continue;
                                 }
-                                if (arg->getType() != ExprNode::ADDRESS_OF) {
-                                    ctx.report(arg->toString() + " is no address-of expression");
+                                if (arg->getType() == ExprNode::ADDRESS_OF) {
+                                    ExprNode *target = arg->getOperand();
+                                    if (!isAddressableExpr(target, ctx)) {
+                                        ctx.report(arg->toString() + " is no addressable");
+                                    }
                                     continue;
                                 }
-                                ExprNode *target = arg->getOperand();
-                                if (!isAddressableExpr(target, ctx)) {
-                                    ctx.report(arg->toString() + " is no addressable");
+                                SemanticType argType = arg->semantics(ctx);
+                                if (!argType.isPointer()) {
+                                    ctx.report(arg->toString() + " is no address-of expression");
                                 }
                             }
                         }
@@ -1831,6 +1891,8 @@ string ExprNode::toString() const {
             return "(-" + (operand ? operand->toString() : "nil") + ")";
         case ADDRESS_OF:
             return "(&" + (operand ? operand->toString() : "nil") + ")";
+        case DEREFERENCE:
+            return "(*" + (operand ? operand->toString() : "nil") + ")";
         case ELEMENT_ACCESS:
             return (operand ? operand->toString() : "nil") + "[" + (index ? index->toString() : "nil") + "]";
         case ELEMENT_ASSIGN:
@@ -1905,6 +1967,7 @@ string ExprNode::getDotLabel() const {
         case NOT:               label = "!"; break;
         case UNARY_MINUS:       label = "-"; break;
         case ADDRESS_OF:        label = "&"; break;
+        case DEREFERENCE:       label = "*"; break;
         case ELEMENT_ACCESS:    label = "[i]"; break;
         case ELEMENT_ASSIGN:    label = "[]="; break;
         case SELECTOR:          label = "."; break;
@@ -2863,6 +2926,51 @@ void SimpleStmtNode::semantics(SemanticContext &ctx) {
                     }
                     continue;
                 }
+                if (leftExpr && leftExpr->getType() == ExprNode::DEREFERENCE && rightExpr) {
+                    SemanticType leftType = leftExpr->semantics(ctx);
+                    if (!leftType.isScalar()) {
+                        if (rightList && itRight != rightList->end()) {
+                            ++itRight;
+                        }
+                        continue;
+                    }
+                    ExprNode *operand = leftExpr->getOperand();
+                    ExprNode *index = ExprNode::createLiteralVal(ValueNode::createInt(0));
+                    ExprNode *rhsExpr = rightExpr;
+                    if (type != ASSIGN) {
+                        ExprNode *accessForRhs = ExprNode::createElementAccess(operand, index);
+                        switch (type) {
+                            case ADD_ASSIGN:
+                                rhsExpr = ExprNode::createSummary(accessForRhs, rightExpr);
+                                break;
+                            case SUB_ASSIGN:
+                                rhsExpr = ExprNode::createSubtraction(accessForRhs, rightExpr);
+                                break;
+                            case MUL_ASSIGN:
+                                rhsExpr = ExprNode::createMultiplication(accessForRhs, rightExpr);
+                                break;
+                            case DIV_ASSIGN:
+                                rhsExpr = ExprNode::createDivision(accessForRhs, rightExpr);
+                                break;
+                            case MOD_ASSIGN:
+                                rhsExpr = ExprNode::createModulo(accessForRhs, rightExpr);
+                                break;
+                            default:
+                                break;
+                        }
+                    }
+                    ExprNode *assignExpr = ExprNode::createElementAssign(operand, index, rhsExpr);
+                    *itLeft = assignExpr;
+                    if (rightList && itRight != rightList->end()) {
+                        itRight = rightList->erase(itRight);
+                        erasedRight = true;
+                    }
+                    assignExpr->semantics(ctx);
+                    if (!erasedRight && rightList && itRight != rightList->end()) {
+                        ++itRight;
+                    }
+                    continue;
+                }
 
                 SemanticType leftType = SemanticType::makeBase(SemanticType::UNKNOWN);
                 if (isId) {
@@ -3019,12 +3127,20 @@ TypeNode* TypeNode::createSliceType(TypeNode *elemType) {
     return node;
 }
 
+TypeNode* TypeNode::createPointerType(TypeNode *elemType) {
+    TypeNode *node = new TypeNode();
+    node->kind = POINTER;
+    node->elemType = elemType;
+    return node;
+}
+
 string TypeNode::getDotLabel() const {
     switch (kind) {
         case NAMED: return "TYPE_NAMED";
         case ARRAY: return "TYPE_ARRAY";
         case SLICE: return "TYPE_SLICE";
         case FUNC: return "TYPE_FUNC";
+        case POINTER: return "TYPE_POINTER";
         default: return "TYPE";
     }
 }
@@ -3046,6 +3162,9 @@ string TypeNode::toDot() const {
         break;
     case FUNC:
         appendDotEdge(res, signature, "signature");
+        break;
+    case POINTER:
+        appendDotEdge(res, elemType, "elem_type");
         break;
     default:
         break;
@@ -3103,6 +3222,11 @@ SemanticType TypeNode::getSemanticType() const {
         case SLICE: {
             SemanticType elem = elemType ? elemType->getSemanticType() : SemanticType::makeBase(SemanticType::UNKNOWN);
             elem.sliceDims += 1;
+            return elem;
+        }
+        case POINTER: {
+            SemanticType elem = elemType ? elemType->getSemanticType() : SemanticType::makeBase(SemanticType::UNKNOWN);
+            elem.pointerDepth += 1;
             return elem;
         }
         default:
@@ -3704,6 +3828,7 @@ void FuncDeclNode::semantics(SemanticContext &ctx) {
     if (body) body->semantics(local);
     local.exitFunction();
     ctx.errors.insert(ctx.errors.end(), local.errors.begin(), local.errors.end());
+    ctx.addressTakenNames.insert(local.addressTakenNames.begin(), local.addressTakenNames.end());
 }
 
 ValueNode* FuncDeclNode::getId() const {
@@ -4313,6 +4438,28 @@ BytecodeContext::BytecodeContext() {
 }
 
 static bool toDescriptorField(const SemanticType &type, jvm::DescriptorField &out) {
+    if (type.pointerDepth > 0) {
+        if (type.pointerDepth != 1 || type.arrayDims > 0 || type.sliceDims > 0) {
+            return false;
+        }
+        switch (type.base) {
+            case SemanticType::INT:
+            case SemanticType::RUNE:
+                out = jvm::DescriptorField(jvm::Descriptor::Int, 1);
+                return true;
+            case SemanticType::FLOAT:
+                out = jvm::DescriptorField(jvm::Descriptor::Double, 1);
+                return true;
+            case SemanticType::BOOL:
+                out = jvm::DescriptorField(jvm::Descriptor::Boolean, 1);
+                return true;
+            case SemanticType::STRING:
+                out = jvm::DescriptorField("java/lang/String", 1);
+                return true;
+            default:
+                return false;
+        }
+    }
     if (type.arrayDims > 0 || type.sliceDims > 0) {
         return false;
     }
@@ -4384,42 +4531,7 @@ void BytecodeContext::startMain() {
     loopStack.clear();
     scannerInitialized = false;
 
-    jvm::ConstantClass *scannerClass = clazz->getOrCreateClassConstant("java/util/Scanner");
-    jvm::ConstantMethodref *ctor = clazz->getOrCreateMethodrefConstant(
-        scannerClass,
-        "<init>",
-        jvm::DescriptorMethod(std::nullopt, {jvm::DescriptorField("java/io/InputStream")})
-    );
-    jvm::ConstantFieldref *systemIn = clazz->getOrCreateFieldrefConstant(
-        "java/lang/System",
-        "in",
-        jvm::DescriptorField("java/io/InputStream")
-    );
-    SemanticType refType = SemanticType::makeBase(SemanticType::STRING);
-    scannerSlot = allocateLocal("$scan$", refType);
-    *code << code->New(scannerClass);
-    *code << code->Duplicate();
-    *code << code->GetStatic(systemIn);
-    *code << code->InvokeSpecial(ctor);
-    emitStore(refType, scannerSlot);
-
-    jvm::ConstantFieldref *localeUS = clazz->getOrCreateFieldrefConstant(
-        "java/util/Locale",
-        "US",
-        jvm::DescriptorField("java/util/Locale")
-    );
-    jvm::ConstantMethodref *useLocale = clazz->getOrCreateMethodrefConstant(
-        scannerClass,
-        "useLocale",
-        jvm::DescriptorMethod(jvm::DescriptorField("java/util/Scanner"), {jvm::DescriptorField("java/util/Locale")})
-    );
-    if (localeUS && useLocale) {
-        emitLoad(refType, scannerSlot);
-        *code << code->GetStatic(localeUS);
-        *code << code->InvokeVirtual(useLocale);
-        *code << code->PopOne();
-    }
-    scannerInitialized = true;
+    scannerInitialized = false;
 }
 
 bool BytecodeContext::startFunction(const string &name,
@@ -4447,7 +4559,13 @@ bool BytecodeContext::startFunction(const string &name,
     locals.clear();
     nextLocalIndex = 0;
     scannerInitialized = false;
+    return true;
+}
 
+void BytecodeContext::ensureScanner() {
+    if (scannerInitialized || !code || !clazz) {
+        return;
+    }
     jvm::ConstantClass *scannerClass = clazz->getOrCreateClassConstant("java/util/Scanner");
     jvm::ConstantMethodref *ctor = clazz->getOrCreateMethodrefConstant(
         scannerClass,
@@ -4484,7 +4602,6 @@ bool BytecodeContext::startFunction(const string &name,
         *code << code->PopOne();
     }
     scannerInitialized = true;
-    return true;
 }
 
 void BytecodeContext::writeTo(const filesystem::path &outPath) {
@@ -4513,14 +4630,17 @@ BytecodeContext::LoopLabels BytecodeContext::currentLoop() const {
     return loopStack.back();
 }
 
-uint16_t BytecodeContext::allocateLocal(const string &name, const SemanticType &type) {
+uint16_t BytecodeContext::allocateLocal(const string &name, const SemanticType &type, bool boxed) {
     auto it = locals.find(name);
     if (it != locals.end()) {
         return it->second.index;
     }
     uint16_t slot = nextLocalIndex;
-    locals[name] = {type, slot};
-    if (type.arrayDims > 0 || type.sliceDims > 0) {
+    locals[name] = {type, slot, boxed};
+    if (boxed) {
+        boxedSlots[slot] = type;
+    }
+    if (boxed || type.pointerDepth > 0 || type.arrayDims > 0 || type.sliceDims > 0) {
         nextLocalIndex += 1;
     } else {
         nextLocalIndex += (type.base == SemanticType::FLOAT) ? 2 : 1;
@@ -4530,14 +4650,14 @@ uint16_t BytecodeContext::allocateLocal(const string &name, const SemanticType &
 
 uint16_t BytecodeContext::allocateTempLocal(const SemanticType &type) {
     string name = "$tmp" + to_string(tempCounter++);
-    return allocateLocal(name, type);
+    return allocateLocal(name, type, false);
 }
 
 void BytecodeContext::emitDefaultValue(const SemanticType &type) {
     if (!code) {
         return;
     }
-    if (type.arrayDims > 0 || type.sliceDims > 0) {
+    if (type.pointerDepth > 0 || type.arrayDims > 0 || type.sliceDims > 0) {
         *code << code->PushNull();
         return;
     }
@@ -4620,6 +4740,27 @@ bool BytecodeContext::emitExpr(ExprNode *expr) {
             return emitSliceLiteral(expr);
         case ExprNode::SLICE:
             return emitSliceExpr(expr);
+        case ExprNode::ADDRESS_OF: {
+            ExprNode *operand = expr->getOperand();
+            if (!operand || operand->getType() != ExprNode::ID) {
+                return false;
+            }
+            ValueNode *idVal = operand->getIdentifier();
+            if (!idVal || !idVal->getString()) {
+                return false;
+            }
+            auto it = locals.find(*idVal->getString());
+            if (it == locals.end()) {
+                return false;
+            }
+            uint16_t slot = it->second.index;
+            auto boxedIt = boxedSlots.find(slot);
+            if (boxedIt == boxedSlots.end()) {
+                return false;
+            }
+            *code << code->LoadReference(slot);
+            return true;
+        }
         case ExprNode::ELEMENT_ACCESS:
             return emitArrayAccess(expr);
         case ExprNode::SUMMARY:
@@ -4710,6 +4851,24 @@ bool BytecodeContext::emitExpr(ExprNode *expr) {
             } else {
                 *code << code->NegInt();
             }
+            return true;
+        }
+        case ExprNode::DEREFERENCE: {
+            ExprNode *operand = expr->getOperand();
+            if (!operand) {
+                return false;
+            }
+            SemanticType operandType = inferExprType(operand);
+            if (operandType.pointerDepth <= 0) {
+                return false;
+            }
+            SemanticType elemType = operandType;
+            elemType.pointerDepth -= 1;
+            if (!emitExpr(operand)) {
+                return false;
+            }
+            *code << code->PushInt(0);
+            emitArrayLoadValue(elemType);
             return true;
         }
         case ExprNode::EQUAL:
@@ -5173,9 +5332,11 @@ bool BytecodeContext::emitArrayAccess(ExprNode *expr) {
         return false;
     }
     SemanticType arrayType = inferExprType(operand);
-    if (arrayType.arrayDims > 0 || arrayType.sliceDims > 0) {
+    if (arrayType.pointerDepth > 0 || arrayType.arrayDims > 0 || arrayType.sliceDims > 0) {
         SemanticType elemType = arrayType;
-        if (arrayType.arrayDims > 0) {
+        if (arrayType.pointerDepth > 0) {
+            elemType.pointerDepth -= 1;
+        } else if (arrayType.arrayDims > 0) {
             dropOuterArrayDim(elemType);
         } else {
             elemType.sliceDims -= 1;
@@ -5308,7 +5469,7 @@ void BytecodeContext::emitArrayStoreValue(const SemanticType &elemType) {
     if (!code) {
         return;
     }
-    if (elemType.arrayDims > 0 || elemType.sliceDims > 0) {
+    if (elemType.pointerDepth > 0 || elemType.arrayDims > 0 || elemType.sliceDims > 0) {
         *code << code->StoreReferenceToArray();
         return;
     }
@@ -5334,7 +5495,7 @@ void BytecodeContext::emitArrayLoadValue(const SemanticType &elemType) {
     if (!code) {
         return;
     }
-    if (elemType.arrayDims > 0 || elemType.sliceDims > 0) {
+    if (elemType.pointerDepth > 0 || elemType.arrayDims > 0 || elemType.sliceDims > 0) {
         *code << code->LoadReferenceFromArray();
         return;
     }
@@ -5531,7 +5692,14 @@ void BytecodeContext::emitLoad(const SemanticType &type, uint16_t index) {
     if (!code) {
         return;
     }
-    if (type.arrayDims > 0 || type.sliceDims > 0) {
+    auto boxedIt = boxedSlots.find(index);
+    if (boxedIt != boxedSlots.end()) {
+        *code << code->LoadReference(index);
+        *code << code->PushInt(0);
+        emitArrayLoadValue(boxedIt->second);
+        return;
+    }
+    if (type.pointerDepth > 0 || type.arrayDims > 0 || type.sliceDims > 0) {
         *code << code->LoadReference(index);
         return;
     }
@@ -5555,7 +5723,18 @@ void BytecodeContext::emitStore(const SemanticType &type, uint16_t index) {
     if (!code) {
         return;
     }
-    if (type.arrayDims > 0 || type.sliceDims > 0) {
+    auto boxedIt = boxedSlots.find(index);
+    if (boxedIt != boxedSlots.end()) {
+        SemanticType elemType = boxedIt->second;
+        uint16_t tmpSlot = allocateTempLocal(elemType);
+        emitStore(elemType, tmpSlot);
+        *code << code->LoadReference(index);
+        *code << code->PushInt(0);
+        emitLoad(elemType, tmpSlot);
+        emitArrayStoreValue(elemType);
+        return;
+    }
+    if (type.pointerDepth > 0 || type.arrayDims > 0 || type.sliceDims > 0) {
         *code << code->StoreReference(index);
         return;
     }
@@ -5646,7 +5825,9 @@ SemanticType BytecodeContext::inferExprType(ExprNode *expr) {
     }
     if (expr->getType() == ExprNode::ELEMENT_ACCESS) {
         SemanticType arrayType = inferExprType(expr->getOperand());
-        if (arrayType.arrayDims > 0) {
+        if (arrayType.pointerDepth > 0) {
+            arrayType.pointerDepth -= 1;
+        } else if (arrayType.arrayDims > 0) {
             dropOuterArrayDim(arrayType);
         } else if (arrayType.sliceDims > 0) {
             arrayType.sliceDims -= 1;
@@ -5669,7 +5850,8 @@ bool BytecodeContext::emitExprWithCast(ExprNode *expr, const SemanticType &targe
     if (!target.isScalar()) {
         return exprType.base == target.base
             && exprType.arrayDims == target.arrayDims
-            && exprType.sliceDims == target.sliceDims;
+            && exprType.sliceDims == target.sliceDims
+            && exprType.pointerDepth == target.pointerDepth;
     }
     if (!exprType.isScalar()) {
         return false;
@@ -6122,6 +6304,7 @@ bool BytecodeContext::emitScanCall(ExprNode *expr) {
         jvm::DescriptorField("java/io/InputStream")
     );
     SemanticType refType = SemanticType::makeBase(SemanticType::STRING);
+    ensureScanner();
     if (!scannerInitialized) {
         return false;
     }
@@ -6157,7 +6340,15 @@ bool BytecodeContext::emitScanCall(ExprNode *expr) {
             }
             targetType = it->second.type;
             targetSlot = it->second.index;
-            isDirectLocal = true;
+            if (!isAddressOf && targetType.pointerDepth > 0) {
+                arrayExpr = target;
+                indexExpr = ExprNode::createLiteralVal(ValueNode::createInt(0));
+                arrayType = targetType;
+                targetType.pointerDepth -= 1;
+                isDirectLocal = false;
+            } else {
+                isDirectLocal = true;
+            }
         } else if (isAddressOf && target->getType() == ExprNode::ELEMENT_ACCESS) {
             arrayExpr = target->getOperand();
             indexExpr = target->getIndex();
@@ -6165,7 +6356,7 @@ bool BytecodeContext::emitScanCall(ExprNode *expr) {
                 continue;
             }
             arrayType = inferExprType(arrayExpr);
-            if (arrayType.arrayDims <= 0 && arrayType.sliceDims <= 0) {
+            if (arrayType.pointerDepth <= 0 && arrayType.arrayDims <= 0 && arrayType.sliceDims <= 0) {
                 continue;
             }
             targetType = inferExprType(target);
@@ -6759,8 +6950,17 @@ void SimpleStmtNode::emitBytecode(BytecodeContext &ctx) {
                         if (type == SHORT_VAR_DECL) {
                             if (localIt == ctx.locals.end()) {
                                 targetType = fnInfo->results[idx];
-                                ctx.allocateLocal(name, targetType);
+                                bool boxed = ctx.addressTakenNames.count(name) > 0 && targetType.isScalar();
+                                ctx.allocateLocal(name, targetType, boxed);
                                 localIt = ctx.locals.find(name);
+                                if (boxed && ctx.code && localIt != ctx.locals.end()) {
+                                    SemanticType boxType = targetType;
+                                    boxType.arrayDims += 1;
+                                    boxType.arrayLengths.insert(boxType.arrayLengths.begin(), 1);
+                                    *ctx.code << ctx.code->PushInt(1);
+                                    ctx.emitArrayNew(boxType);
+                                    *ctx.code << ctx.code->StoreReference(localIt->second.index);
+                                }
                             } else {
                                 targetType = localIt->second.type;
                             }
@@ -6804,11 +7004,13 @@ void SimpleStmtNode::emitBytecode(BytecodeContext &ctx) {
                         continue;
                     }
                     SemanticType arrayType = ctx.inferExprType(operand);
-                    if (arrayType.arrayDims <= 0 && arrayType.sliceDims <= 0) {
+                    if (arrayType.pointerDepth <= 0 && arrayType.arrayDims <= 0 && arrayType.sliceDims <= 0) {
                         continue;
                     }
                     SemanticType elemType = arrayType;
-                    if (arrayType.arrayDims > 0) {
+                    if (arrayType.pointerDepth > 0) {
+                        elemType.pointerDepth -= 1;
+                    } else if (arrayType.arrayDims > 0) {
                         dropOuterArrayDim(elemType);
                     } else {
                         elemType.sliceDims -= 1;
@@ -6836,8 +7038,17 @@ void SimpleStmtNode::emitBytecode(BytecodeContext &ctx) {
                 if (type == SHORT_VAR_DECL) {
                     if (localIt == ctx.locals.end()) {
                         targetType = ctx.inferExprType(rightExpr);
-                        ctx.allocateLocal(name, targetType);
+                        bool boxed = ctx.addressTakenNames.count(name) > 0 && targetType.isScalar();
+                        ctx.allocateLocal(name, targetType, boxed);
                         localIt = ctx.locals.find(name);
+                        if (boxed && ctx.code && localIt != ctx.locals.end()) {
+                            SemanticType boxType = targetType;
+                            boxType.arrayDims += 1;
+                            boxType.arrayLengths.insert(boxType.arrayLengths.begin(), 1);
+                            *ctx.code << ctx.code->PushInt(1);
+                            ctx.emitArrayNew(boxType);
+                            *ctx.code << ctx.code->StoreReference(localIt->second.index);
+                        }
                     } else {
                         targetType = localIt->second.type;
                     }
@@ -6936,9 +7147,27 @@ void VarSpecNode::emitBytecode(BytecodeContext &ctx) {
             ++exprIt;
         }
         SemanticType semType = type ? type->getSemanticType() : ctx.inferExprType(expr);
-        uint16_t slot = ctx.allocateLocal(*id->getString(), semType);
+        bool boxed = ctx.addressTakenNames.count(*id->getString()) > 0 && semType.isScalar();
+        uint16_t slot = ctx.allocateLocal(*id->getString(), semType, boxed);
+        if (boxed && ctx.code) {
+            SemanticType boxType = semType;
+            boxType.arrayDims += 1;
+            boxType.arrayLengths.insert(boxType.arrayLengths.begin(), 1);
+            *ctx.code << ctx.code->PushInt(1);
+            ctx.emitArrayNew(boxType);
+            *ctx.code << ctx.code->StoreReference(slot);
+        }
         if (expr) {
-            if (!ctx.emitExpr(expr)) {
+            if (!ctx.emitExprWithCast(expr, semType)) {
+                continue;
+            }
+            if (boxed && ctx.code) {
+                uint16_t tmpSlot = ctx.allocateTempLocal(semType);
+                ctx.emitStore(semType, tmpSlot);
+                *ctx.code << ctx.code->LoadReference(slot);
+                *ctx.code << ctx.code->PushInt(0);
+                ctx.emitLoad(semType, tmpSlot);
+                ctx.emitArrayStoreValue(semType);
                 continue;
             }
         } else if (type && type->getKind() == TypeNode::ARRAY) {
@@ -6947,6 +7176,15 @@ void VarSpecNode::emitBytecode(BytecodeContext &ctx) {
             }
         } else {
             ctx.emitDefaultValue(semType);
+            if (boxed && ctx.code) {
+                uint16_t tmpSlot = ctx.allocateTempLocal(semType);
+                ctx.emitStore(semType, tmpSlot);
+                *ctx.code << ctx.code->LoadReference(slot);
+                *ctx.code << ctx.code->PushInt(0);
+                ctx.emitLoad(semType, tmpSlot);
+                ctx.emitArrayStoreValue(semType);
+                continue;
+            }
         }
         ctx.emitStore(semType, slot);
     }
@@ -6989,9 +7227,27 @@ void ConstSpecNode::emitBytecode(BytecodeContext &ctx) {
             continue;
         }
         SemanticType semType = type ? type->getSemanticType() : ctx.inferExprType(expr);
-        uint16_t slot = ctx.allocateLocal(*id->getString(), semType);
+        bool boxed = ctx.addressTakenNames.count(*id->getString()) > 0 && semType.isScalar();
+        uint16_t slot = ctx.allocateLocal(*id->getString(), semType, boxed);
+        if (boxed && ctx.code) {
+            SemanticType boxType = semType;
+            boxType.arrayDims += 1;
+            boxType.arrayLengths.insert(boxType.arrayLengths.begin(), 1);
+            *ctx.code << ctx.code->PushInt(1);
+            ctx.emitArrayNew(boxType);
+            *ctx.code << ctx.code->StoreReference(slot);
+        }
         if (expr) {
-            if (!ctx.emitExpr(expr)) {
+            if (!ctx.emitExprWithCast(expr, semType)) {
+                continue;
+            }
+            if (boxed && ctx.code) {
+                uint16_t tmpSlot = ctx.allocateTempLocal(semType);
+                ctx.emitStore(semType, tmpSlot);
+                *ctx.code << ctx.code->LoadReference(slot);
+                *ctx.code << ctx.code->PushInt(0);
+                ctx.emitLoad(semType, tmpSlot);
+                ctx.emitArrayStoreValue(semType);
                 continue;
             }
         } else if (type && type->getKind() == TypeNode::ARRAY) {
@@ -7000,6 +7256,15 @@ void ConstSpecNode::emitBytecode(BytecodeContext &ctx) {
             }
         } else {
             ctx.emitDefaultValue(semType);
+            if (boxed && ctx.code) {
+                uint16_t tmpSlot = ctx.allocateTempLocal(semType);
+                ctx.emitStore(semType, tmpSlot);
+                *ctx.code << ctx.code->LoadReference(slot);
+                *ctx.code << ctx.code->PushInt(0);
+                ctx.emitLoad(semType, tmpSlot);
+                ctx.emitArrayStoreValue(semType);
+                continue;
+            }
         }
         ctx.emitStore(semType, slot);
     }
@@ -7053,7 +7318,23 @@ void FuncDeclNode::emitBytecode(BytecodeContext &ctx) {
                         continue;
                     }
                     if (idVal && idVal->getString()) {
-                        ctx.allocateLocal(*idVal->getString(), paramType);
+                        bool boxed = ctx.addressTakenNames.count(*idVal->getString()) > 0 && paramType.isScalar();
+                        uint16_t slot = ctx.allocateLocal(*idVal->getString(), paramType, boxed);
+                        if (boxed && ctx.code) {
+                            SemanticType boxType = paramType;
+                            boxType.arrayDims += 1;
+                            boxType.arrayLengths.insert(boxType.arrayLengths.begin(), 1);
+                            uint16_t tmpSlot = ctx.allocateTempLocal(paramType);
+                            ctx.emitLoad(paramType, slot);
+                            ctx.emitStore(paramType, tmpSlot);
+                            *ctx.code << ctx.code->PushInt(1);
+                            ctx.emitArrayNew(boxType);
+                            *ctx.code << ctx.code->StoreReference(slot);
+                            *ctx.code << ctx.code->LoadReference(slot);
+                            *ctx.code << ctx.code->PushInt(0);
+                            ctx.emitLoad(paramType, tmpSlot);
+                            ctx.emitArrayStoreValue(paramType);
+                        }
                     }
                 }
             }

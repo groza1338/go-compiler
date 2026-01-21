@@ -127,7 +127,7 @@ using namespace std;
 %left 	EQUAL NEQUAL '<' LESS_EQUAL '>' GREATER_EQUAL
 %left	'+' '-'
 %left	'*' '/' '%'
-%right	INC DEC '!' UMINUS '&'
+%right	INC DEC '!' UMINUS '&' DEREF
 %left   '.'
 %nonassoc	'(' ')' '[' ']' '{' '}'
 
@@ -292,6 +292,7 @@ type			:	type_name {$$=TypeNode::createNamedType($1);}
 				|	'[' expr ']' type {$$=TypeNode::createArrayType($2, $4);}
                 |	FUNC signature {$$=TypeNode::createFuncType($2);}
                 |	'[' ']' type {$$=TypeNode::createSliceType($3);}
+				|	'*' type {$$=TypeNode::createPointerType($2);}
 				;
 				
 type_name		:	INT {$$=TypeNameNode::createTypeInt();}
@@ -364,6 +365,7 @@ expr			:	ID {$$=ExprNode::createIdentifier(ValueNode::createString($1));}
 				|	'!' expr {$$=ExprNode::createNot($2);}
 				|	'-' expr	%prec UMINUS {$$=ExprNode::createUnaryMinus($2);}
 				|	'&' expr {$$=ExprNode::createAddressOf($2);}
+				|	'*' expr %prec DEREF {$$=ExprNode::createDereference($2);}
 				|	expr '.' ID {$$=ExprNode::createSelector($1, ValueNode::createString($3));}
 				|	expr '[' expr ']' {$$=ExprNode::createElementAccess($1, $3);}
 				|	expr '[' ':' ']' {$$=ExprNode::createSlice($1, nullptr, nullptr, nullptr);}

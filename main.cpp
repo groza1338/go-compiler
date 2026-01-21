@@ -71,6 +71,7 @@ int main(int argc, char* argv[])
         fs::path outDir = fs::path("generated_classes");
         fs::path outPath = outDir / "Main.class";
         BytecodeContext bytecode;
+        bytecode.addressTakenNames = semCtx.addressTakenNames;
         root->emitBytecode(bytecode);
         bytecode.writeTo(outPath);
     }

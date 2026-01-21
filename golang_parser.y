@@ -127,7 +127,7 @@ using namespace std;
 %left 	EQUAL NEQUAL '<' LESS_EQUAL '>' GREATER_EQUAL
 %left	'+' '-'
 %left	'*' '/' '%'
-%right	INC DEC '!' UMINUS '&'
+%right	INC DEC '!' UMINUS '&' DEREF
 %left   '.'
 %nonassoc	'(' ')' '[' ']' '{' '}'
 
@@ -292,6 +292,7 @@ type			:	type_name
 				|	'[' expr ']' type
                 |	FUNC signature
                 |	'[' ']' type
+				|	'*' type
 				;
 				
 type_name		:	INT
@@ -364,6 +365,7 @@ expr			:	ID
 				|	'!' expr
 				|	'-' expr	%prec UMINUS
 				|	'&' expr
+				|	'*' expr %prec DEREF
 				|	expr '.' ID
 				|	expr '[' expr ']'
 				|	expr '[' ':' ']'
