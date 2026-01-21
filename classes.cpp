@@ -4518,6 +4518,12 @@ bool BytecodeContext::emitExpr(ExprNode *expr) {
     switch (expr->getType()) {
         case ExprNode::LIT_VAL:
             return emitLiteral(expr->getLiteral());
+        case ExprNode::IOTA:
+            if (!inConstBlock) {
+                return false;
+            }
+            *code << code->PushInt(iotaValue);
+            return true;
         case ExprNode::ID: {
             ValueNode *id = expr->getIdentifier();
             if (!id || !id->getString()) {
@@ -5483,6 +5489,9 @@ SemanticType BytecodeContext::inferExprType(ExprNode *expr) {
             case ValueNode::LIT_RUNE: return SemanticType::makeBase(SemanticType::RUNE);
             default: break;
         }
+    }
+    if (expr->getType() == ExprNode::IOTA) {
+        return SemanticType::makeBase(SemanticType::INT);
     }
     if (expr->getType() == ExprNode::ID) {
         ValueNode *id = expr->getIdentifier();
@@ -6873,7 +6882,14 @@ void ConstSpecNode::emitBytecode(BytecodeContext &ctx) {
     if (!idList || !idList->getIdList()) {
         return;
     }
-    auto *exprItems = exprList ? exprList->getExprList() : nullptr;
+    ExprListNode *useExprList = exprList;
+    if (!useExprList && ctx.inConstBlock && ctx.constPrevExprs) {
+        useExprList = ctx.constPrevExprs;
+    }
+    if (useExprList) {
+        ctx.constPrevExprs = useExprList;
+    }
+    auto *exprItems = useExprList ? useExprList->getExprList() : nullptr;
     auto exprIt = exprItems ? exprItems->begin() : list<ExprNode*>::iterator();
 
     for (ValueNode *id : *idList->getIdList()) {
@@ -6883,6 +6899,9 @@ void ConstSpecNode::emitBytecode(BytecodeContext &ctx) {
         ExprNode *expr = (exprItems && exprIt != exprItems->end()) ? *exprIt : nullptr;
         if (exprItems && exprIt != exprItems->end()) {
             ++exprIt;
+        }
+        if (isBlankIdentifier(id)) {
+            continue;
         }
         SemanticType semType = type ? type->getSemanticType() : ctx.inferExprType(expr);
         uint16_t slot = ctx.allocateLocal(*id->getString(), semType);
@@ -6906,11 +6925,21 @@ void ConstSpecListNode::emitBytecode(BytecodeContext &ctx) {
     if (!specList) {
         return;
     }
+    bool prevInConstBlock = ctx.inConstBlock;
+    ExprListNode *prevExprs = ctx.constPrevExprs;
+    int prevIota = ctx.iotaValue;
+    ctx.inConstBlock = true;
+    ctx.constPrevExprs = nullptr;
+    int iotaValue = 0;
     for (ConstSpecNode *spec : *specList) {
+        ctx.iotaValue = iotaValue++;
         if (spec) {
             spec->emitBytecode(ctx);
         }
     }
+    ctx.inConstBlock = prevInConstBlock;
+    ctx.constPrevExprs = prevExprs;
+    ctx.iotaValue = prevIota;
 }
 
 void DeclNode::emitBytecode(BytecodeContext &ctx) {
