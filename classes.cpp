@@ -1595,7 +1595,7 @@ SemanticType ExprNode::semantics(SemanticContext &ctx) {
                 ctx.report("invalid operation: cannot take address of " + toString());
             }
             semType = operand ? operand->semantics(ctx) : SemanticType::makeBase(SemanticType::UNKNOWN);
-            if (!semType.isScalar()) {
+            if (!(semType.isScalar() || semType.arrayDims > 0)) {
                 ctx.report("invalid operation: cannot take address of " + toString());
                 semType = SemanticType::makeBase(SemanticType::UNKNOWN);
             } else {
@@ -4439,8 +4439,27 @@ BytecodeContext::BytecodeContext() {
 
 static bool toDescriptorField(const SemanticType &type, jvm::DescriptorField &out) {
     if (type.pointerDepth > 0) {
-        if (type.pointerDepth != 1 || type.arrayDims > 0 || type.sliceDims > 0) {
+        if (type.pointerDepth != 1 || type.sliceDims > 0) {
             return false;
+        }
+        if (type.arrayDims > 0) {
+            switch (type.base) {
+                case SemanticType::INT:
+                case SemanticType::RUNE:
+                    out = jvm::DescriptorField(jvm::Descriptor::Int, type.arrayDims);
+                    return true;
+                case SemanticType::FLOAT:
+                    out = jvm::DescriptorField(jvm::Descriptor::Double, type.arrayDims);
+                    return true;
+                case SemanticType::BOOL:
+                    out = jvm::DescriptorField(jvm::Descriptor::Boolean, type.arrayDims);
+                    return true;
+                case SemanticType::STRING:
+                    out = jvm::DescriptorField("java/lang/String", type.arrayDims);
+                    return true;
+                default:
+                    return false;
+            }
         }
         switch (type.base) {
             case SemanticType::INT:
@@ -4460,7 +4479,26 @@ static bool toDescriptorField(const SemanticType &type, jvm::DescriptorField &ou
                 return false;
         }
     }
-    if (type.arrayDims > 0 || type.sliceDims > 0) {
+    if (type.arrayDims > 0) {
+        switch (type.base) {
+            case SemanticType::INT:
+            case SemanticType::RUNE:
+                out = jvm::DescriptorField(jvm::Descriptor::Int, type.arrayDims);
+                return true;
+            case SemanticType::FLOAT:
+                out = jvm::DescriptorField(jvm::Descriptor::Double, type.arrayDims);
+                return true;
+            case SemanticType::BOOL:
+                out = jvm::DescriptorField(jvm::Descriptor::Boolean, type.arrayDims);
+                return true;
+            case SemanticType::STRING:
+                out = jvm::DescriptorField("java/lang/String", type.arrayDims);
+                return true;
+            default:
+                return false;
+        }
+    }
+    if (type.sliceDims > 0) {
         return false;
     }
     switch (type.base) {
@@ -4742,24 +4780,41 @@ bool BytecodeContext::emitExpr(ExprNode *expr) {
             return emitSliceExpr(expr);
         case ExprNode::ADDRESS_OF: {
             ExprNode *operand = expr->getOperand();
-            if (!operand || operand->getType() != ExprNode::ID) {
+            if (!operand) {
                 return false;
             }
-            ValueNode *idVal = operand->getIdentifier();
-            if (!idVal || !idVal->getString()) {
+            if (operand->getType() == ExprNode::ID) {
+                ValueNode *idVal = operand->getIdentifier();
+                if (!idVal || !idVal->getString()) {
+                    return false;
+                }
+                auto it = locals.find(*idVal->getString());
+                if (it == locals.end()) {
+                    return false;
+                }
+                const SemanticType &varType = it->second.type;
+                if (varType.isScalar()) {
+                    uint16_t slot = it->second.index;
+                    auto boxedIt = boxedSlots.find(slot);
+                    if (boxedIt == boxedSlots.end()) {
+                        return false;
+                    }
+                    *code << code->LoadReference(slot);
+                    return true;
+                }
+                if (varType.arrayDims > 0 || varType.sliceDims > 0) {
+                    emitLoad(varType, it->second.index);
+                    return true;
+                }
                 return false;
             }
-            auto it = locals.find(*idVal->getString());
-            if (it == locals.end()) {
-                return false;
+            if (operand->getType() == ExprNode::ELEMENT_ACCESS) {
+                SemanticType elemType = inferExprType(operand);
+                if (elemType.arrayDims > 0 || elemType.sliceDims > 0) {
+                    return emitExpr(operand);
+                }
             }
-            uint16_t slot = it->second.index;
-            auto boxedIt = boxedSlots.find(slot);
-            if (boxedIt == boxedSlots.end()) {
-                return false;
-            }
-            *code << code->LoadReference(slot);
-            return true;
+            return false;
         }
         case ExprNode::ELEMENT_ACCESS:
             return emitArrayAccess(expr);
@@ -4864,6 +4919,9 @@ bool BytecodeContext::emitExpr(ExprNode *expr) {
             }
             SemanticType elemType = operandType;
             elemType.pointerDepth -= 1;
+            if (operandType.arrayDims > 0 || operandType.sliceDims > 0) {
+                return emitExpr(operand);
+            }
             if (!emitExpr(operand)) {
                 return false;
             }
