@@ -26,6 +26,7 @@ func main() {
 	fmt.Println("x - y =", x-y)
 	fmt.Println("x * y =", x*y)
 	fmt.Println("x / y =", x/y)
+	fmt.Println()
 	fmt.Println("x == y:", x == y)
 	fmt.Println("x != y:", x != y)
 	fmt.Println("x > y:", x > y)
@@ -47,7 +48,6 @@ func main() {
 
 	fmt.Println()
 
-	// сравнения int и float (тоже ок, потому что это константы)
 	fmt.Println("10 == 10.0:", 10 == 10.0)
 	fmt.Println("10 != 10.0:", 10 != 10.0)
 	fmt.Println("10 > 10.5:", 10 > 10.5)
