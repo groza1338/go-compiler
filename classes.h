@@ -122,6 +122,7 @@ struct SemanticContext {
     vector<int> switchDefaultCounts;
     int loopDepth = 0;
     unordered_map<string, FunctionInfo> functions;
+    unordered_map<string, unordered_set<string>> functionAddressTaken;
     unordered_set<string> importNames;
     unordered_map<string, string> importTargets;
     bool inConstBlock = false;
@@ -201,6 +202,7 @@ struct BytecodeContext {
     jvm::AttributeCode *code = nullptr;
     jvm::ConstantFieldref *systemOut = nullptr;
     unordered_map<string, SemanticContext::FunctionInfo> functions;
+    unordered_map<string, unordered_set<string>> functionAddressTaken;
     unordered_map<string, LocalVarInfo> locals;
     unordered_set<string> addressTakenNames;
     unordered_map<uint16_t, SemanticType> boxedSlots;

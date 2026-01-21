@@ -3828,7 +3828,9 @@ void FuncDeclNode::semantics(SemanticContext &ctx) {
     if (body) body->semantics(local);
     local.exitFunction();
     ctx.errors.insert(ctx.errors.end(), local.errors.begin(), local.errors.end());
-    ctx.addressTakenNames.insert(local.addressTakenNames.begin(), local.addressTakenNames.end());
+    if (id && id->getString()) {
+        ctx.functionAddressTaken[*id->getString()] = local.addressTakenNames;
+    }
 }
 
 ValueNode* FuncDeclNode::getId() const {
@@ -7485,6 +7487,12 @@ void ProgramNode::emitBytecode(BytecodeContext &ctx) {
         const vector<SemanticType> empty;
         const vector<SemanticType> &params = (it != ctx.functions.end()) ? it->second.params : empty;
         const vector<SemanticType> &results = (it != ctx.functions.end()) ? it->second.results : empty;
+        auto addrIt = ctx.functionAddressTaken.find(name);
+        if (addrIt != ctx.functionAddressTaken.end()) {
+            ctx.addressTakenNames = addrIt->second;
+        } else {
+            ctx.addressTakenNames.clear();
+        }
         if (name == "main") {
             ctx.startMain();
             ctx.currentReturnTypes = results;
