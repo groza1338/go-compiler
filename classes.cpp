@@ -4570,8 +4570,7 @@ void BytecodeContext::startMain() {
     tempCounter = 0;
     loopStack.clear();
     scannerInitialized = false;
-
-    scannerInitialized = false;
+    ensureScanner();
 }
 
 bool BytecodeContext::startFunction(const string &name,
@@ -4599,6 +4598,7 @@ bool BytecodeContext::startFunction(const string &name,
     locals.clear();
     nextLocalIndex = 0;
     scannerInitialized = false;
+    ensureScanner();
     return true;
 }
 
@@ -6428,15 +6428,9 @@ bool BytecodeContext::emitScanCall(ExprNode *expr) {
             continue;
         }
 
-        jvm::ConstantMethodref *hasNext = nullptr;
         jvm::ConstantMethodref *nextValue = nullptr;
         switch (targetType.base) {
             case SemanticType::FLOAT: {
-                hasNext = clazz->getOrCreateMethodrefConstant(
-                    scannerClass,
-                    "hasNextDouble",
-                    jvm::DescriptorMethod(jvm::DescriptorField(jvm::Descriptor::Boolean), {})
-                );
                 nextValue = clazz->getOrCreateMethodrefConstant(
                     scannerClass,
                     "nextDouble",
@@ -6445,11 +6439,6 @@ bool BytecodeContext::emitScanCall(ExprNode *expr) {
                 break;
             }
             case SemanticType::BOOL: {
-                hasNext = clazz->getOrCreateMethodrefConstant(
-                    scannerClass,
-                    "hasNextBoolean",
-                    jvm::DescriptorMethod(jvm::DescriptorField(jvm::Descriptor::Boolean), {})
-                );
                 nextValue = clazz->getOrCreateMethodrefConstant(
                     scannerClass,
                     "nextBoolean",
@@ -6458,11 +6447,6 @@ bool BytecodeContext::emitScanCall(ExprNode *expr) {
                 break;
             }
             case SemanticType::STRING: {
-                hasNext = clazz->getOrCreateMethodrefConstant(
-                    scannerClass,
-                    "hasNext",
-                    jvm::DescriptorMethod(jvm::DescriptorField(jvm::Descriptor::Boolean), {})
-                );
                 nextValue = clazz->getOrCreateMethodrefConstant(
                     scannerClass,
                     "next",
@@ -6473,11 +6457,6 @@ bool BytecodeContext::emitScanCall(ExprNode *expr) {
             case SemanticType::RUNE:
             case SemanticType::INT:
             default: {
-                hasNext = clazz->getOrCreateMethodrefConstant(
-                    scannerClass,
-                    "hasNextInt",
-                    jvm::DescriptorMethod(jvm::DescriptorField(jvm::Descriptor::Boolean), {})
-                );
                 nextValue = clazz->getOrCreateMethodrefConstant(
                     scannerClass,
                     "nextInt",
@@ -6486,34 +6465,21 @@ bool BytecodeContext::emitScanCall(ExprNode *expr) {
                 break;
             }
         }
-        if (!hasNext || !nextValue) {
+        if (!nextValue) {
             continue;
         }
-        emitLoad(refType, scannerSlot);
-        *code << code->InvokeVirtual(hasNext);
-        jvm::Label *skipLabel = code->CodeLabel();
-        *code << code->If(jvm::Instruction::Compare::Equal, skipLabel);
         if (isDirectLocal) {
             emitLoad(refType, scannerSlot);
             *code << code->InvokeVirtual(nextValue);
             emitStore(targetType, targetSlot);
         } else {
             if (!emitExpr(arrayExpr) || !emitExpr(indexExpr)) {
-                *code << skipLabel;
                 continue;
             }
-            SemanticType intType = SemanticType::makeBase(SemanticType::INT);
-            uint16_t idxSlot = allocateTempLocal(intType);
-            emitStore(intType, idxSlot);
-            uint16_t arrSlot = allocateTempLocal(arrayType);
-            emitStore(arrayType, arrSlot);
-            emitLoad(arrayType, arrSlot);
-            emitLoad(intType, idxSlot);
             emitLoad(refType, scannerSlot);
             *code << code->InvokeVirtual(nextValue);
             emitArrayStoreValue(targetType);
         }
-        *code << skipLabel;
     }
     return true;
 }
