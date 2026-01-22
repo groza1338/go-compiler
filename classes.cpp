@@ -4598,7 +4598,6 @@ bool BytecodeContext::startFunction(const string &name,
     locals.clear();
     nextLocalIndex = 0;
     scannerInitialized = false;
-    ensureScanner();
     return true;
 }
 
