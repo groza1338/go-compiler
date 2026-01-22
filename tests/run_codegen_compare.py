@@ -4,7 +4,7 @@ import shutil
 import subprocess
 from pathlib import Path
 
-DEBUG = True
+DEBUG = False
 
 BASE_RUN_DIRECTORY = "main_code_examples"
 BASE_IMAGE_NAME = "golang_flex_project"
@@ -200,13 +200,20 @@ if __name__ == "__main__":
     if not selected_files:
         print("Файл не выбран.")
         raise SystemExit(0)
+    total_tests = len(selected_files)
+    has_multiple = total_tests > 1
+    passed = 0
+    failed = 0
+    errors = 0
     clear_generated_classes_dir(".")
     Path(LOCAL_CLASSES_DIRECTORY).mkdir(parents=True, exist_ok=True)
     Path(LOCAL_SEM_DIRECTORY).mkdir(parents=True, exist_ok=True)
     image_name = build_docker_image()
     container_name = run_docker_container(image_name=image_name)
     try:
-        for file in selected_files:
+        for idx, file in enumerate(selected_files):
+            if has_multiple and idx > 0:
+                print("-" * 12)
             file_path = Path(file)
             stdin_text = read_test_input(file_path)
             if stdin_text is None:
@@ -214,9 +221,11 @@ if __name__ == "__main__":
             go_result = run_local_go(file_path.as_posix(), stdin_text)
             if go_result is None:
                 print(f"[{file}] go run timed out.")
+                errors += 1
                 continue
             if go_result.returncode != 0:
                 print(f"[{file}] go run failed:\n{go_result.stderr}")
+                errors += 1
                 continue
             command = [EXECUTABLE_TARGET, file_path.as_posix()]
             result = run_command_inside_container(
@@ -226,6 +235,7 @@ if __name__ == "__main__":
             )
             if result.returncode != 0:
                 print(f"[{file}] compilation failed.")
+                errors += 1
                 continue
             sem_file = Path(LOCAL_SEM_DIRECTORY) / (file_path.name + ".sem.txt")
             if sem_file.exists():
@@ -235,6 +245,7 @@ if __name__ == "__main__":
             if not generated.exists():
                 if DEBUG:
                     print(f"No class produced for {file_path}")
+                errors += 1
                 continue
 
             try:
@@ -249,9 +260,11 @@ if __name__ == "__main__":
             java_result = run_local_java(str(dest_dir), stdin_text)
             if java_result is None:
                 print(f"[{file}] java run timed out.")
+                errors += 1
                 continue
             if java_result.returncode != 0:
                 print(f"[{file}] java run failed:\n{java_result.stderr}")
+                errors += 1
                 continue
 
             go_output = normalize_output(go_result.stdout)
@@ -262,5 +275,16 @@ if __name__ == "__main__":
             print_stream("go output", go_result.stdout)
             print_stream("java output", java_result.stdout)
             print("match:", "yes" if match else "no")
+            if match:
+                passed += 1
+            else:
+                failed += 1
     finally:
         kill_docker_container(container_name)
+    if has_multiple:
+        print("-" * 12)
+    print("Summary:")
+    print(f"Total: {total_tests}")
+    print(f"Passed: {passed}")
+    print(f"Failed: {failed}")
+    print(f"Errors: {errors}")
