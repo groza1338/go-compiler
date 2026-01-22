@@ -232,6 +232,113 @@ static bool buildLiteralConvertMismatch(ExprNode *expr, const SemanticType &targ
     return true;
 }
 
+static bool computeSliceBacking(BytecodeContext &ctx, ExprNode *rhs, BytecodeContext::SliceBacking &backing) {
+    if (!rhs || !ctx.code) {
+        return false;
+    }
+    SemanticType intType = SemanticType::makeBase(SemanticType::INT);
+    if (rhs->getType() == ExprNode::SLICE) {
+        ExprNode *operand = rhs->getOperand();
+        ExprNode *lowExpr = rhs->getLow();
+        ExprNode *highExpr = rhs->getHigh();
+        if (!operand || operand->getType() != ExprNode::ID) {
+            return false;
+        }
+        ValueNode *opId = operand->getIdentifier();
+        if (!opId || !opId->getString()) {
+            return false;
+        }
+        const string &opName = *opId->getString();
+        auto opLocal = ctx.locals.find(opName);
+        if (opLocal == ctx.locals.end()) {
+            return false;
+        }
+        SemanticType opType = opLocal->second.type;
+        if (opType.arrayDims > 0 && opType.pointerDepth <= 0 && opType.sliceDims <= 0) {
+            if (lowExpr) {
+                if (!ctx.emitExprWithCast(lowExpr, intType)) {
+                    return false;
+                }
+            } else {
+                *ctx.code << ctx.code->PushInt(0);
+            }
+            uint16_t lowSlot = ctx.allocateTempLocal(intType);
+            ctx.emitStore(intType, lowSlot);
+            if (highExpr) {
+                if (!ctx.emitExprWithCast(highExpr, intType)) {
+                    return false;
+                }
+            } else {
+                ctx.emitLoad(opType, opLocal->second.index);
+                *ctx.code << ctx.code->ArrayLength();
+            }
+            uint16_t highSlot = ctx.allocateTempLocal(intType);
+            ctx.emitStore(intType, highSlot);
+            ctx.emitLoad(intType, highSlot);
+            ctx.emitLoad(intType, lowSlot);
+            *ctx.code << ctx.code->SubInt();
+            uint16_t lenSlot = ctx.allocateTempLocal(intType);
+            ctx.emitStore(intType, lenSlot);
+            backing.backingSlot = opLocal->second.index;
+            backing.offsetSlot = lowSlot;
+            backing.lengthSlot = lenSlot;
+            return true;
+        }
+        if (opType.sliceDims > 0) {
+            auto backingIt = ctx.sliceBackings.find(opName);
+            if (backingIt == ctx.sliceBackings.end()) {
+                return false;
+            }
+            if (lowExpr) {
+                if (!ctx.emitExprWithCast(lowExpr, intType)) {
+                    return false;
+                }
+            } else {
+                *ctx.code << ctx.code->PushInt(0);
+            }
+            uint16_t lowSlot = ctx.allocateTempLocal(intType);
+            ctx.emitStore(intType, lowSlot);
+            ctx.emitLoad(intType, backingIt->second.offsetSlot);
+            ctx.emitLoad(intType, lowSlot);
+            *ctx.code << ctx.code->AddInt();
+            uint16_t offSlot = ctx.allocateTempLocal(intType);
+            ctx.emitStore(intType, offSlot);
+            if (highExpr) {
+                if (!ctx.emitExprWithCast(highExpr, intType)) {
+                    return false;
+                }
+            } else {
+                ctx.emitLoad(intType, backingIt->second.lengthSlot);
+            }
+            uint16_t highSlot = ctx.allocateTempLocal(intType);
+            ctx.emitStore(intType, highSlot);
+            ctx.emitLoad(intType, highSlot);
+            ctx.emitLoad(intType, lowSlot);
+            *ctx.code << ctx.code->SubInt();
+            uint16_t lenSlot = ctx.allocateTempLocal(intType);
+            ctx.emitStore(intType, lenSlot);
+            backing.backingSlot = backingIt->second.backingSlot;
+            backing.offsetSlot = offSlot;
+            backing.lengthSlot = lenSlot;
+            return true;
+        }
+        return false;
+    }
+    if (rhs->getType() == ExprNode::ID) {
+        ValueNode *rhsId = rhs->getIdentifier();
+        if (!rhsId || !rhsId->getString()) {
+            return false;
+        }
+        auto backingIt = ctx.sliceBackings.find(*rhsId->getString());
+        if (backingIt == ctx.sliceBackings.end()) {
+            return false;
+        }
+        backing = backingIt->second;
+        return true;
+    }
+    return false;
+}
+
 static string formatExprForGoMessage(ExprNode *expr) {
     if (!expr) {
         return "value";
@@ -4570,6 +4677,7 @@ void BytecodeContext::startMain() {
     tempCounter = 0;
     loopStack.clear();
     scannerInitialized = false;
+    sliceBackings.clear();
     ensureScanner();
 }
 
@@ -4598,6 +4706,7 @@ bool BytecodeContext::startFunction(const string &name,
     locals.clear();
     nextLocalIndex = 0;
     scannerInitialized = false;
+    sliceBackings.clear();
     return true;
 }
 
@@ -5400,6 +5509,23 @@ bool BytecodeContext::emitArrayAccess(ExprNode *expr) {
         } else {
             elemType.sliceDims -= 1;
         }
+        if (arrayType.sliceDims > 0 && operand->getType() == ExprNode::ID) {
+            ValueNode *idVal = operand->getIdentifier();
+            if (idVal && idVal->getString()) {
+                auto it = sliceBackings.find(*idVal->getString());
+                if (it != sliceBackings.end()) {
+                    SemanticType intType = SemanticType::makeBase(SemanticType::INT);
+                    emitLoad(arrayType, it->second.backingSlot);
+                    if (!emitExpr(index)) {
+                        return false;
+                    }
+                    emitLoad(intType, it->second.offsetSlot);
+                    *code << code->AddInt();
+                    emitArrayLoadValue(elemType);
+                    return true;
+                }
+            }
+        }
         if (!emitExpr(operand) || !emitExpr(index)) {
             return false;
         }
@@ -5580,6 +5706,18 @@ bool BytecodeContext::emitArrayPrint(ExprNode *expr, const SemanticType &arrayTy
     if (!expr || !code || !systemOut) {
         return false;
     }
+    if (expr->getType() == ExprNode::ID && arrayType.sliceDims > 0) {
+        ValueNode *idVal = expr->getIdentifier();
+        if (idVal && idVal->getString()) {
+            auto it = sliceBackings.find(*idVal->getString());
+            if (it != sliceBackings.end()) {
+                emitLoad(arrayType, it->second.backingSlot);
+                uint16_t arrSlot = allocateTempLocal(arrayType);
+                emitStore(arrayType, arrSlot);
+                return emitSlicePrintFromBacking(arrayType, arrSlot, it->second);
+            }
+        }
+    }
     if (!emitExpr(expr)) {
         return false;
     }
@@ -5689,6 +5827,132 @@ bool BytecodeContext::emitArrayPrintFromLocal(const SemanticType &arrayType, uin
         *code << code->GetStatic(systemOut);
         emitLoad(arrayType, arrSlot);
         emitLoad(intType, idxSlot);
+        emitArrayLoadValue(elemType);
+        jvm::ConstantMethodref *printElem = getPrintMethod(elemType);
+        if (printElem) {
+            *code << code->InvokeVirtual(printElem);
+        }
+    }
+
+    emitLoad(intType, idxSlot);
+    *code << code->PushInt(1);
+    *code << code->AddInt();
+    emitStore(intType, idxSlot);
+    *code << code->GoTo(labelCond);
+
+    *code << labelEnd;
+    *code << code->GetStatic(systemOut);
+    *code << code->PushString("]");
+    if (printString) {
+        *code << code->InvokeVirtual(printString);
+    }
+    return true;
+}
+
+bool BytecodeContext::emitSlicePrintFromBacking(const SemanticType &sliceType,
+                                                uint16_t backingSlot,
+                                                const SliceBacking &backing) {
+    if (!code || !systemOut) {
+        return false;
+    }
+    if (sliceType.sliceDims <= 0) {
+        return false;
+    }
+    SemanticType intType = SemanticType::makeBase(SemanticType::INT);
+    uint16_t idxSlot = allocateTempLocal(intType);
+    jvm::ConstantMethodref *printString = getPrintMethod(SemanticType::makeBase(SemanticType::STRING));
+
+    *code << code->GetStatic(systemOut);
+    *code << code->PushString("[");
+    if (printString) {
+        *code << code->InvokeVirtual(printString);
+    }
+
+    *code << code->PushInt(0);
+    emitStore(intType, idxSlot);
+
+    jvm::Label *labelCond = code->CodeLabel();
+    jvm::Label *labelEnd = code->CodeLabel();
+    jvm::Label *labelNoSpace = code->CodeLabel();
+
+    *code << labelCond;
+    emitLoad(intType, idxSlot);
+    emitLoad(intType, backing.lengthSlot);
+    *code << code->IfWithCompare(jvm::Instruction::Compare::GreaterEqual, labelEnd);
+
+    emitLoad(intType, idxSlot);
+    *code << code->PushInt(0);
+    *code << code->IfWithCompare(jvm::Instruction::Compare::LessEqual, labelNoSpace);
+    *code << code->GetStatic(systemOut);
+    *code << code->PushString(" ");
+    if (printString) {
+        *code << code->InvokeVirtual(printString);
+    }
+    *code << labelNoSpace;
+
+    SemanticType elemType = sliceType;
+    elemType.sliceDims -= 1;
+    if (elemType.arrayDims > 0 || elemType.sliceDims > 0) {
+        emitLoad(sliceType, backingSlot);
+        emitLoad(intType, idxSlot);
+        emitLoad(intType, backing.offsetSlot);
+        *code << code->AddInt();
+        emitArrayLoadValue(elemType);
+        uint16_t elemSlot = allocateTempLocal(elemType);
+        emitStore(elemType, elemSlot);
+        if (!emitArrayPrintFromLocal(elemType, elemSlot)) {
+            return false;
+        }
+    } else if (elemType.base == SemanticType::FLOAT) {
+        SemanticType floatType = SemanticType::makeBase(SemanticType::FLOAT);
+        emitLoad(sliceType, backingSlot);
+        emitLoad(intType, idxSlot);
+        emitLoad(intType, backing.offsetSlot);
+        *code << code->AddInt();
+        emitArrayLoadValue(elemType);
+        string tmpName = "$arr_print$" + to_string(locals.size());
+        uint16_t tmpSlot = allocateLocal(tmpName, floatType);
+        emitStore(floatType, tmpSlot);
+        emitLoad(floatType, tmpSlot);
+        jvm::ConstantMethodref *floorRef = clazz->getOrCreateMethodrefConstant(
+            "java/lang/Math",
+            "floor",
+            jvm::DescriptorMethod(jvm::DescriptorField(jvm::Descriptor::Double), {jvm::DescriptorField(jvm::Descriptor::Double)})
+        );
+        *code << code->InvokeStatic(floorRef);
+        emitLoad(floatType, tmpSlot);
+        *code << code->CompareDouble(jvm::Instruction::StrictCompare::Greater);
+        jvm::Label *labelInt = code->CodeLabel();
+        jvm::Label *labelFloatEnd = code->CodeLabel();
+        *code << code->If(jvm::Instruction::Compare::Equal, labelInt);
+        *code << code->GetStatic(systemOut);
+        emitLoad(floatType, tmpSlot);
+        jvm::ConstantMethodref *doubleToString = clazz->getOrCreateMethodrefConstant(
+            "java/lang/Double",
+            "toString",
+            jvm::DescriptorMethod(jvm::DescriptorField("java/lang/String"), {jvm::DescriptorField(jvm::Descriptor::Double)})
+        );
+        *code << code->InvokeStatic(doubleToString);
+        jvm::ConstantMethodref *printString = getPrintMethod(SemanticType::makeBase(SemanticType::STRING));
+        if (printString) {
+            *code << code->InvokeVirtual(printString);
+        }
+        *code << code->GoTo(labelFloatEnd);
+        *code << labelInt;
+        *code << code->GetStatic(systemOut);
+        emitLoad(floatType, tmpSlot);
+        *code << code->DoubleToInt();
+        jvm::ConstantMethodref *printInt = getPrintMethod(SemanticType::makeBase(SemanticType::INT));
+        if (printInt) {
+            *code << code->InvokeVirtual(printInt);
+        }
+        *code << labelFloatEnd;
+    } else {
+        *code << code->GetStatic(systemOut);
+        emitLoad(sliceType, backingSlot);
+        emitLoad(intType, idxSlot);
+        emitLoad(intType, backing.offsetSlot);
+        *code << code->AddInt();
         emitArrayLoadValue(elemType);
         jvm::ConstantMethodref *printElem = getPrintMethod(elemType);
         if (printElem) {
@@ -6472,12 +6736,48 @@ bool BytecodeContext::emitScanCall(ExprNode *expr) {
             *code << code->InvokeVirtual(nextValue);
             emitStore(targetType, targetSlot);
         } else {
-            if (!emitExpr(arrayExpr) || !emitExpr(indexExpr)) {
+            bool mirrorSlice = false;
+            SliceBacking backing{};
+            if (arrayExpr && arrayExpr->getType() == ExprNode::ID && arrayType.sliceDims > 0) {
+                ValueNode *arrId = arrayExpr->getIdentifier();
+                if (arrId && arrId->getString()) {
+                    auto it = sliceBackings.find(*arrId->getString());
+                    if (it != sliceBackings.end()) {
+                        backing = it->second;
+                        mirrorSlice = true;
+                    }
+                }
+            }
+            if (!emitExpr(indexExpr)) {
                 continue;
             }
+            SemanticType intType = SemanticType::makeBase(SemanticType::INT);
+            uint16_t idxSlot = allocateTempLocal(intType);
+            emitStore(intType, idxSlot);
+            if (!emitExpr(arrayExpr)) {
+                continue;
+            }
+            uint16_t arrSlot = allocateTempLocal(arrayType);
+            emitStore(arrayType, arrSlot);
             emitLoad(refType, scannerSlot);
             *code << code->InvokeVirtual(nextValue);
+            uint16_t valSlot = allocateTempLocal(targetType);
+            emitStore(targetType, valSlot);
+            emitLoad(arrayType, arrSlot);
+            emitLoad(intType, idxSlot);
+            emitLoad(targetType, valSlot);
             emitArrayStoreValue(targetType);
+            if (mirrorSlice) {
+                emitLoad(SemanticType::makeBase(SemanticType::INT), backing.offsetSlot);
+                emitLoad(intType, idxSlot);
+                *code << code->AddInt();
+                uint16_t backingIdxSlot = allocateTempLocal(intType);
+                emitStore(intType, backingIdxSlot);
+                emitLoad(arrayType, backing.backingSlot);
+                emitLoad(intType, backingIdxSlot);
+                emitLoad(targetType, valSlot);
+                emitArrayStoreValue(targetType);
+            }
         }
     }
     return true;
@@ -7008,6 +7308,19 @@ void SimpleStmtNode::emitBytecode(BytecodeContext &ctx) {
             }
             auto itLeft = leftExprs.begin();
             auto itRight = rightExprs.begin();
+            auto registerSliceBacking = [&](const string &name, ExprNode *rhs, const SemanticType &targetType) {
+                if (targetType.sliceDims <= 0) {
+                    ctx.sliceBackings.erase(name);
+                    return;
+                }
+                BytecodeContext::SliceBacking backing{};
+                bool shouldRegister = computeSliceBacking(ctx, rhs, backing);
+                if (shouldRegister) {
+                    ctx.sliceBackings[name] = backing;
+                } else {
+                    ctx.sliceBackings.erase(name);
+                }
+            };
             for (ExprNode *leftExpr : leftExprs) {
                 ExprNode *rightExpr = nullptr;
                 if (leftExpr && leftExpr->getType() == ExprNode::ELEMENT_ASSIGN) {
@@ -7040,11 +7353,49 @@ void SimpleStmtNode::emitBytecode(BytecodeContext &ctx) {
                     } else {
                         elemType.sliceDims -= 1;
                     }
-                    if (!ctx.emitExpr(operand) || !ctx.emitExpr(index) ||
-                        !ctx.emitExprWithCast(rightExpr, elemType)) {
+                    SemanticType intType = SemanticType::makeBase(SemanticType::INT);
+                    bool mirrorSlice = false;
+                    BytecodeContext::SliceBacking backing{};
+                    if (operand->getType() == ExprNode::ID && arrayType.sliceDims > 0) {
+                        ValueNode *arrId = operand->getIdentifier();
+                        if (arrId && arrId->getString()) {
+                            auto it = ctx.sliceBackings.find(*arrId->getString());
+                            if (it != ctx.sliceBackings.end()) {
+                                backing = it->second;
+                                mirrorSlice = true;
+                            }
+                        }
+                    }
+                    if (!ctx.emitExpr(operand)) {
                         continue;
                     }
+                    uint16_t arrSlot = ctx.allocateTempLocal(arrayType);
+                    ctx.emitStore(arrayType, arrSlot);
+                    if (!ctx.emitExpr(index)) {
+                        continue;
+                    }
+                    uint16_t idxSlot = ctx.allocateTempLocal(intType);
+                    ctx.emitStore(intType, idxSlot);
+                    if (!ctx.emitExprWithCast(rightExpr, elemType)) {
+                        continue;
+                    }
+                    uint16_t valSlot = ctx.allocateTempLocal(elemType);
+                    ctx.emitStore(elemType, valSlot);
+                    ctx.emitLoad(arrayType, arrSlot);
+                    ctx.emitLoad(intType, idxSlot);
+                    ctx.emitLoad(elemType, valSlot);
                     ctx.emitArrayStoreValue(elemType);
+                    if (mirrorSlice) {
+                        ctx.emitLoad(intType, backing.offsetSlot);
+                        ctx.emitLoad(intType, idxSlot);
+                        *ctx.code << ctx.code->AddInt();
+                        uint16_t backingIdxSlot = ctx.allocateTempLocal(intType);
+                        ctx.emitStore(intType, backingIdxSlot);
+                        ctx.emitLoad(arrayType, backing.backingSlot);
+                        ctx.emitLoad(intType, backingIdxSlot);
+                        ctx.emitLoad(elemType, valSlot);
+                        ctx.emitArrayStoreValue(elemType);
+                    }
                     continue;
                 }
                 if (leftExpr->getType() != ExprNode::ID) {
@@ -7084,6 +7435,7 @@ void SimpleStmtNode::emitBytecode(BytecodeContext &ctx) {
                 uint16_t slot = localIt->second.index;
                 targetType = localIt->second.type;
                 if (type == ASSIGN || type == SHORT_VAR_DECL) {
+                    registerSliceBacking(name, rightExpr, targetType);
                     if (!ctx.emitExprWithCast(rightExpr, targetType)) {
                         continue;
                     }
@@ -7210,6 +7562,17 @@ void VarSpecNode::emitBytecode(BytecodeContext &ctx) {
                 ctx.emitArrayStoreValue(semType);
                 continue;
             }
+        }
+        if (semType.sliceDims > 0) {
+            BytecodeContext::SliceBacking backing{};
+            bool shouldRegister = computeSliceBacking(ctx, expr, backing);
+            if (shouldRegister) {
+                ctx.sliceBackings[*id->getString()] = backing;
+            } else {
+                ctx.sliceBackings.erase(*id->getString());
+            }
+        } else {
+            ctx.sliceBackings.erase(*id->getString());
         }
         ctx.emitStore(semType, slot);
     }

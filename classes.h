@@ -216,6 +216,12 @@ struct BytecodeContext {
     ExprListNode *constPrevExprs = nullptr;
     int iotaValue = 0;
     bool inConstBlock = false;
+    struct SliceBacking {
+        uint16_t backingSlot = 0;
+        uint16_t offsetSlot = 0;
+        uint16_t lengthSlot = 0;
+    };
+    unordered_map<string, SliceBacking> sliceBackings;
 
     BytecodeContext();
     void startMain();
@@ -238,6 +244,7 @@ struct BytecodeContext {
     void emitArrayLoadValue(const SemanticType &elemType);
     bool emitArrayPrint(ExprNode *expr, const SemanticType &arrayType);
     bool emitArrayPrintFromLocal(const SemanticType &arrayType, uint16_t arrSlot);
+    bool emitSlicePrintFromBacking(const SemanticType &sliceType, uint16_t backingSlot, const SliceBacking &backing);
     void emitLoad(const SemanticType &type, uint16_t index);
     void emitStore(const SemanticType &type, uint16_t index);
     SemanticType inferExprType(ExprNode *expr);
