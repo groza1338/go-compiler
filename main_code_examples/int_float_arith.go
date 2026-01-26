@@ -54,4 +54,15 @@ func main() {
 	fmt.Println("10 < 10.5:", 10 < 10.5)
 	fmt.Println("10 >= 10.5:", 10 >= 10.5)
 	fmt.Println("10 <= 10.5:", 10 <= 10.5)
+
+	var k int = 3
+	var l float64 = 4.3
+
+
+
+	fmt.Println(k + 7.5)
+	fmt.Println(7.5 + k)
+
+	fmt.Println(7 + l)
+	fmt.Println(l + 7)
 }

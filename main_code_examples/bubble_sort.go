@@ -13,6 +13,7 @@ func main() {
 	}
 	arr := [array_len]int{}
 	for x := 0; x < n; x++ {
+	    fmt.Print("Введите", x,"-ый элемент массива: ")
 		fmt.Scan(&arr[x])
 	}
 	for i := 0; i < n; i++ {
