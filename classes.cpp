@@ -5212,6 +5212,25 @@ bool BytecodeContext::emitExpr(ExprNode *expr) {
                     if (!arg) {
                         return false;
                     }
+                    if (paramIt->arrayDims > 0 && paramIt->pointerDepth == 0 && paramIt->sliceDims == 0) {
+                        if (!emitExprWithCast(arg, *paramIt)) {
+                            return false;
+                        }
+                        uint16_t arrSlot = allocateTempLocal(*paramIt);
+                        emitStore(*paramIt, arrSlot);
+                        SemanticType elemType = *paramIt;
+                        dropOuterArrayDim(elemType);
+                        jvm::ConstantMethodref *copyRef = getArrayCopyRangeMethod(elemType);
+                        if (!copyRef) {
+                            return false;
+                        }
+                        emitLoad(*paramIt, arrSlot);
+                        *code << code->PushInt(0);
+                        emitLoad(*paramIt, arrSlot);
+                        *code << code->ArrayLength();
+                        *code << code->InvokeStatic(copyRef);
+                        continue;
+                    }
                     if (!emitExprWithCast(arg, *paramIt)) {
                         return false;
                     }
