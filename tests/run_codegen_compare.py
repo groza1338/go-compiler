@@ -273,6 +273,8 @@ if __name__ == "__main__":
             print(f"== {file} ==")
             print_stream("stdin", stdin_text)
             print_stream("go output", go_result.stdout)
+            print()
+            print()
             print_stream("java output", java_result.stdout)
             print("match:", "yes" if match else "no")
             if match:
